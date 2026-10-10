@@ -3,13 +3,15 @@
 // ✅ Parent menu tap ONLY expands — never navigates
 // ✅ Right-side content changes ONLY when a submenu is tapped
 // ✅ Submenus are NULLABLE — nothing auto-selected
+// ✅ NEW: Schemes menu added with browse + applications submenus
 
 enum UserMenuType {
   dashboard,
   jobs,          // ✅ Parent — expands to Browse Jobs + Job Applications
   services,      // ✅ Parent — expands to Browse Services + My Applications
   resume,        // ✅ Parent — expands to Build Resume + View Resume + ATS + AI
-  ai,            // ✅ Parent — expands to AI Dashboard + Career Roadmap
+  schemes,       // ✅ Parent — expands to Browse Schemes + Scheme Applications
+  ai,            // ✅ Parent — expands to AI Dashboard + Career Roadmap (HIDDEN)
   profile,       // ✅ Parent — expands to Basic / Education / Experience / Advanced / Documents
   support,       // ✅ Leaf — direct
   settings,      // ✅ Parent — expands to Change Password / MPIN / Fingerprint
@@ -39,6 +41,14 @@ enum ResumeSubMenu {
   viewResume,
   atsScore,
   aiGenerator,
+}
+
+// ============================================================
+// ✅ NEW: SCHEMES SUBMENU
+// ============================================================
+enum SchemesSubMenu {
+  browseSchemes,
+  schemeApplications,
 }
 
 // ============================================================

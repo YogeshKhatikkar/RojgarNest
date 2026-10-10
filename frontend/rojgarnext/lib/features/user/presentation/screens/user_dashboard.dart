@@ -5,6 +5,10 @@
 // ✅ NULLABLE submenus — no auto-select
 // ✅ Placeholder shown when parent expanded but no submenu chosen
 // ✅ FIXED: ApplicationDetailScreen now shows in right panel when "View Application" clicked
+// ✅ NEW: Schemes menu added — Browse Schemes + Scheme Applications
+// ✅ NEW: SchemeDetailScreen now shows in right panel (embedded)
+// ✅ NEW: SchemeListScreen now shows in right panel (embedded)
+// ✅ NEW: UserSchemeApplicationsScreen now shows in right panel (embedded)
 // ✅ All original functionality preserved — NO lines skipped
 
 import 'dart:convert';
@@ -35,10 +39,13 @@ import 'package:rojgarnext/features/jobs/presentation/screens/saved_jobs_screen.
 import 'package:rojgarnext/features/services/presentation/screens/apply_service_screen.dart';
 import 'package:rojgarnext/features/services/presentation/screens/user_service_applications_screen.dart';
 
+// ✅ Resume screens
 import 'package:rojgarnext/features/resume/presentation/screens/build_resume_screen.dart';
 import 'package:rojgarnext/features/resume/presentation/screens/resume_screen.dart';
 import 'package:rojgarnext/features/resume/AI/presentation/screens/ats_score_screen.dart';
 import 'package:rojgarnext/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart';
+
+// ✅ AI screens
 import 'package:rojgarnext/features/user/AI/user_ai_screen.dart';
 import 'package:rojgarnext/features/user/AI/user_career_roadmap_screen.dart';
 
@@ -46,6 +53,11 @@ import 'package:rojgarnext/features/user/AI/user_career_roadmap_screen.dart';
 import 'package:rojgarnext/features/auth/presentation/screens/change_password_screen.dart';
 import 'package:rojgarnext/features/auth/presentation/screens/mpin_setup_page.dart';
 import 'package:rojgarnext/features/auth/presentation/screens/fingerprint_setup_page.dart';
+
+// ✅ Schemes screens
+import 'package:rojgarnext/features/schemes/presentation/screens/scheme_list_screen.dart';
+import 'package:rojgarnext/features/schemes/presentation/screens/scheme_detail_screen.dart';
+import 'package:rojgarnext/features/schemes/presentation/screens/user_scheme_applications_screen.dart';
 
 // ============================================================
 // DASHBOARD STATS MODEL
@@ -105,6 +117,8 @@ class DashboardStats {
 // USER DASHBOARD
 // ✅ NULLABLE submenus — no auto-select
 // ✅ FIXED: ApplicationDetailScreen shows in right panel
+// ✅ NEW: Schemes submenu state + handlers
+// ✅ NEW: Scheme detail view in right panel
 // ============================================================
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -121,6 +135,7 @@ class _UserDashboardState extends State<UserDashboard> {
   JobSubMenu? selectedJobSubMenu;
   ServiceSubMenu? selectedServiceSubMenu;
   ResumeSubMenu? selectedResumeSubMenu;
+  SchemesSubMenu? selectedSchemesSubMenu;
   AISubMenu? selectedAISubMenu;
   ProfileSubMenu? selectedProfileSubMenu;
   SettingsSubMenu? selectedSettingsSubMenu;
@@ -128,6 +143,12 @@ class _UserDashboardState extends State<UserDashboard> {
   // ✅ Embedded detail views
   Map<String, dynamic>? _selectedJob;
   Map<String, dynamic>? _selectedApplication;
+
+  // ==================== SCHEME VIEW STATE (NEW) ====================
+  String? _selectedSchemeId;
+  String? _selectedSchemeName;
+  Map<String, dynamic>? _selectedSchemeData;
+  bool _showSchemeDetailView = false;
 
   // ==================== DASHBOARD DATA ====================
   DashboardStats _stats = DashboardStats.empty();
@@ -363,6 +384,18 @@ class _UserDashboardState extends State<UserDashboard> {
     }
   }
 
+  // ============================================================
+  // ✅ CLEAR ALL DETAIL VIEWS HELPER
+  // ============================================================
+  void _clearAllDetailViews() {
+    _selectedJob = null;
+    _selectedApplication = null;
+    _selectedSchemeId = null;
+    _selectedSchemeName = null;
+    _selectedSchemeData = null;
+    _showSchemeDetailView = false;
+  }
+
   // ✅ Dashboard / Support — LEAF menu handlers
   void _onMenuSelected(UserMenuType menu) {
     _closeDrawerIfOpen();
@@ -370,8 +403,7 @@ class _UserDashboardState extends State<UserDashboard> {
       if (mounted) {
         setState(() {
           selectedMenu = menu;
-          _selectedJob = null;
-          _selectedApplication = null;
+          _clearAllDetailViews();
         });
       }
     });
@@ -385,8 +417,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.jobs;
           selectedJobSubMenu = subMenu;
-          _selectedJob = null;
-          _selectedApplication = null;
+          _clearAllDetailViews();
         });
       }
     });
@@ -400,8 +431,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.services;
           selectedServiceSubMenu = subMenu;
-          _selectedJob = null;
-          _selectedApplication = null;
+          _clearAllDetailViews();
         });
       }
     });
@@ -415,8 +445,21 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.resume;
           selectedResumeSubMenu = subMenu;
-          _selectedJob = null;
-          _selectedApplication = null;
+          _clearAllDetailViews();
+        });
+      }
+    });
+  }
+
+  // ✅ Schemes — SUBMENU handlers
+  void _onSchemesSubMenuSelected(SchemesSubMenu subMenu) {
+    _closeDrawerIfOpen();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          selectedMenu = UserMenuType.schemes;
+          selectedSchemesSubMenu = subMenu;
+          _clearAllDetailViews();
         });
       }
     });
@@ -430,8 +473,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.ai;
           selectedAISubMenu = subMenu;
-          _selectedJob = null;
-          _selectedApplication = null;
+          _clearAllDetailViews();
         });
       }
     });
@@ -445,8 +487,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.profile;
           selectedProfileSubMenu = subMenu;
-          _selectedJob = null;
-          _selectedApplication = null;
+          _clearAllDetailViews();
         });
       }
     });
@@ -460,8 +501,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.settings;
           selectedSettingsSubMenu = subMenu;
-          _selectedJob = null;
-          _selectedApplication = null;
+          _clearAllDetailViews();
         });
       }
     });
@@ -474,6 +514,11 @@ class _UserDashboardState extends State<UserDashboard> {
     debugPrint("📋 Job selected: ${job['post_name']}");
     setState(() {
       _selectedJob = job;
+      _selectedApplication = null;
+      _selectedSchemeId = null;
+      _selectedSchemeName = null;
+      _selectedSchemeData = null;
+      _showSchemeDetailView = false;
     });
   }
 
@@ -483,19 +528,60 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ NEW: Handle application selection from UserApplicationsScreen
+  // ✅ Handle application selection from UserApplicationsScreen
   void _onApplicationSelected(Map<String, dynamic> application) {
     debugPrint("📋 Application selected: ${application['_id']}");
     debugPrint("   Job Title: ${application['job_title']}");
     debugPrint("   Status: ${application['status']}");
     setState(() {
       _selectedApplication = application;
+      _selectedJob = null;
+      _selectedSchemeId = null;
+      _selectedSchemeName = null;
+      _selectedSchemeData = null;
+      _showSchemeDetailView = false;
     });
   }
 
   void _closeApplicationDetail() {
     setState(() {
       _selectedApplication = null;
+    });
+  }
+
+  // ============================================================
+  // ✅ SCHEME SELECTION HANDLERS (NEW)
+  // ============================================================
+  void _onSchemeSelectedFromList(Map<String, dynamic> schemeData) {
+    debugPrint("📋 Scheme selected from list: ${schemeData['scheme_id']}");
+    setState(() {
+      _selectedSchemeId = schemeData['scheme_id']?.toString();
+      _selectedSchemeName = schemeData['scheme_name']?.toString();
+      _selectedSchemeData = schemeData;
+      _showSchemeDetailView = true;
+      _selectedJob = null;
+      _selectedApplication = null;
+    });
+  }
+
+  void _onSchemeSelectedFromApplications(Map<String, dynamic> schemeData) {
+    debugPrint("📋 Scheme selected from applications: ${schemeData['scheme_id']}");
+    setState(() {
+      _selectedSchemeId = schemeData['scheme_id']?.toString();
+      _selectedSchemeName = schemeData['scheme_name']?.toString();
+      _selectedSchemeData = schemeData;
+      _showSchemeDetailView = true;
+      _selectedJob = null;
+      _selectedApplication = null;
+    });
+  }
+
+  void _closeSchemeDetailView() {
+    setState(() {
+      _showSchemeDetailView = false;
+      _selectedSchemeId = null;
+      _selectedSchemeName = null;
+      _selectedSchemeData = null;
     });
   }
 
@@ -509,8 +595,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.jobs;
           selectedJobSubMenu = JobSubMenu.jobApplications;
-          _selectedJob = null;
-          _selectedApplication = null;
+          _clearAllDetailViews();
         });
       }
     });
@@ -523,8 +608,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.jobs;
           selectedJobSubMenu = JobSubMenu.browseJobs;
-          _selectedJob = null;
-          _selectedApplication = null;
+          _clearAllDetailViews();
         });
       }
     });
@@ -537,8 +621,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.services;
           selectedServiceSubMenu = ServiceSubMenu.myApplications;
-          _selectedJob = null;
-          _selectedApplication = null;
+          _clearAllDetailViews();
         });
       }
     });
@@ -550,6 +633,34 @@ class _UserDashboardState extends State<UserDashboard> {
       context,
       MaterialPageRoute(builder: (_) => const SavedJobsScreen()),
     );
+  }
+
+  // ✅ NEW: Go to Browse Schemes
+  void _goToBrowseSchemes() {
+    _closeDrawerIfOpen();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          selectedMenu = UserMenuType.schemes;
+          selectedSchemesSubMenu = SchemesSubMenu.browseSchemes;
+          _clearAllDetailViews();
+        });
+      }
+    });
+  }
+
+  // ✅ NEW: Go to Scheme Applications
+  void _goToSchemeApplications() {
+    _closeDrawerIfOpen();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          selectedMenu = UserMenuType.schemes;
+          selectedSchemesSubMenu = SchemesSubMenu.schemeApplications;
+          _clearAllDetailViews();
+        });
+      }
+    });
   }
 
   // ============================================================
@@ -610,6 +721,41 @@ class _UserDashboardState extends State<UserDashboard> {
         return _buildSelectSubmenuPlaceholder(
           title: "Settings",
           icon: Icons.settings_rounded,
+          message: "Select a submenu from the sidebar",
+        );
+    }
+  }
+
+  // ============================================================
+  // ✅ GET SCHEMES SCREEN (UPDATED — Embedded mode)
+  // ============================================================
+  Widget _getSchemesScreen() {
+    // ✅ If scheme detail view is active, show detail screen
+    if (_showSchemeDetailView && _selectedSchemeId != null) {
+      return SchemeDetailScreen(
+        schemeId: _selectedSchemeId!,
+        schemeName: _selectedSchemeName ?? 'योजना',
+        isEmbedded: true,
+        onBack: _closeSchemeDetailView,
+      );
+    }
+
+    // ✅ Otherwise, show list or applications based on submenu
+    switch (selectedSchemesSubMenu) {
+      case SchemesSubMenu.browseSchemes:
+        return SchemeListScreen(
+          isEmbedded: true,
+          onSchemeSelected: _onSchemeSelectedFromList,
+        );
+      case SchemesSubMenu.schemeApplications:
+        return UserSchemeApplicationsScreen(
+          isEmbedded: true,
+          onSchemeSelected: _onSchemeSelectedFromApplications,
+        );
+      case null:
+        return _buildSelectSubmenuPlaceholder(
+          title: "सरकारी योजनाएं",
+          icon: Icons.account_balance_rounded,
           message: "Select a submenu from the sidebar",
         );
     }
@@ -704,6 +850,7 @@ class _UserDashboardState extends State<UserDashboard> {
   // ✅ GET CONTENT
   // ✅ Uses NULLABLE checks — placeholder if submenu not selected
   // ✅ FIXED: ApplicationDetailScreen shows when application selected
+  // ✅ NEW: Schemes case with embedded detail view
   // ============================================================
   Widget _getContent() {
     switch (selectedMenu) {
@@ -717,7 +864,8 @@ class _UserDashboardState extends State<UserDashboard> {
         // ✅ CRITICAL FIX: If application selected → show ApplicationDetailScreen
         if (_selectedApplication != null &&
             selectedJobSubMenu == JobSubMenu.jobApplications) {
-          debugPrint("📋 Showing ApplicationDetailScreen for: ${_selectedApplication!['job_title']}");
+          debugPrint(
+              "📋 Showing ApplicationDetailScreen for: ${_selectedApplication!['job_title']}");
           return ApplicationDetailScreen(
             application: _selectedApplication!,
             onBack: _closeApplicationDetail,
@@ -806,6 +954,12 @@ class _UserDashboardState extends State<UserDashboard> {
               message: "Select a submenu from the sidebar",
             );
         }
+
+      // ============================================================
+      // SCHEMES ✅ UPDATED — Now shows detail view embedded
+      // ============================================================
+      case UserMenuType.schemes:
+        return _getSchemesScreen();
 
       // ============================================================
       // AI
@@ -1143,8 +1297,7 @@ class _UserDashboardState extends State<UserDashboard> {
         setState(() {
           selectedMenu = UserMenuType.profile;
           selectedProfileSubMenu = ProfileSubMenu.basicDetails;
-          _selectedJob = null;
-          _selectedApplication = null;
+          _clearAllDetailViews();
         });
       },
       child: Container(
@@ -1612,7 +1765,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ QUICK ACTIONS GRID
+  // ✅ QUICK ACTIONS GRID (UPDATED — Added Schemes)
   // ============================================================
   Widget _buildQuickActionsGrid() {
     final actions = [
@@ -1630,8 +1783,7 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.resume;
             selectedResumeSubMenu = ResumeSubMenu.buildResume;
-            _selectedJob = null;
-            _selectedApplication = null;
+            _clearAllDetailViews();
           });
         },
       ),
@@ -1643,8 +1795,7 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.ai;
             selectedAISubMenu = AISubMenu.dashboard;
-            _selectedJob = null;
-            _selectedApplication = null;
+            _clearAllDetailViews();
           });
         },
       ),
@@ -1656,8 +1807,7 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.profile;
             selectedProfileSubMenu = ProfileSubMenu.basicDetails;
-            _selectedJob = null;
-            _selectedApplication = null;
+            _clearAllDetailViews();
           });
         },
       ),
@@ -1669,10 +1819,16 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.services;
             selectedServiceSubMenu = ServiceSubMenu.browseServices;
-            _selectedJob = null;
-            _selectedApplication = null;
+            _clearAllDetailViews();
           });
         },
+      ),
+      // ✅ NEW: Schemes Quick Action
+      _QuickAction(
+        title: 'Schemes',
+        icon: Icons.account_balance,
+        color: const Color(0xFF059669),
+        onTap: _goToBrowseSchemes,
       ),
       _QuickAction(
         title: 'Saved Jobs',
@@ -1687,21 +1843,7 @@ class _UserDashboardState extends State<UserDashboard> {
         onTap: () {
           setState(() {
             selectedMenu = UserMenuType.support;
-            _selectedJob = null;
-            _selectedApplication = null;
-          });
-        },
-      ),
-      _QuickAction(
-        title: 'Settings',
-        icon: Icons.settings,
-        color: const Color(0xFF64748B),
-        onTap: () {
-          setState(() {
-            selectedMenu = UserMenuType.settings;
-            selectedSettingsSubMenu = SettingsSubMenu.changePassword;
-            _selectedJob = null;
-            _selectedApplication = null;
+            _clearAllDetailViews();
           });
         },
       ),
@@ -1827,11 +1969,38 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
+  // ✅ CHECK IF BACK BUTTON NEEDED (UPDATED — Includes schemes)
+  // ============================================================
+  bool _shouldShowBackButton() {
+    // Job detail view
+    if (_selectedJob != null) return true;
+    // Application detail view
+    if (_selectedApplication != null) return true;
+    // Scheme detail view
+    if (_showSchemeDetailView && _selectedSchemeId != null) return true;
+    return false;
+  }
+
+  // ✅ Handle back button action
+  void _handleBackButton() {
+    setState(() {
+      if (_selectedApplication != null) {
+        _selectedApplication = null;
+      } else if (_selectedJob != null) {
+        _selectedJob = null;
+      } else if (_showSchemeDetailView) {
+        _closeSchemeDetailView();
+      }
+    });
+  }
+
+  // ============================================================
   // MAIN BUILD
   // ============================================================
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 900;
+    final showBackButton = _shouldShowBackButton();
 
     return Scaffold(
       key: _scaffoldKey,
@@ -1840,18 +2009,10 @@ class _UserDashboardState extends State<UserDashboard> {
               title: Text(_getAppBarTitle()),
               backgroundColor: Colors.blueAccent,
               foregroundColor: Colors.white,
-              leading: (_selectedJob != null || _selectedApplication != null)
+              leading: showBackButton
                   ? IconButton(
                       icon: const Icon(Icons.arrow_back),
-                      onPressed: () {
-                        setState(() {
-                          if (_selectedApplication != null) {
-                            _selectedApplication = null;
-                          } else {
-                            _selectedJob = null;
-                          }
-                        });
-                      },
+                      onPressed: _handleBackButton,
                     )
                   : Builder(
                       builder: (context) => IconButton(
@@ -1876,6 +2037,7 @@ class _UserDashboardState extends State<UserDashboard> {
                 selectedJobSubMenu: selectedJobSubMenu,
                 selectedServiceSubMenu: selectedServiceSubMenu,
                 selectedResumeSubMenu: selectedResumeSubMenu,
+                selectedSchemesSubMenu: selectedSchemesSubMenu,
                 selectedAISubMenu: selectedAISubMenu,
                 selectedProfileSubMenu: selectedProfileSubMenu,
                 selectedSettingsSubMenu: selectedSettingsSubMenu,
@@ -1883,6 +2045,7 @@ class _UserDashboardState extends State<UserDashboard> {
                 onJobSubMenuSelected: _onJobSubMenuSelected,
                 onServiceSubMenuSelected: _onServiceSubMenuSelected,
                 onResumeSubMenuSelected: _onResumeSubMenuSelected,
+                onSchemesSubMenuSelected: _onSchemesSubMenuSelected,
                 onAISubMenuSelected: _onAISubMenuSelected,
                 onProfileSubMenuSelected: _onProfileSubMenuSelected,
                 onSettingsSubMenuSelected: _onSettingsSubMenuSelected,
@@ -1897,6 +2060,7 @@ class _UserDashboardState extends State<UserDashboard> {
               selectedJobSubMenu: selectedJobSubMenu,
               selectedServiceSubMenu: selectedServiceSubMenu,
               selectedResumeSubMenu: selectedResumeSubMenu,
+              selectedSchemesSubMenu: selectedSchemesSubMenu,
               selectedAISubMenu: selectedAISubMenu,
               selectedProfileSubMenu: selectedProfileSubMenu,
               selectedSettingsSubMenu: selectedSettingsSubMenu,
@@ -1904,6 +2068,7 @@ class _UserDashboardState extends State<UserDashboard> {
               onJobSubMenuSelected: _onJobSubMenuSelected,
               onServiceSubMenuSelected: _onServiceSubMenuSelected,
               onResumeSubMenuSelected: _onResumeSubMenuSelected,
+              onSchemesSubMenuSelected: _onSchemesSubMenuSelected,
               onAISubMenuSelected: _onAISubMenuSelected,
               onProfileSubMenuSelected: _onProfileSubMenuSelected,
               onSettingsSubMenuSelected: _onSettingsSubMenuSelected,
@@ -1934,20 +2099,11 @@ class _UserDashboardState extends State<UserDashboard> {
                         children: [
                           Row(
                             children: [
-                              if (_selectedJob != null ||
-                                  _selectedApplication != null) ...[
+                              if (showBackButton) ...[
                                 IconButton(
                                   icon: const Icon(Icons.arrow_back,
                                       color: Colors.blueAccent),
-                                  onPressed: () {
-                                    setState(() {
-                                      if (_selectedApplication != null) {
-                                        _selectedApplication = null;
-                                      } else {
-                                        _selectedJob = null;
-                                      }
-                                    });
-                                  },
+                                  onPressed: _handleBackButton,
                                   tooltip: "Back",
                                 ),
                                 const SizedBox(width: 4),
@@ -1983,11 +2139,14 @@ class _UserDashboardState extends State<UserDashboard> {
                           '${selectedJobSubMenu?.name ?? "none"}_'
                           '${selectedServiceSubMenu?.name ?? "none"}_'
                           '${selectedResumeSubMenu?.name ?? "none"}_'
+                          '${selectedSchemesSubMenu?.name ?? "none"}_'
                           '${selectedAISubMenu?.name ?? "none"}_'
                           '${selectedProfileSubMenu?.name ?? "none"}_'
                           '${selectedSettingsSubMenu?.name ?? "none"}_'
                           '${_selectedJob != null ? _selectedJob!['_id'] : 'none'}_'
-                          '${_selectedApplication != null ? _selectedApplication!['_id'] : 'none'}',
+                          '${_selectedApplication != null ? _selectedApplication!['_id'] : 'none'}_'
+                          '${_selectedSchemeId ?? "none"}_'
+                          '$_showSchemeDetailView',
                         ),
                         child: _getContent(),
                       ),
@@ -2003,6 +2162,11 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   String _getAppBarTitle() {
+    // ✅ If scheme detail is open
+    if (_showSchemeDetailView && _selectedSchemeId != null) {
+      return _selectedSchemeName ?? "योजना विवरण";
+    }
+
     // ✅ If application detail is open
     if (_selectedApplication != null &&
         selectedMenu == UserMenuType.jobs &&
@@ -2050,6 +2214,16 @@ class _UserDashboardState extends State<UserDashboard> {
             return "AI Resume Generator";
           case null:
             return "Resume";
+        }
+
+      case UserMenuType.schemes:
+        switch (selectedSchemesSubMenu) {
+          case SchemesSubMenu.browseSchemes:
+            return "सरकारी योजनाएं";
+          case SchemesSubMenu.schemeApplications:
+            return "मेरे योजना आवेदन";
+          case null:
+            return "सरकारी योजनाएं";
         }
 
       case UserMenuType.ai:

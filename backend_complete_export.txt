@@ -1,10 +1,10 @@
 ================================================================================
 ROJARGAR NEXT BACKEND - COMPLETE CODE EXPORT (SANITIZED)
 ================================================================================
-Generated: 2026-10-09 18:35:29
+Generated: 2026-10-10 07:36:49
 Source: E:\YOGESH\website\RojgarNext\backend\rojgarnext
-Total Files: 163
-  - Python Files: 159
+Total Files: 167
+  - Python Files: 163
   - ENV Files (Sanitized): 1
   - Other Files: 3
 ================================================================================
@@ -185,6 +185,11 @@ Total Files: 163
 │       │   ├── 🐍 routes.py
 │       │   ├── 🐍 schema.py
 │       │   └── 🐍 service.py
+│       ├── 📁 schemes/
+│       │   ├── 🐍 __init__.py
+│       │   ├── 🐍 routes.py
+│       │   ├── 🐍 schema.py
+│       │   └── 🐍 service.py
 │       ├── 📁 services/
 │       │   ├── 🐍 __init__.py
 │       │   ├── 📁 models/
@@ -239,7 +244,7 @@ Total Files: 163
 
 
 ================================================================================
-[   1/ 163] 📄 TEXT FILE: .dockerignore
+[   1/ 167] 📄 TEXT FILE: .dockerignore
 📏 SIZE: 95 bytes
 🕐 MODIFIED: 2026-07-10 20:23:54
 
@@ -260,7 +265,7 @@ models/
 
 
 ================================================================================
-[   2/ 163] 🔐 ENV FILE (SANITIZED - Dummy Values Only): .env
+[   2/ 167] 🔐 ENV FILE (SANITIZED - Dummy Values Only): .env
 📏 SIZE: 23,211 bytes
 🕐 MODIFIED: 2026-09-29 18:16:41
 
@@ -651,7 +656,7 @@ TWILIO_LOG_LEVEL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
 
 
 ================================================================================
-[   3/ 163] 📄 TEXT FILE: Dockerfile
+[   3/ 167] 📄 TEXT FILE: Dockerfile
 📏 SIZE: 1,601 bytes
 🕐 MODIFIED: 2026-09-25 20:03:08
 
@@ -714,7 +719,7 @@ CMD ["gunicorn", "app.main:app", \
 
 
 ================================================================================
-[   4/ 163] 🐍 PYTHON FILE: app\core\__init__.py
+[   4/ 167] 🐍 PYTHON FILE: app\core\__init__.py
 📏 SIZE: 3,810 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -852,7 +857,7 @@ def create_refresh_token(data):
 
 
 ================================================================================
-[   5/ 163] 🐍 PYTHON FILE: app\core\ai\__init__.py
+[   5/ 167] 🐍 PYTHON FILE: app\core\ai\__init__.py
 📏 SIZE: 1,893 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -923,7 +928,7 @@ __all__ = [
 
 
 ================================================================================
-[   6/ 163] 🐍 PYTHON FILE: app\core\ai\ai_career_service.py
+[   6/ 167] 🐍 PYTHON FILE: app\core\ai\ai_career_service.py
 📏 SIZE: 13,113 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -1224,7 +1229,7 @@ ai_career_service = AICareerService()
 
 
 ================================================================================
-[   7/ 163] 🐍 PYTHON FILE: app\core\ai\ai_service.py
+[   7/ 167] 🐍 PYTHON FILE: app\core\ai\ai_service.py
 📏 SIZE: 1,241 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -1267,7 +1272,7 @@ PROFILE: {json.dumps({k: profile.get(k) for k in ['skills','experience','academi
 
 
 ================================================================================
-[   8/ 163] 🐍 PYTHON FILE: app\core\ai\ml_pipeline.py
+[   8/ 167] 🐍 PYTHON FILE: app\core\ai\ml_pipeline.py
 📏 SIZE: 2,607 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -1364,7 +1369,7 @@ auto_ml = AutoMLPipeline()
 
 
 ================================================================================
-[   9/ 163] 🐍 PYTHON FILE: app\core\ai\prompts.py
+[   9/ 167] 🐍 PYTHON FILE: app\core\ai\prompts.py
 📏 SIZE: 981 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -1405,7 +1410,7 @@ Return ONLY valid JSON."""
 
 
 ================================================================================
-[  10/ 163] 🐍 PYTHON FILE: app\core\ai\real_time_market_ai.py
+[  10/ 167] 🐍 PYTHON FILE: app\core\ai\real_time_market_ai.py
 📏 SIZE: 26,214 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -2057,7 +2062,7 @@ real_time_market_ai = RealTimeMarketAI()
 
 
 ================================================================================
-[  11/ 163] 🐍 PYTHON FILE: app\core\ai\ultra_ai_engine.py
+[  11/ 167] 🐍 PYTHON FILE: app\core\ai\ultra_ai_engine.py
 📏 SIZE: 35,787 bytes
 🕐 MODIFIED: 2026-09-27 09:58:55
 
@@ -3023,7 +3028,7 @@ ultra_ai_engine = UltraAIEngine()
 
 
 ================================================================================
-[  12/ 163] 🐍 PYTHON FILE: app\core\ai\ultra_career_ai.py
+[  12/ 167] 🐍 PYTHON FILE: app\core\ai\ultra_career_ai.py
 📏 SIZE: 57,503 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4327,7 +4332,7 @@ ultra_career_ai = UltraCareerAI()
 
 
 ================================================================================
-[  13/ 163] 🐍 PYTHON FILE: app\core\analytics\__init__.py
+[  13/ 167] 🐍 PYTHON FILE: app\core\analytics\__init__.py
 📏 SIZE: 262 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4342,7 +4347,7 @@ __all__ = ['BusinessIntelligence', 'MetricsCollector', 'ReportGenerator']
 
 
 ================================================================================
-[  14/ 163] 🐍 PYTHON FILE: app\core\backup\_init_.py
+[  14/ 167] 🐍 PYTHON FILE: app\core\backup\_init_.py
 📏 SIZE: 329 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4365,7 +4370,7 @@ __all__ = [
 
 
 ================================================================================
-[  15/ 163] 🐍 PYTHON FILE: app\core\backup\backup_manager.py
+[  15/ 167] 🐍 PYTHON FILE: app\core\backup\backup_manager.py
 📏 SIZE: 8,099 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4584,7 +4589,7 @@ backup_manager = BackupManager()
 
 
 ================================================================================
-[  16/ 163] 🐍 PYTHON FILE: app\core\base_model.py
+[  16/ 167] 🐍 PYTHON FILE: app\core\base_model.py
 📏 SIZE: 336 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4604,7 +4609,7 @@ class BaseModel(PydanticBaseModel):
 
 
 ================================================================================
-[  17/ 163] 🐍 PYTHON FILE: app\core\cache\__init__.py
+[  17/ 167] 🐍 PYTHON FILE: app\core\cache\__init__.py
 📏 SIZE: 222 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -4619,7 +4624,7 @@ __all__ = ['CacheStrategy', 'DistributedCache', 'LocalCache']
 
 
 ================================================================================
-[  18/ 163] 🐍 PYTHON FILE: app\core\config\settings.py
+[  18/ 167] 🐍 PYTHON FILE: app\core\config\settings.py
 📏 SIZE: 15,182 bytes
 🕐 MODIFIED: 2026-09-29 21:24:03
 
@@ -5019,7 +5024,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  19/ 163] 🐍 PYTHON FILE: app\core\database\__init__.py
+[  19/ 167] 🐍 PYTHON FILE: app\core\database\__init__.py
 📏 SIZE: 379 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5044,7 +5049,7 @@ __all__ = [
 
 
 ================================================================================
-[  20/ 163] 🐍 PYTHON FILE: app\core\database\connection.py
+[  20/ 167] 🐍 PYTHON FILE: app\core\database\connection.py
 📏 SIZE: 6,438 bytes
 🕐 MODIFIED: 2026-10-01 10:20:32
 
@@ -5255,7 +5260,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  21/ 163] 🐍 PYTHON FILE: app\core\database\indexes.py
+[  21/ 167] 🐍 PYTHON FILE: app\core\database\indexes.py
 📏 SIZE: 6,233 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5400,7 +5405,7 @@ async def setup_all_indexes() -> Dict[str, Any]:
 
 
 ================================================================================
-[  22/ 163] 🐍 PYTHON FILE: app\core\database\redis.py
+[  22/ 167] 🐍 PYTHON FILE: app\core\database\redis.py
 📏 SIZE: 4,230 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5544,7 +5549,7 @@ print(f"✅ Redis client loaded (enabled: {redis_client.enabled})")
 
 
 ================================================================================
-[  23/ 163] 🐍 PYTHON FILE: app\core\gdpr\__init__.py
+[  23/ 167] 🐍 PYTHON FILE: app\core\gdpr\__init__.py
 📏 SIZE: 401 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5569,7 +5574,7 @@ __all__ = [
 
 
 ================================================================================
-[  24/ 163] 🐍 PYTHON FILE: app\core\gdpr\consent_manager.py
+[  24/ 167] 🐍 PYTHON FILE: app\core\gdpr\consent_manager.py
 📏 SIZE: 3,578 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5682,7 +5687,7 @@ consent_manager = ConsentManager()
 
 
 ================================================================================
-[  25/ 163] 🐍 PYTHON FILE: app\core\gdpr\data_anonymizer.py
+[  25/ 167] 🐍 PYTHON FILE: app\core\gdpr\data_anonymizer.py
 📏 SIZE: 3,568 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5792,7 +5797,7 @@ data_anonymizer = DataAnonymizer()
 
 
 ================================================================================
-[  26/ 163] 🐍 PYTHON FILE: app\core\location\__init__.py
+[  26/ 167] 🐍 PYTHON FILE: app\core\location\__init__.py
 📏 SIZE: 504 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5822,7 +5827,7 @@ __all__ = [
 
 
 ================================================================================
-[  27/ 163] 🐍 PYTHON FILE: app\core\location\distance_calculator.py
+[  27/ 167] 🐍 PYTHON FILE: app\core\location\distance_calculator.py
 📏 SIZE: 1,969 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -5877,7 +5882,7 @@ class DistanceCalculator:
 
 
 ================================================================================
-[  28/ 163] 🐍 PYTHON FILE: app\core\location\location_handler.py
+[  28/ 167] 🐍 PYTHON FILE: app\core\location\location_handler.py
 📏 SIZE: 7,454 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6070,7 +6075,7 @@ logger.info("✅ Location Handler Loaded - NO HARDCODE, REAL GPS ONLY")
 
 
 ================================================================================
-[  29/ 163] 🐍 PYTHON FILE: app\core\location\location_service.py
+[  29/ 167] 🐍 PYTHON FILE: app\core\location\location_service.py
 📏 SIZE: 9,621 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6334,7 +6339,7 @@ print("✅ Location Helper Loaded - No Separate Database Table")
 
 
 ================================================================================
-[  30/ 163] 🐍 PYTHON FILE: app\core\middleware\__init__.py
+[  30/ 167] 🐍 PYTHON FILE: app\core\middleware\__init__.py
 📏 SIZE: 155 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6351,7 +6356,7 @@ __all__ = ['ApiResponse']
 
 
 ================================================================================
-[  31/ 163] 🐍 PYTHON FILE: app\core\middleware\response.py
+[  31/ 167] 🐍 PYTHON FILE: app\core\middleware\response.py
 📏 SIZE: 1,182 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6403,7 +6408,7 @@ class ApiResponse:
 
 
 ================================================================================
-[  32/ 163] 🐍 PYTHON FILE: app\core\monitoring\__init__.py
+[  32/ 167] 🐍 PYTHON FILE: app\core\monitoring\__init__.py
 📏 SIZE: 435 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6428,7 +6433,7 @@ __all__ = [
 
 
 ================================================================================
-[  33/ 163] 🐍 PYTHON FILE: app\core\monitoring\system_monitor.py
+[  33/ 167] 🐍 PYTHON FILE: app\core\monitoring\system_monitor.py
 📏 SIZE: 4,818 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6563,7 +6568,7 @@ system_monitor = SystemMonitor()
 
 
 ================================================================================
-[  34/ 163] 🐍 PYTHON FILE: app\core\security\__init__.py
+[  34/ 167] 🐍 PYTHON FILE: app\core\security\__init__.py
 📏 SIZE: 1,772 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6621,7 +6626,7 @@ __all__ = [
 
 
 ================================================================================
-[  35/ 163] 🐍 PYTHON FILE: app\core\security\encryption.py
+[  35/ 167] 🐍 PYTHON FILE: app\core\security\encryption.py
 📏 SIZE: 5,110 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -6783,7 +6788,7 @@ class DataProtector:
 
 
 ================================================================================
-[  36/ 163] 🐍 PYTHON FILE: app\core\security\ip_blacklist.py
+[  36/ 167] 🐍 PYTHON FILE: app\core\security\ip_blacklist.py
 📏 SIZE: 8,159 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -7016,7 +7021,7 @@ ip_blacklist = IPBlacklistManager()
 
 
 ================================================================================
-[  37/ 163] 🐍 PYTHON FILE: app\core\security\rate_limiter.py
+[  37/ 167] 🐍 PYTHON FILE: app\core\security\rate_limiter.py
 📏 SIZE: 2,082 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -7085,7 +7090,7 @@ rate_limiter = RateLimiter()
 
 
 ================================================================================
-[  38/ 163] 🐍 PYTHON FILE: app\core\security\security.py
+[  38/ 167] 🐍 PYTHON FILE: app\core\security\security.py
 📏 SIZE: 2,634 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -7166,7 +7171,7 @@ def create_refresh_token(data: dict):
 
 
 ================================================================================
-[  39/ 163] 🐍 PYTHON FILE: app\core\security\security_middleware.py
+[  39/ 167] 🐍 PYTHON FILE: app\core\security\security_middleware.py
 📏 SIZE: 15,394 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -7562,7 +7567,7 @@ print("✅ Security Middleware Loaded Successfully - Using Unified Collections")
 
 
 ================================================================================
-[  40/ 163] 🐍 PYTHON FILE: app\core\services\__init__.py
+[  40/ 167] 🐍 PYTHON FILE: app\core\services\__init__.py
 📏 SIZE: 1,659 bytes
 🕐 MODIFIED: 2026-09-26 18:37:24
 
@@ -7643,7 +7648,7 @@ __all__ = [
 
 
 ================================================================================
-[  41/ 163] 🐍 PYTHON FILE: app\core\services\cloudinary.py
+[  41/ 167] 🐍 PYTHON FILE: app\core\services\cloudinary.py
 📏 SIZE: 18,518 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -8184,7 +8189,7 @@ logger.info("   - URLs expire after 24 hours")
 
 
 ================================================================================
-[  42/ 163] 🐍 PYTHON FILE: app\core\services\dependencies.py
+[  42/ 167] 🐍 PYTHON FILE: app\core\services\dependencies.py
 📏 SIZE: 3,899 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -8306,7 +8311,7 @@ def role_required(allowed_roles: Union[str, List[str]]):
 
 
 ================================================================================
-[  43/ 163] 🐍 PYTHON FILE: app\core\services\email.py
+[  43/ 167] 🐍 PYTHON FILE: app\core\services\email.py
 📏 SIZE: 20,325 bytes
 🕐 MODIFIED: 2026-09-29 10:11:01
 
@@ -8884,7 +8889,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  44/ 163] 🐍 PYTHON FILE: app\core\services\google_drive.py
+[  44/ 167] 🐍 PYTHON FILE: app\core\services\google_drive.py
 📏 SIZE: 11,976 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -9176,7 +9181,7 @@ google_drive_service = GoogleDriveService()
 
 
 ================================================================================
-[  45/ 163] 🐍 PYTHON FILE: app\core\services\mobile_api.py
+[  45/ 167] 🐍 PYTHON FILE: app\core\services\mobile_api.py
 📏 SIZE: 4,751 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -9317,7 +9322,7 @@ print("✅ Mobile API routes loaded")
 
 
 ================================================================================
-[  46/ 163] 🐍 PYTHON FILE: app\core\services\notification_dispatcher.py
+[  46/ 167] 🐍 PYTHON FILE: app\core\services\notification_dispatcher.py
 📏 SIZE: 20,013 bytes
 🕐 MODIFIED: 2026-09-29 18:11:46
 
@@ -9818,7 +9823,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  47/ 163] 🐍 PYTHON FILE: app\core\services\sms.py
+[  47/ 167] 🐍 PYTHON FILE: app\core\services\sms.py
 📏 SIZE: 31,044 bytes
 🕐 MODIFIED: 2026-09-29 18:14:36
 
@@ -10607,7 +10612,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  48/ 163] 🐍 PYTHON FILE: app\core\services\whatsapp.py
+[  48/ 167] 🐍 PYTHON FILE: app\core\services\whatsapp.py
 📏 SIZE: 14,374 bytes
 🕐 MODIFIED: 2026-09-29 18:14:54
 
@@ -10977,7 +10982,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  49/ 163] 🐍 PYTHON FILE: app\core\task\__init__.py
+[  49/ 167] 🐍 PYTHON FILE: app\core\task\__init__.py
 📏 SIZE: 154 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -10994,7 +10999,7 @@ __all__ = ['auto_scheduler']
 
 
 ================================================================================
-[  50/ 163] 🐍 PYTHON FILE: app\core\task\auto_scheduler.py
+[  50/ 167] 🐍 PYTHON FILE: app\core\task\auto_scheduler.py
 📏 SIZE: 13,062 bytes
 🕐 MODIFIED: 2026-10-01 10:22:00
 
@@ -11340,7 +11345,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  51/ 163] 🐍 PYTHON FILE: app\core\utils\__init__.py
+[  51/ 167] 🐍 PYTHON FILE: app\core\utils\__init__.py
 📏 SIZE: 1,152 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -11390,7 +11395,7 @@ __all__ = [
 
 
 ================================================================================
-[  52/ 163] 🐍 PYTHON FILE: app\core\utils\config.py
+[  52/ 167] 🐍 PYTHON FILE: app\core\utils\config.py
 📏 SIZE: 3,309 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -11499,7 +11504,7 @@ settings = Settings()
 
 
 ================================================================================
-[  53/ 163] 🐍 PYTHON FILE: app\core\utils\constants.py
+[  53/ 167] 🐍 PYTHON FILE: app\core\utils\constants.py
 📏 SIZE: 938 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -11556,7 +11561,7 @@ CACHE_TTL = {
 
 
 ================================================================================
-[  54/ 163] 🐍 PYTHON FILE: app\core\utils\decorators.py
+[  54/ 167] 🐍 PYTHON FILE: app\core\utils\decorators.py
 📏 SIZE: 1,515 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -11607,7 +11612,7 @@ def retry_on_failure(max_retries: int = 3, delay: int = 1):
 
 
 ================================================================================
-[  55/ 163] 🐍 PYTHON FILE: app\core\utils\exceptions.py
+[  55/ 167] 🐍 PYTHON FILE: app\core\utils\exceptions.py
 📏 SIZE: 1,232 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -11644,7 +11649,7 @@ class ForbiddenException(CustomException):
 
 
 ================================================================================
-[  56/ 163] 🐍 PYTHON FILE: app\core\utils\helpers.py
+[  56/ 167] 🐍 PYTHON FILE: app\core\utils\helpers.py
 📏 SIZE: 568 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -11674,7 +11679,7 @@ def clean_text(text: str) -> str:
 
 
 ================================================================================
-[  57/ 163] 🐍 PYTHON FILE: app\core\utils\logger.py
+[  57/ 167] 🐍 PYTHON FILE: app\core\utils\logger.py
 📏 SIZE: 177 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -11691,7 +11696,7 @@ logger = logging.getLogger("rojgarnext")
 
 
 ================================================================================
-[  58/ 163] 🐍 PYTHON FILE: app\core\utils\otp_logger.py
+[  58/ 167] 🐍 PYTHON FILE: app\core\utils\otp_logger.py
 📏 SIZE: 12,782 bytes
 🕐 MODIFIED: 2026-09-29 18:20:42
 
@@ -12006,7 +12011,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  59/ 163] 🐍 PYTHON FILE: app\core\utils\validators.py
+[  59/ 167] 🐍 PYTHON FILE: app\core\utils\validators.py
 📏 SIZE: 710 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -12038,7 +12043,7 @@ def validate_password(password: str) -> bool:
 
 
 ================================================================================
-[  60/ 163] 🐍 PYTHON FILE: app\db\career_data_manager.py
+[  60/ 167] 🐍 PYTHON FILE: app\db\career_data_manager.py
 📏 SIZE: 17,785 bytes
 🕐 MODIFIED: 2026-09-10 10:40:31
 
@@ -12494,7 +12499,7 @@ career_data_manager = CareerDataManager()
 
 
 ================================================================================
-[  61/ 163] 🐍 PYTHON FILE: app\db\connection.py
+[  61/ 167] 🐍 PYTHON FILE: app\db\connection.py
 📏 SIZE: 12,767 bytes
 🕐 MODIFIED: 2026-10-01 10:19:57
 
@@ -12811,7 +12816,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  62/ 163] 🐍 PYTHON FILE: app\db\indexes.py
+[  62/ 167] 🐍 PYTHON FILE: app\db\indexes.py
 📏 SIZE: 6,937 bytes
 🕐 MODIFIED: 2026-10-01 10:20:11
 
@@ -12977,7 +12982,7 @@ async def setup_all_indexes() -> Dict[str, Any]:
 
 
 ================================================================================
-[  63/ 163] 🐍 PYTHON FILE: app\db\session_manager.py
+[  63/ 167] 🐍 PYTHON FILE: app\db\session_manager.py
 📏 SIZE: 12,611 bytes
 🕐 MODIFIED: 2026-10-01 10:21:38
 
@@ -13337,9 +13342,9 @@ print("=" * 60)
 
 
 ================================================================================
-[  64/ 163] 🐍 PYTHON FILE: app\main.py
-📏 SIZE: 18,958 bytes
-🕐 MODIFIED: 2026-09-30 18:31:14
+[  64/ 167] 🐍 PYTHON FILE: app\main.py
+📏 SIZE: 19,120 bytes
+🕐 MODIFIED: 2026-10-10 06:45:26
 
 ================================================================================
 
@@ -13390,7 +13395,7 @@ from app.modules.customadmin.routes import router as customadmin_router
 from app.modules.location.routes import router as location_router
 from app.modules.payment.routes import router as payment_router
 from app.modules.support.routes import router as support_router
-
+from app.modules.schemes.routes import router as schemes_router
 # ================= ORJSON FALLBACK =================
 try:
     DefaultResponse = ORJSONResponse
@@ -13813,6 +13818,9 @@ app.include_router(
 app.include_router(
     support_router, prefix="/api/v1", tags=["Support"]
 )
+app.include_router(
+    schemes_router, prefix="/api/v1/schemes", tags=["Government Schemes"]
+)
 
 
 # ================= ROOT & HEALTH ENDPOINTS =================
@@ -13929,7 +13937,7 @@ print("=" * 60)
 
 
 ================================================================================
-[  65/ 163] 🐍 PYTHON FILE: app\models\ai_insights_model.py
+[  65/ 167] 🐍 PYTHON FILE: app\models\ai_insights_model.py
 📏 SIZE: 3,082 bytes
 🕐 MODIFIED: 2026-10-01 10:22:38
 
@@ -14032,7 +14040,7 @@ print("✅ AI Insights Model Loaded - NO TTL")
 
 
 ================================================================================
-[  66/ 163] 🐍 PYTHON FILE: app\models\application_model.py
+[  66/ 167] 🐍 PYTHON FILE: app\models\application_model.py
 📏 SIZE: 9,139 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -14264,7 +14272,7 @@ print("✅ Application Model Updated - Uses status='saved' only, apply_mode remo
 
 
 ================================================================================
-[  67/ 163] 🐍 PYTHON FILE: app\models\auth_model.py
+[  67/ 167] 🐍 PYTHON FILE: app\models\auth_model.py
 📏 SIZE: 4,878 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -14404,7 +14412,7 @@ class AuthModel(BaseModel):
 
 
 ================================================================================
-[  68/ 163] 🐍 PYTHON FILE: app\models\job_model.py
+[  68/ 167] 🐍 PYTHON FILE: app\models\job_model.py
 📏 SIZE: 17,429 bytes
 🕐 MODIFIED: 2026-09-27 07:59:14
 
@@ -14885,7 +14893,7 @@ print("   Exported: JobModel, JobLocation, JobAttachment, IndividualPost, Multip
 
 
 ================================================================================
-[  69/ 163] 🐍 PYTHON FILE: app\models\notification_model.py
+[  69/ 167] 🐍 PYTHON FILE: app\models\notification_model.py
 📏 SIZE: 876 bytes
 🕐 MODIFIED: 2026-10-01 10:23:17
 
@@ -14926,7 +14934,7 @@ print("✅ Notification Model Loaded - NO TTL")
 
 
 ================================================================================
-[  70/ 163] 🐍 PYTHON FILE: app\models\payment_model.py
+[  70/ 167] 🐍 PYTHON FILE: app\models\payment_model.py
 📏 SIZE: 10,781 bytes
 🕐 MODIFIED: 2026-09-27 13:01:21
 
@@ -15241,7 +15249,7 @@ print("✅ Payment Model Loaded Successfully")
 
 
 ================================================================================
-[  71/ 163] 🐍 PYTHON FILE: app\models\profile_model.py
+[  71/ 167] 🐍 PYTHON FILE: app\models\profile_model.py
 📏 SIZE: 53,719 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -16539,7 +16547,7 @@ print(f"   Total Models: {len(__all__)}")
 
 
 ================================================================================
-[  72/ 163] 🐍 PYTHON FILE: app\models\security_model.py
+[  72/ 167] 🐍 PYTHON FILE: app\models\security_model.py
 📏 SIZE: 3,398 bytes
 🕐 MODIFIED: 2026-10-01 10:22:53
 
@@ -16662,7 +16670,7 @@ print("✅ Security Model Loaded - NO TTL")
 
 
 ================================================================================
-[  73/ 163] 🐍 PYTHON FILE: app\models\session_model.py
+[  73/ 167] 🐍 PYTHON FILE: app\models\session_model.py
 📏 SIZE: 3,448 bytes
 🕐 MODIFIED: 2026-10-01 10:22:24
 
@@ -16780,7 +16788,7 @@ print("   ✅ Max 3 sessions per user (oldest ARCHIVED)")
 
 
 ================================================================================
-[  74/ 163] 🐍 PYTHON FILE: app\models\unified_application_model.py
+[  74/ 167] 🐍 PYTHON FILE: app\models\unified_application_model.py
 📏 SIZE: 15,745 bytes
 🕐 MODIFIED: 2026-09-19 18:05:08
 
@@ -17186,7 +17194,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  75/ 163] 🐍 PYTHON FILE: app\modules\admin\AI\__init__.py
+[  75/ 167] 🐍 PYTHON FILE: app\modules\admin\AI\__init__.py
 📏 SIZE: 412 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -17209,7 +17217,7 @@ __all__ = [
 
 
 ================================================================================
-[  76/ 163] 🐍 PYTHON FILE: app\modules\admin\AI\ai_routes.py
+[  76/ 167] 🐍 PYTHON FILE: app\modules\admin\AI\ai_routes.py
 📏 SIZE: 7,037 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -17403,7 +17411,7 @@ async def admin_ranked_applications(
 
 
 ================================================================================
-[  77/ 163] 🐍 PYTHON FILE: app\modules\admin\AI\candidate_scoring.py
+[  77/ 167] 🐍 PYTHON FILE: app\modules\admin\AI\candidate_scoring.py
 📏 SIZE: 2,164 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -17480,7 +17488,7 @@ Return ONLY JSON:
 
 
 ================================================================================
-[  78/ 163] 🐍 PYTHON FILE: app\modules\admin\AI\fraud_detection.py
+[  78/ 167] 🐍 PYTHON FILE: app\modules\admin\AI\fraud_detection.py
 📏 SIZE: 1,828 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -17548,7 +17556,7 @@ Return ONLY JSON:
 
 
 ================================================================================
-[  79/ 163] 🐍 PYTHON FILE: app\modules\admin\AI\hiring_predictions.py
+[  79/ 167] 🐍 PYTHON FILE: app\modules\admin\AI\hiring_predictions.py
 📏 SIZE: 2,174 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -17622,7 +17630,7 @@ Return ONLY JSON:
 
 
 ================================================================================
-[  80/ 163] 🐍 PYTHON FILE: app\modules\admin\AI\resume_analyzer.py
+[  80/ 167] 🐍 PYTHON FILE: app\modules\admin\AI\resume_analyzer.py
 📏 SIZE: 1,864 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -17690,7 +17698,7 @@ Return ONLY JSON:
 
 
 ================================================================================
-[  81/ 163] 🐍 PYTHON FILE: app\modules\admin\routes.py
+[  81/ 167] 🐍 PYTHON FILE: app\modules\admin\routes.py
 📏 SIZE: 78,449 bytes
 🕐 MODIFIED: 2026-09-27 13:44:20
 
@@ -19664,7 +19672,7 @@ print("   ✅ Notifications to all parties")
 
 
 ================================================================================
-[  82/ 163] 🐍 PYTHON FILE: app\modules\admin\schema.py
+[  82/ 167] 🐍 PYTHON FILE: app\modules\admin\schema.py
 📏 SIZE: 1,858 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -19734,7 +19742,7 @@ class BulkStatusUpdateSchema(BaseModel):
 
 
 ================================================================================
-[  83/ 163] 🐍 PYTHON FILE: app\modules\admin\service.py
+[  83/ 167] 🐍 PYTHON FILE: app\modules\admin\service.py
 📏 SIZE: 28,035 bytes
 🕐 MODIFIED: 2026-09-27 13:37:02
 
@@ -20498,7 +20506,7 @@ print("   ✅ Reports and analytics")
 
 
 ================================================================================
-[  84/ 163] 🐍 PYTHON FILE: app\modules\auth\routes.py
+[  84/ 167] 🐍 PYTHON FILE: app\modules\auth\routes.py
 📏 SIZE: 21,372 bytes
 🕐 MODIFIED: 2026-09-30 08:21:36
 
@@ -21089,7 +21097,7 @@ print("✅ Auth Routes Loaded - All login types with PERMANENT biometric storage
 
 
 ================================================================================
-[  85/ 163] 🐍 PYTHON FILE: app\modules\auth\schema.py
+[  85/ 167] 🐍 PYTHON FILE: app\modules\auth\schema.py
 📏 SIZE: 4,252 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -21234,7 +21242,7 @@ class UserRoleResponseSchema(BaseModel):
 
 
 ================================================================================
-[  86/ 163] 🐍 PYTHON FILE: app\modules\auth\service.py
+[  86/ 167] 🐍 PYTHON FILE: app\modules\auth\service.py
 📏 SIZE: 54,624 bytes
 🕐 MODIFIED: 2026-09-30 08:40:50
 
@@ -22715,7 +22723,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  87/ 163] 🐍 PYTHON FILE: app\modules\auth\utils.py
+[  87/ 167] 🐍 PYTHON FILE: app\modules\auth\utils.py
 📏 SIZE: 454 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -22741,7 +22749,7 @@ def get_role_dashboard(role: str) -> str:
 
 
 ================================================================================
-[  88/ 163] 🐍 PYTHON FILE: app\modules\blockchain\routes.py
+[  88/ 167] 🐍 PYTHON FILE: app\modules\blockchain\routes.py
 📏 SIZE: 5,445 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -22912,7 +22920,7 @@ print("✅ Blockchain module loaded (Mock implementation)")
 
 
 ================================================================================
-[  89/ 163] 🐍 PYTHON FILE: app\modules\chat\websocket.py
+[  89/ 167] 🐍 PYTHON FILE: app\modules\chat\websocket.py
 📏 SIZE: 6,677 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -23122,7 +23130,7 @@ print("✅ Chat module loaded")
 
 
 ================================================================================
-[  90/ 163] 🐍 PYTHON FILE: app\modules\common\__init__.py
+[  90/ 167] 🐍 PYTHON FILE: app\modules\common\__init__.py
 📏 SIZE: 179 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -23136,7 +23144,7 @@ __all__ = ['get_ai_client', 'PROMPT_TEMPLATES']
 
 
 ================================================================================
-[  91/ 163] 🐍 PYTHON FILE: app\modules\common\ai_client.py
+[  91/ 167] 🐍 PYTHON FILE: app\modules\common\ai_client.py
 📏 SIZE: 385 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -23157,7 +23165,7 @@ def get_ai_client():
 
 
 ================================================================================
-[  92/ 163] 🐍 PYTHON FILE: app\modules\customadmin\routes.py
+[  92/ 167] 🐍 PYTHON FILE: app\modules\customadmin\routes.py
 📏 SIZE: 61,973 bytes
 🕐 MODIFIED: 2026-09-27 13:42:22
 
@@ -24755,7 +24763,7 @@ print("   ✅ Payment Verification: Approve, Reject")
 
 
 ================================================================================
-[  93/ 163] 🐍 PYTHON FILE: app\modules\customadmin\service.py
+[  93/ 167] 🐍 PYTHON FILE: app\modules\customadmin\service.py
 📏 SIZE: 19,806 bytes
 🕐 MODIFIED: 2026-09-27 13:38:09
 
@@ -25309,7 +25317,7 @@ print("   ✅ Reports generation")
 
 
 ================================================================================
-[  94/ 163] 🐍 PYTHON FILE: app\modules\jobs\AI\__init__.py
+[  94/ 167] 🐍 PYTHON FILE: app\modules\jobs\AI\__init__.py
 📏 SIZE: 320 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -25330,7 +25338,7 @@ __all__ = [
 
 
 ================================================================================
-[  95/ 163] 🐍 PYTHON FILE: app\modules\jobs\AI\ai_routes.py
+[  95/ 167] 🐍 PYTHON FILE: app\modules\jobs\AI\ai_routes.py
 📏 SIZE: 23,489 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -26009,7 +26017,7 @@ print("✅ Jobs AI Routes Loaded - Real-time Analysis & Matching")
 
 
 ================================================================================
-[  96/ 163] 🐍 PYTHON FILE: app\modules\jobs\AI\fake_job_detector.py
+[  96/ 167] 🐍 PYTHON FILE: app\modules\jobs\AI\fake_job_detector.py
 📏 SIZE: 4,005 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -26131,7 +26139,7 @@ fake_job_detector = FakeJobDetectorAI()
 
 
 ================================================================================
-[  97/ 163] 🐍 PYTHON FILE: app\modules\jobs\AI\job_parser.py
+[  97/ 167] 🐍 PYTHON FILE: app\modules\jobs\AI\job_parser.py
 📏 SIZE: 2,348 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -26203,7 +26211,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[  98/ 163] 🐍 PYTHON FILE: app\modules\jobs\AI\salary_predictor.py
+[  98/ 167] 🐍 PYTHON FILE: app\modules\jobs\AI\salary_predictor.py
 📏 SIZE: 2,481 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -26283,7 +26291,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[  99/ 163] 🐍 PYTHON FILE: app\modules\jobs\AI\ultra_career_ai.py
+[  99/ 167] 🐍 PYTHON FILE: app\modules\jobs\AI\ultra_career_ai.py
 📏 SIZE: 58,932 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -27615,7 +27623,7 @@ ultra_career_ai = UltraCareerAI()
 
 
 ================================================================================
-[ 100/ 163] 🐍 PYTHON FILE: app\modules\jobs\job_fetch.py
+[ 100/ 167] 🐍 PYTHON FILE: app\modules\jobs\job_fetch.py
 📏 SIZE: 27,600 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -28287,7 +28295,7 @@ print("✅ Job Fetch Module Loaded (With job_location and short location names)"
 
 
 ================================================================================
-[ 101/ 163] 🐍 PYTHON FILE: app\modules\jobs\routes.py
+[ 101/ 167] 🐍 PYTHON FILE: app\modules\jobs\routes.py
 📏 SIZE: 40,637 bytes
 🕐 MODIFIED: 2026-09-27 08:01:40
 
@@ -29357,7 +29365,7 @@ print("✅ NEW: color_type query param added to list_jobs")
 
 
 ================================================================================
-[ 102/ 163] 🐍 PYTHON FILE: app\modules\jobs\schema.py
+[ 102/ 167] 🐍 PYTHON FILE: app\modules\jobs\schema.py
 📏 SIZE: 1,832 bytes
 🕐 MODIFIED: 2026-09-27 08:00:07
 
@@ -29427,7 +29435,7 @@ class RecommendedJobResponse(BaseModel):
 
 
 ================================================================================
-[ 103/ 163] 🐍 PYTHON FILE: app\modules\jobs\service.py
+[ 103/ 167] 🐍 PYTHON FILE: app\modules\jobs\service.py
 📏 SIZE: 73,272 bytes
 🕐 MODIFIED: 2026-10-01 10:28:04
 
@@ -31168,7 +31176,7 @@ print("=" * 70)
 
 
 ================================================================================
-[ 104/ 163] 🐍 PYTHON FILE: app\modules\location\__init__.py
+[ 104/ 167] 🐍 PYTHON FILE: app\modules\location\__init__.py
 📏 SIZE: 283 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -31187,7 +31195,7 @@ __all__ = ['router', 'LocationService']
 
 
 ================================================================================
-[ 105/ 163] 🐍 PYTHON FILE: app\modules\location\routes.py
+[ 105/ 167] 🐍 PYTHON FILE: app\modules\location\routes.py
 📏 SIZE: 16,545 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -31693,7 +31701,7 @@ print("✅ Centralized Location Module Routes Loaded")
 
 
 ================================================================================
-[ 106/ 163] 🐍 PYTHON FILE: app\modules\location\schema.py
+[ 106/ 167] 🐍 PYTHON FILE: app\modules\location\schema.py
 📏 SIZE: 2,232 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -31773,7 +31781,7 @@ class LocationResponse(BaseModel):
 
 
 ================================================================================
-[ 107/ 163] 🐍 PYTHON FILE: app\modules\location\service.py
+[ 107/ 167] 🐍 PYTHON FILE: app\modules\location\service.py
 📏 SIZE: 23,154 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -32368,7 +32376,7 @@ print("✅ Centralized Location Service Loaded - Can be called from any module")
 
 
 ================================================================================
-[ 108/ 163] 🐍 PYTHON FILE: app\modules\market\AI\__init__.py
+[ 108/ 167] 🐍 PYTHON FILE: app\modules\market\AI\__init__.py
 📏 SIZE: 106 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -32381,7 +32389,7 @@ __all__ = ['ai_router']
 
 
 ================================================================================
-[ 109/ 163] 🐍 PYTHON FILE: app\modules\market\AI\ai_routes.py
+[ 109/ 167] 🐍 PYTHON FILE: app\modules\market\AI\ai_routes.py
 📏 SIZE: 1,925 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -32446,7 +32454,7 @@ async def skill_forecast(
 
 
 ================================================================================
-[ 110/ 163] 🐍 PYTHON FILE: app\modules\market\routes.py
+[ 110/ 167] 🐍 PYTHON FILE: app\modules\market\routes.py
 📏 SIZE: 12,245 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -32816,7 +32824,7 @@ print("✅ Real-Time Market Intelligence Routes loaded - World's First Live Mark
 
 
 ================================================================================
-[ 111/ 163] 🐍 PYTHON FILE: app\modules\notification\AI\__init__.py
+[ 111/ 167] 🐍 PYTHON FILE: app\modules\notification\AI\__init__.py
 📏 SIZE: 112 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -32829,7 +32837,7 @@ __all__ = ['ai_router']
 
 
 ================================================================================
-[ 112/ 163] 🐍 PYTHON FILE: app\modules\notification\AI\ai_routes.py
+[ 112/ 167] 🐍 PYTHON FILE: app\modules\notification\AI\ai_routes.py
 📏 SIZE: 3,086 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -32935,7 +32943,7 @@ print("✅ Notification AI Routes Loaded")
 
 
 ================================================================================
-[ 113/ 163] 🐍 PYTHON FILE: app\modules\notification\routes.py
+[ 113/ 167] 🐍 PYTHON FILE: app\modules\notification\routes.py
 📏 SIZE: 7,391 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -33193,7 +33201,7 @@ print("✅ Notification Routes Loaded")
 
 
 ================================================================================
-[ 114/ 163] 🐍 PYTHON FILE: app\modules\notification\schema.py
+[ 114/ 167] 🐍 PYTHON FILE: app\modules\notification\schema.py
 📏 SIZE: 929 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -33239,7 +33247,7 @@ class NotificationResponseSchema(BaseModel):
 
 
 ================================================================================
-[ 115/ 163] 🐍 PYTHON FILE: app\modules\notification\service.py
+[ 115/ 167] 🐍 PYTHON FILE: app\modules\notification\service.py
 📏 SIZE: 72,613 bytes
 🕐 MODIFIED: 2026-09-26 18:46:26
 
@@ -35052,7 +35060,7 @@ print("   💰 Payment verification notification method included")
 
 
 ================================================================================
-[ 116/ 163] 🐍 PYTHON FILE: app\modules\notification\watcher.py
+[ 116/ 167] 🐍 PYTHON FILE: app\modules\notification\watcher.py
 📏 SIZE: 1,183 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -35086,7 +35094,7 @@ async def start_job_watcher():
 
 
 ================================================================================
-[ 117/ 163] 🐍 PYTHON FILE: app\modules\notification\websocket.py
+[ 117/ 167] 🐍 PYTHON FILE: app\modules\notification\websocket.py
 📏 SIZE: 10,066 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -35367,7 +35375,7 @@ print("✅ WebSocket Manager Loaded - Fixed token verification")
 
 
 ================================================================================
-[ 118/ 163] 🐍 PYTHON FILE: app\modules\payment\phonepe_sdk_service.py
+[ 118/ 167] 🐍 PYTHON FILE: app\modules\payment\phonepe_sdk_service.py
 📏 SIZE: 8,096 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -35576,7 +35584,7 @@ phonepe_sdk_service = PhonePeSDKService()
 
 
 ================================================================================
-[ 119/ 163] 🐍 PYTHON FILE: app\modules\payment\phonepe_simple_service.py
+[ 119/ 167] 🐍 PYTHON FILE: app\modules\payment\phonepe_simple_service.py
 📏 SIZE: 5,447 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -35724,7 +35732,7 @@ phonepe_simple_service = PhonePeSimpleService()
 
 
 ================================================================================
-[ 120/ 163] 🐍 PYTHON FILE: app\modules\payment\razorpay_integration.py
+[ 120/ 167] 🐍 PYTHON FILE: app\modules\payment\razorpay_integration.py
 📏 SIZE: 36,067 bytes
 🕐 MODIFIED: 2026-09-20 16:58:19
 
@@ -36548,7 +36556,7 @@ print("=" * 70)
 
 
 ================================================================================
-[ 121/ 163] 🐍 PYTHON FILE: app\modules\payment\routes.py
+[ 121/ 167] 🐍 PYTHON FILE: app\modules\payment\routes.py
 📏 SIZE: 105,396 bytes
 🕐 MODIFIED: 2026-10-07 20:27:21
 
@@ -38944,7 +38952,7 @@ print("=" * 70)
 
 
 ================================================================================
-[ 122/ 163] 🐍 PYTHON FILE: app\modules\resume\AI\__init__.py
+[ 122/ 167] 🐍 PYTHON FILE: app\modules\resume\AI\__init__.py
 📏 SIZE: 2,045 bytes
 🕐 MODIFIED: 2026-09-25 11:15:06
 
@@ -39018,7 +39026,7 @@ __all__ = [
 
 
 ================================================================================
-[ 123/ 163] 🐍 PYTHON FILE: app\modules\resume\AI\ai_routes.py
+[ 123/ 167] 🐍 PYTHON FILE: app\modules\resume\AI\ai_routes.py
 📏 SIZE: 9,788 bytes
 🕐 MODIFIED: 2026-10-09 17:47:16
 
@@ -39306,7 +39314,7 @@ async def quick_score(current_user: dict = Depends(get_current_user)):
 
 
 ================================================================================
-[ 124/ 163] 🐍 PYTHON FILE: app\modules\resume\AI\ats_optimizer.py
+[ 124/ 167] 🐍 PYTHON FILE: app\modules\resume\AI\ats_optimizer.py
 📏 SIZE: 26,858 bytes
 🕐 MODIFIED: 2026-09-25 10:34:09
 
@@ -39980,7 +39988,7 @@ ats_optimizer = ATSOptimizer()
 
 
 ================================================================================
-[ 125/ 163] 🐍 PYTHON FILE: app\modules\resume\AI\resume_enhancer.py
+[ 125/ 167] 🐍 PYTHON FILE: app\modules\resume\AI\resume_enhancer.py
 📏 SIZE: 3,503 bytes
 🕐 MODIFIED: 2026-09-25 10:35:19
 
@@ -40093,7 +40101,7 @@ resume_enhancer = ResumeEnhancer()
 
 
 ================================================================================
-[ 126/ 163] 🐍 PYTHON FILE: app\modules\resume\AI\resume_generator.py
+[ 126/ 167] 🐍 PYTHON FILE: app\modules\resume\AI\resume_generator.py
 📏 SIZE: 28,735 bytes
 🕐 MODIFIED: 2026-10-06 10:33:58
 
@@ -40835,7 +40843,7 @@ resume_generator = ResumeGenerator()
 
 
 ================================================================================
-[ 127/ 163] 🐍 PYTHON FILE: app\modules\resume\AI\resume_parser.py
+[ 127/ 167] 🐍 PYTHON FILE: app\modules\resume\AI\resume_parser.py
 📏 SIZE: 2,373 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -40916,7 +40924,7 @@ RESUME CONTENT: {content[:2000]}
 
 
 ================================================================================
-[ 128/ 163] 🐍 PYTHON FILE: app\modules\resume\routes.py
+[ 128/ 167] 🐍 PYTHON FILE: app\modules\resume\routes.py
 📏 SIZE: 14,008 bytes
 🕐 MODIFIED: 2026-10-09 17:46:39
 
@@ -41348,7 +41356,7 @@ print("✅ NEW: /profile-photo — lightweight current photo URL endpoint")
 
 
 ================================================================================
-[ 129/ 163] 🐍 PYTHON FILE: app\modules\resume\schema.py
+[ 129/ 167] 🐍 PYTHON FILE: app\modules\resume\schema.py
 📏 SIZE: 557 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -41381,7 +41389,7 @@ class ResumeListResponse(BaseModel):
 
 
 ================================================================================
-[ 130/ 163] 🐍 PYTHON FILE: app\modules\resume\service.py
+[ 130/ 167] 🐍 PYTHON FILE: app\modules\resume\service.py
 📏 SIZE: 48,639 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -42518,7 +42526,1372 @@ print("✅ Resume Service Loaded - Complete Profile Resume View Available")
 
 
 ================================================================================
-[ 131/ 163] 🐍 PYTHON FILE: app\modules\services\__init__.py
+[ 131/ 167] 🐍 PYTHON FILE: app\modules\schemes\__init__.py
+📏 SIZE: 255 bytes
+🕐 MODIFIED: 2026-10-10 06:41:04
+
+================================================================================
+
+# app/modules/schemes/__init__.py
+"""
+Government Schemes Module
+Provides Central and State Government schemes with application functionality
+"""
+
+from .routes import router
+from .service import SchemeService
+
+__all__ = ['router', 'SchemeService']
+
+
+================================================================================
+[ 132/ 167] 🐍 PYTHON FILE: app\modules\schemes\routes.py
+📏 SIZE: 11,039 bytes
+🕐 MODIFIED: 2026-10-10 06:43:03
+
+================================================================================
+
+# app/modules/schemes/routes.py
+"""
+Government Schemes API Routes
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, UploadFile, File, Form
+from typing import Optional, List, Dict, Any
+from bson import ObjectId
+import logging
+
+from app.core.services.dependencies import get_current_user, role_required
+from app.db.connection import get_db
+from app.modules.schemes.service import SchemeService
+from app.modules.schemes.schema import (
+    SchemeApplicationCreateSchema,
+    SchemeApplicationStatusUpdateSchema,
+    SchemeFilterSchema
+)
+from app.core.services.cloudinary import upload_user_document
+from app.core.utils.logger import logger
+
+router = APIRouter(prefix="/schemes", tags=["Government Schemes"])
+
+
+async def get_scheme_service(db=Depends(get_db)):
+    """Dependency to get SchemeService instance"""
+    return SchemeService(db)
+
+
+# ============================================================
+# SCHEME LISTING & RETRIEVAL (Public)
+# ============================================================
+
+@router.get("/list")
+async def list_schemes(
+    level: Optional[str] = Query(None, description="central, state, or all"),
+    state: Optional[str] = Query(None, description="State name for state schemes"),
+    category: Optional[str] = Query(None, description="Scheme category"),
+    search: Optional[str] = Query(None, description="Search term"),
+    is_featured: Optional[bool] = Query(None, description="Filter featured schemes"),
+    limit: int = Query(50, ge=1, le=200),
+    skip: int = Query(0, ge=0),
+    service: SchemeService = Depends(get_scheme_service),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    List all government schemes with filters
+    """
+    return await service.list_schemes(
+        level=level,
+        state=state,
+        category=category,
+        search=search,
+        is_featured=is_featured,
+        limit=limit,
+        skip=skip
+    )
+
+
+@router.get("/featured")
+async def get_featured_schemes(
+    limit: int = Query(10, ge=1, le=50),
+    service: SchemeService = Depends(get_scheme_service),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get featured schemes
+    """
+    schemes = await service.get_featured_schemes(limit)
+    return {
+        "success": True,
+        "schemes": schemes,
+        "total": len(schemes)
+    }
+
+
+@router.get("/categories")
+async def get_scheme_categories(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get all available scheme categories
+    """
+    categories = [
+        {"id": "agriculture", "name": "Agriculture", "name_hindi": "कृषि", "icon": "🌾"},
+        {"id": "education", "name": "Education", "name_hindi": "शिक्षा", "icon": "📚"},
+        {"id": "health", "name": "Health", "name_hindi": "स्वास्थ्य", "icon": "🏥"},
+        {"id": "housing", "name": "Housing", "name_hindi": "आवास", "icon": "🏠"},
+        {"id": "employment", "name": "Employment", "name_hindi": "रोजगार", "icon": "💼"},
+        {"id": "women_child", "name": "Women & Child", "name_hindi": "महिला एवं बाल", "icon": "👩"},
+        {"id": "social_welfare", "name": "Social Welfare", "name_hindi": "समाज कल्याण", "icon": "🤝"},
+        {"id": "financial_inclusion", "name": "Financial Inclusion", "name_hindi": "वित्तीय समावेशन", "icon": "💰"},
+        {"id": "pension", "name": "Pension", "name_hindi": "पेंशन", "icon": "👴"},
+        {"id": "insurance", "name": "Insurance", "name_hindi": "बीमा", "icon": "🛡️"},
+        {"id": "skill_development", "name": "Skill Development", "name_hindi": "कौशल विकास", "icon": "🎓"},
+        {"id": "entrepreneurship", "name": "Entrepreneurship", "name_hindi": "उद्यमिता", "icon": "🚀"},
+        {"id": "disability", "name": "Disability", "name_hindi": "विकलांगता", "icon": "♿"},
+        {"id": "sc_st_welfare", "name": "SC/ST Welfare", "name_hindi": "अनुसूचित जाति/जनजाति कल्याण", "icon": "📋"},
+        {"id": "minority_welfare", "name": "Minority Welfare", "name_hindi": "अल्पसंख्यक कल्याण", "icon": "🕌"},
+        {"id": "other", "name": "Other", "name_hindi": "अन्य", "icon": "📌"},
+    ]
+    return {
+        "success": True,
+        "categories": categories
+    }
+
+
+@router.get("/states")
+async def get_states_with_schemes(
+    service: SchemeService = Depends(get_scheme_service),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get list of states that have schemes
+    """
+    states = await service.get_states_with_schemes()
+    return {
+        "success": True,
+        "states": states
+    }
+
+
+@router.get("/detail/{scheme_id}")
+async def get_scheme_detail(
+    scheme_id: str,
+    service: SchemeService = Depends(get_scheme_service),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get detailed information about a specific scheme
+    Returns full scheme details including:
+    - Benefits (लाभ)
+    - Eligibility (पात्रता)
+    - Required documents (आवश्यक दस्तावेज)
+    - Application process (आवेदन प्रक्रिया)
+    - Target beneficiaries (लाभार्थी)
+    """
+    return await service.get_scheme_detail(scheme_id)
+
+
+# ============================================================
+# SCHEME APPLICATION (User)
+# ============================================================
+
+@router.post("/apply")
+async def apply_for_scheme(
+    data: Dict[str, Any] = Body(...),
+    service: SchemeService = Depends(get_scheme_service),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Apply for a government scheme
+    """
+    user_email = current_user.get("email")
+    user_id = current_user.get("user_id")
+    
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+    
+    return await service.create_application(
+        data=data,
+        user_email=user_email,
+        user_id=user_id
+    )
+
+
+@router.get("/my-applications")
+async def get_my_scheme_applications(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    service: SchemeService = Depends(get_scheme_service),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get all scheme applications for the current user
+    """
+    user_email = current_user.get("email")
+    
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+    
+    return await service.get_user_applications(user_email, status)
+
+
+@router.get("/application/{application_id}")
+async def get_application_detail(
+    application_id: str,
+    service: SchemeService = Depends(get_scheme_service),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get detailed information about a specific scheme application
+    """
+    user_email = current_user.get("email")
+    
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+    
+    return await service.get_application_detail(application_id, user_email)
+
+
+@router.post("/application/{application_id}/upload-document")
+async def upload_application_document(
+    application_id: str,
+    file: UploadFile = File(...),
+    document_type: str = Form(...),
+    document_name: str = Form(...),
+    service: SchemeService = Depends(get_scheme_service),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Upload a document for a scheme application
+    """
+    user_email = current_user.get("email")
+    
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+    
+    if not file or not file.filename:
+        raise HTTPException(status_code=400, detail="File is required")
+    
+    # Validate file type
+    allowed_extensions = ['pdf', 'jpg', 'jpeg', 'png']
+    file_ext = file.filename.split('.')[-1].lower() if file.filename else ''
+    if file_ext not in allowed_extensions:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
+        )
+    
+    # Validate file size (10MB max)
+    file_content = await file.read()
+    file_size = len(file_content)
+    await file.seek(0)
+    
+    if file_size > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Max: 10MB, Your file: {file_size // (1024*1024)}MB"
+        )
+    
+    # Upload to Cloudinary
+    username = user_email.split('@')[0]
+    upload_result = await upload_user_document(
+        file=file,
+        username=username,
+        document_type=f"scheme_applications/{application_id}"
+    )
+    
+    return await service.upload_document(
+        application_id=application_id,
+        user_email=user_email,
+        document_type=document_type,
+        document_name=document_name,
+        document_url=upload_result.get("url"),
+        public_id=upload_result.get("public_id")
+    )
+
+
+# ============================================================
+# ADMIN OPERATIONS
+# ============================================================
+
+@router.get("/admin/all-applications")
+async def get_all_scheme_applications(
+    status: Optional[str] = Query(None, description="Filter by status"),
+    scheme_id: Optional[str] = Query(None, description="Filter by scheme"),
+    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0),
+    service: SchemeService = Depends(get_scheme_service),
+    current_user: dict = Depends(role_required(["admin", "customadmin", "superadmin"]))
+):
+    """
+    Get all scheme applications (Admin only)
+    """
+    admin_email = current_user.get("email")
+    return await service.get_all_applications(
+        admin_email=admin_email,
+        status=status,
+        scheme_id=scheme_id,
+        limit=limit,
+        skip=skip
+    )
+
+
+@router.put("/admin/application/{application_id}/status")
+async def update_application_status(
+    application_id: str,
+    status: str = Query(..., description="New status"),
+    notes: Optional[str] = Query(None, description="Admin notes"),
+    service: SchemeService = Depends(get_scheme_service),
+    current_user: dict = Depends(role_required(["admin", "customadmin", "superadmin"]))
+):
+    """
+    Update scheme application status (Admin only)
+    """
+    admin_email = current_user.get("email")
+    return await service.update_application_status(
+        application_id=application_id,
+        status=status,
+        admin_email=admin_email,
+        notes=notes
+    )
+
+
+print("✅ Schemes Routes Loaded Successfully")
+
+
+================================================================================
+[ 133/ 167] 🐍 PYTHON FILE: app\modules\schemes\schema.py
+📏 SIZE: 12,733 bytes
+🕐 MODIFIED: 2026-10-10 06:41:36
+
+================================================================================
+
+# app/modules/schemes/schema.py
+"""
+Government Schemes - Pydantic Schemas
+Complete schema definitions for scheme data and applications
+"""
+
+from pydantic import BaseModel, EmailStr, Field, field_validator
+from typing import Optional, List, Dict, Any
+from datetime import datetime
+from enum import Enum
+
+
+# ============================================================
+# ENUMS
+# ============================================================
+
+class SchemeLevel(str, Enum):
+    """Scheme level - Central or State Government"""
+    CENTRAL = "central"
+    STATE = "state"
+
+
+class SchemeStatus(str, Enum):
+    """Scheme application status"""
+    DRAFT = "draft"
+    SAVED = "saved"
+    PENDING = "pending"
+    PENDING_VERIFICATION = "pending_verification"
+    UNDER_REVIEW = "under_review"
+    REVIEW_APPLICATION = "review_application"
+    APPROVED = "approved"
+    APPROVED_APPLICATION = "approved_application"
+    REJECTED = "rejected"
+    COMPLETED = "completed"
+    PAYMENT_PENDING = "payment_pending"
+    PAYMENT_VERIFIED = "payment_verified"
+    VERIFICATION_SUCCESSFUL = "verification_successful"
+    VERIFICATION_REJECTED = "verification_rejected"
+    UPDATE_APPLICATION = "update_application"
+    CONFIRMED_APPLICATION = "confirmed_application"
+    FINAL_SUBMITTED = "final_submitted"
+
+
+class SchemeCategory(str, Enum):
+    """Scheme categories"""
+    AGRICULTURE = "agriculture"
+    EDUCATION = "education"
+    HEALTH = "health"
+    HOUSING = "housing"
+    EMPLOYMENT = "employment"
+    WOMEN_CHILD = "women_child"
+    SOCIAL_WELFARE = "social_welfare"
+    FINANCIAL_INCLUSION = "financial_inclusion"
+    PENSION = "pension"
+    INSURANCE = "insurance"
+    SKILL_DEVELOPMENT = "skill_development"
+    ENTREPRENEURSHIP = "entrepreneurship"
+    DISABILITY = "disability"
+    SC_ST_WELFARE = "sc_st_welfare"
+    MINORITY_WELFARE = "minority_welfare"
+    OTHER = "other"
+
+
+# ============================================================
+# SCHEME DETAILS MODEL
+# ============================================================
+
+class SchemeBenefit(BaseModel):
+    """Individual benefit offered by scheme"""
+    title: str
+    description: str
+    amount: Optional[str] = None
+    type: str = Field(default="financial", pattern="^(financial|non_financial|service|training)$")
+
+
+class SchemeEligibility(BaseModel):
+    """Eligibility criteria for scheme"""
+    age_min: Optional[int] = Field(None, ge=0, le=100)
+    age_max: Optional[int] = Field(None, ge=0, le=100)
+    gender: Optional[str] = Field(None, pattern="^(male|female|all|transgender)$")
+    income_limit: Optional[int] = None  # Annual income in rupees
+    category: Optional[List[str]] = None  # General, OBC, SC, ST, EWS
+    education_level: Optional[str] = None
+    occupation: Optional[str] = None
+    domicile_state: Optional[str] = None  # Required state domicile
+    disability_required: bool = False
+    bpl_required: bool = False
+    aadhaar_required: bool = True
+    other_conditions: Optional[List[str]] = None
+
+
+class SchemeDocument(BaseModel):
+    """Required document for scheme application"""
+    name: str
+    name_hindi: str
+    required: bool = True
+    description: Optional[str] = None
+
+
+class SchemeApplicationStep(BaseModel):
+    """Step in application process"""
+    step_number: int
+    title: str
+    title_hindi: str
+    description: str
+    description_hindi: str
+
+
+class SchemeContactInfo(BaseModel):
+    """Contact information for scheme"""
+    helpline: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    office_address: Optional[str] = None
+
+
+class SchemeModel(BaseModel):
+    """
+    Complete Government Scheme Model
+    """
+    # Basic Info
+    scheme_id: str = Field(..., description="Unique scheme identifier")
+    scheme_name: str
+    scheme_name_hindi: str
+    short_description: str
+    short_description_hindi: str
+    
+    # Level & Category
+    level: str = Field(default="central", pattern="^(central|state)$")
+    state: Optional[str] = None  # Required if level is state
+    category: str = Field(default="other")
+    sub_category: Optional[str] = None
+    
+    # Detailed Info
+    full_description: str
+    full_description_hindi: str
+    benefits: List[SchemeBenefit] = Field(default_factory=list)
+    eligibility: SchemeEligibility = Field(default_factory=SchemeEligibility)
+    eligibility_details_hindi: str = ""
+    
+    # Who can apply (Target Beneficiaries)
+    target_beneficiaries: List[str] = Field(default_factory=list)
+    target_beneficiaries_hindi: List[str] = Field(default_factory=list)
+    
+    # Documents Required
+    required_documents: List[SchemeDocument] = Field(default_factory=list)
+    
+    # Application Process
+    application_steps: List[SchemeApplicationStep] = Field(default_factory=list)
+    application_mode: str = Field(default="online", pattern="^(online|offline|both)$")
+    
+    # Important Dates
+    application_start_date: Optional[str] = None
+    application_end_date: Optional[str] = None
+    is_always_open: bool = True
+    
+    # Contact
+    contact_info: SchemeContactInfo = Field(default_factory=SchemeContactInfo)
+    
+    # Official Links
+    official_website: Optional[str] = None
+    apply_link: Optional[str] = None
+    notification_pdf_url: Optional[str] = None
+    
+    # Fees
+    has_application_fee: bool = False
+    application_fee: Optional[int] = 0
+    fee_details_hindi: Optional[str] = None
+    
+    # Display
+    icon: str = "📋"
+    color: str = "blue"
+    priority: int = Field(default=5, ge=1, le=10)
+    is_featured: bool = False
+    is_active: bool = True
+    
+    # Metadata
+    tags: List[str] = Field(default_factory=list)
+    search_keywords: List[str] = Field(default_factory=list)
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        collection = "schemes"
+        use_enum_values = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
+# ============================================================
+# SCHEME APPLICATION MODEL
+# ============================================================
+
+class SchemeApplicantDetails(BaseModel):
+    """Applicant personal details"""
+    full_name: str
+    full_name_hindi: Optional[str] = None
+    father_name: Optional[str] = None
+    mother_name: Optional[str] = None
+    date_of_birth: str
+    gender: str
+    category: str  # General, OBC, SC, ST, EWS
+    religion: Optional[str] = None
+    marital_status: Optional[str] = None
+    aadhaar_number: Optional[str] = None
+    mobile: str
+    email: EmailStr
+    annual_income: Optional[int] = None
+    bpl_status: bool = False
+    disability_status: bool = False
+    disability_percentage: Optional[float] = None
+
+
+class SchemeApplicantAddress(BaseModel):
+    """Applicant address details"""
+    address_line1: str
+    address_line2: Optional[str] = None
+    village_city: str
+    district: str
+    state: str
+    pincode: str
+    country: str = "India"
+
+
+class SchemeBankDetails(BaseModel):
+    """Bank details for benefit transfer"""
+    account_holder_name: str
+    bank_name: str
+    account_number: str
+    ifsc_code: str
+    branch_name: Optional[str] = None
+    account_type: str = "savings"
+
+
+class SchemeApplicationDocument(BaseModel):
+    """Uploaded document for application"""
+    document_type: str
+    document_name: str
+    document_url: str
+    public_id: Optional[str] = None
+    uploaded_at: datetime = Field(default_factory=datetime.utcnow)
+    verified: bool = False
+
+
+class SchemeApplicationModel(BaseModel):
+    """
+    Government Scheme Application Model
+    Stored in 'scheme_applications' collection
+    """
+    # Application Info
+    application_id: Optional[str] = None
+    
+    # User Info
+    user_email: EmailStr
+    user_id: Optional[str] = None
+    user_name: str
+    user_mobile: Optional[str] = None
+    
+    # Scheme Info
+    scheme_id: str
+    scheme_name: str
+    scheme_name_hindi: str
+    scheme_level: str  # central or state
+    scheme_state: Optional[str] = None
+    scheme_category: str
+    
+    # Applicant Details
+    applicant_details: SchemeApplicantDetails
+    applicant_address: SchemeApplicantAddress
+    bank_details: Optional[SchemeBankDetails] = None
+    
+    # Uploaded Documents
+    documents: List[SchemeApplicationDocument] = Field(default_factory=list)
+    
+    # Additional Info
+    additional_info: Optional[Dict[str, Any]] = None
+    remarks: Optional[str] = None
+    
+    # Status
+    status: str = Field(default="draft")
+    payment_verification_status: str = "not_submitted"
+    
+    # Payment (if applicable)
+    payment_amount: Optional[int] = None
+    payment_id: Optional[str] = None
+    payment_method: str = "razorpay"
+    razorpay_order_id: Optional[str] = None
+    razorpay_payment_id: Optional[str] = None
+    razorpay_signature: Optional[str] = None
+    payment_receipt_url: Optional[str] = None
+    transaction_id: Optional[str] = None
+    paid_at: Optional[datetime] = None
+    payment_verified_at: Optional[datetime] = None
+    payment_verified_by: Optional[str] = None
+    payment_rejection_reason: Optional[str] = None
+    
+    # Admin Actions
+    admin_notes: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    
+    # Document Submission (Admin)
+    submitted_document_url: Optional[str] = None
+    submitted_document_name: Optional[str] = None
+    submitted_document_public_id: Optional[str] = None
+    submitted_at: Optional[datetime] = None
+    submitted_by: Optional[str] = None
+    
+    # Final Submission
+    final_document_url: Optional[str] = None
+    final_document_name: Optional[str] = None
+    final_submitted_at: Optional[datetime] = None
+    final_submitted_by: Optional[str] = None
+    
+    # Updates
+    application_updates: List[Dict[str, Any]] = Field(default_factory=list)
+    update_notes: Optional[str] = None
+    update_submitted_at: Optional[datetime] = None
+    update_submitted_by: Optional[str] = None
+    update_approved_at: Optional[datetime] = None
+    update_approved_by: Optional[str] = None
+    update_rejected_at: Optional[datetime] = None
+    update_rejected_by: Optional[str] = None
+    admin_update_notes: Optional[str] = None
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    applied_at: Optional[datetime] = None
+    
+    # Archive
+    is_archived: bool = False
+    archived_at: Optional[datetime] = None
+    archived_reason: Optional[str] = None
+    
+    class Config:
+        collection = "scheme_applications"
+        use_enum_values = True
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+
+# ============================================================
+# REQUEST/RESPONSE SCHEMAS
+# ============================================================
+
+class SchemeListResponse(BaseModel):
+    """Response for scheme list"""
+    success: bool = True
+    schemes: List[Dict[str, Any]]
+    total: int
+    page: int = 1
+    limit: int = 50
+
+
+class SchemeDetailResponse(BaseModel):
+    """Response for single scheme detail"""
+    success: bool = True
+    scheme: Dict[str, Any]
+
+
+class SchemeApplicationCreateSchema(BaseModel):
+    """Schema for creating scheme application"""
+    scheme_id: str
+    applicant_details: SchemeApplicantDetails
+    applicant_address: SchemeApplicantAddress
+    bank_details: Optional[SchemeBankDetails] = None
+    additional_info: Optional[Dict[str, Any]] = None
+    remarks: Optional[str] = None
+
+
+class SchemeApplicationStatusUpdateSchema(BaseModel):
+    """Schema for updating application status"""
+    status: str
+    notes: Optional[str] = None
+
+
+class SchemeApplicationResponse(BaseModel):
+    """Response for scheme application"""
+    success: bool = True
+    application_id: str
+    message: str
+    status: str
+
+
+class SchemeFilterSchema(BaseModel):
+    """Schema for filtering schemes"""
+    level: Optional[str] = None  # central, state, all
+    state: Optional[str] = None
+    category: Optional[str] = None
+    search: Optional[str] = None
+    is_featured: Optional[bool] = None
+    limit: int = Field(default=50, ge=1, le=200)
+    skip: int = Field(default=0, ge=0)
+
+
+print("✅ Schemes Schema Loaded Successfully")
+
+
+================================================================================
+[ 134/ 167] 🐍 PYTHON FILE: app\modules\schemes\service.py
+📏 SIZE: 23,027 bytes
+🕐 MODIFIED: 2026-10-10 06:42:18
+
+================================================================================
+
+# app/modules/schemes/service.py
+"""
+Government Schemes Service
+Handles all scheme-related operations
+"""
+
+from fastapi import HTTPException, BackgroundTasks
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
+from bson import ObjectId
+import logging
+import uuid
+
+from app.db.connection import get_db
+from app.core.utils.logger import logger
+from app.modules.notification.service import central_notification
+
+module_logger = logging.getLogger(__name__)
+
+
+class SchemeService:
+    """
+    Government Schemes Service
+    Manages schemes and scheme applications
+    """
+    
+    def __init__(self, db):
+        self.db = db
+        self.schemes = db.schemes
+        self.applications = db.scheme_applications
+        self.auth = db.auth
+        self.profile = db.profile
+    
+    # ============================================================
+    # SCHEME LISTING & RETRIEVAL
+    # ============================================================
+    
+    async def list_schemes(
+        self,
+        level: Optional[str] = None,
+        state: Optional[str] = None,
+        category: Optional[str] = None,
+        search: Optional[str] = None,
+        is_featured: Optional[bool] = None,
+        limit: int = 50,
+        skip: int = 0
+    ) -> Dict[str, Any]:
+        """
+        List all active schemes with filters
+        """
+        try:
+            query = {"is_active": True}
+            
+            if level and level != "all":
+                query["level"] = level
+            
+            if state and state != "all":
+                query["state"] = state
+            
+            if category and category != "all":
+                query["category"] = category
+            
+            if is_featured is not None:
+                query["is_featured"] = is_featured
+            
+            if search and search.strip():
+                search_term = search.strip()
+                query["$or"] = [
+                    {"scheme_name": {"$regex": search_term, "$options": "i"}},
+                    {"scheme_name_hindi": {"$regex": search_term, "$options": "i"}},
+                    {"short_description": {"$regex": search_term, "$options": "i"}},
+                    {"short_description_hindi": {"$regex": search_term, "$options": "i"}},
+                    {"tags": {"$in": [search_term.lower()]}},
+                    {"search_keywords": {"$in": [search_term.lower()]}},
+                ]
+            
+            total = await self.schemes.count_documents(query)
+            
+            schemes = await self.schemes.find(query).sort(
+                [("priority", -1), ("created_at", -1)]
+            ).skip(skip).limit(limit).to_list(limit)
+            
+            # Serialize
+            for scheme in schemes:
+                scheme["_id"] = str(scheme["_id"])
+                if "created_at" in scheme and isinstance(scheme["created_at"], datetime):
+                    scheme["created_at"] = scheme["created_at"].isoformat()
+                if "updated_at" in scheme and isinstance(scheme["updated_at"], datetime):
+                    scheme["updated_at"] = scheme["updated_at"].isoformat()
+            
+            return {
+                "success": True,
+                "schemes": schemes,
+                "total": total,
+                "skip": skip,
+                "limit": limit
+            }
+            
+        except Exception as e:
+            module_logger.error(f"Error listing schemes: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_scheme_detail(self, scheme_id: str) -> Dict[str, Any]:
+        """
+        Get detailed information about a specific scheme
+        """
+        try:
+            scheme = await self.schemes.find_one({
+                "scheme_id": scheme_id,
+                "is_active": True
+            })
+            
+            if not scheme:
+                raise HTTPException(status_code=404, detail="Scheme not found")
+            
+            scheme["_id"] = str(scheme["_id"])
+            if "created_at" in scheme and isinstance(scheme["created_at"], datetime):
+                scheme["created_at"] = scheme["created_at"].isoformat()
+            if "updated_at" in scheme and isinstance(scheme["updated_at"], datetime):
+                scheme["updated_at"] = scheme["updated_at"].isoformat()
+            
+            return {
+                "success": True,
+                "scheme": scheme
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            module_logger.error(f"Error getting scheme detail: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_featured_schemes(self, limit: int = 10) -> List[Dict]:
+        """Get featured schemes"""
+        try:
+            schemes = await self.schemes.find({
+                "is_active": True,
+                "is_featured": True
+            }).sort("priority", -1).limit(limit).to_list(limit)
+            
+            for scheme in schemes:
+                scheme["_id"] = str(scheme["_id"])
+            
+            return schemes
+        except Exception as e:
+            module_logger.error(f"Error getting featured schemes: {e}")
+            return []
+    
+    async def get_schemes_by_category(self, category: str, limit: int = 20) -> List[Dict]:
+        """Get schemes by category"""
+        try:
+            schemes = await self.schemes.find({
+                "is_active": True,
+                "category": category
+            }).sort("priority", -1).limit(limit).to_list(limit)
+            
+            for scheme in schemes:
+                scheme["_id"] = str(scheme["_id"])
+            
+            return schemes
+        except Exception as e:
+            module_logger.error(f"Error getting schemes by category: {e}")
+            return []
+    
+    async def get_states_with_schemes(self) -> List[str]:
+        """Get list of states that have schemes"""
+        try:
+            states = await self.schemes.distinct("state", {
+                "is_active": True,
+                "level": "state",
+                "state": {"$ne": None}
+            })
+            return sorted(states)
+        except Exception as e:
+            module_logger.error(f"Error getting states: {e}")
+            return []
+    
+    # ============================================================
+    # SCHEME APPLICATION
+    # ============================================================
+    
+    async def create_application(
+        self,
+        data: Dict[str, Any],
+        user_email: str,
+        user_id: str,
+        background_tasks: BackgroundTasks = None
+    ) -> Dict[str, Any]:
+        """
+        Create a new scheme application
+        """
+        try:
+            scheme_id = data.get("scheme_id")
+            if not scheme_id:
+                raise HTTPException(status_code=400, detail="scheme_id is required")
+            
+            # Verify scheme exists
+            scheme = await self.schemes.find_one({
+                "scheme_id": scheme_id,
+                "is_active": True
+            })
+            
+            if not scheme:
+                raise HTTPException(status_code=404, detail="Scheme not found")
+            
+            # Check if already applied
+            existing = await self.applications.find_one({
+                "user_email": user_email,
+                "scheme_id": scheme_id,
+                "status": {"$nin": ["rejected", "verification_rejected"]},
+                "is_archived": {"$ne": True}
+            })
+            
+            if existing:
+                return {
+                    "success": False,
+                    "message": "You have already applied for this scheme",
+                    "application_id": str(existing["_id"]),
+                    "status": existing.get("status", "pending")
+                }
+            
+            # Get user profile for additional info
+            profile = await self.profile.find_one({"email": user_email})
+            user_name = profile.get("full_name") if profile else user_email.split("@")[0]
+            user_mobile = profile.get("phone") if profile else None
+            
+            # Create application
+            application_id = str(uuid.uuid4())
+            
+            application_doc = {
+                "application_id": application_id,
+                "user_email": user_email,
+                "user_id": user_id,
+                "user_name": user_name,
+                "user_mobile": user_mobile,
+                "scheme_id": scheme_id,
+                "scheme_name": scheme.get("scheme_name"),
+                "scheme_name_hindi": scheme.get("scheme_name_hindi"),
+                "scheme_level": scheme.get("level", "central"),
+                "scheme_state": scheme.get("state"),
+                "scheme_category": scheme.get("category", "other"),
+                "applicant_details": data.get("applicant_details", {}),
+                "applicant_address": data.get("applicant_address", {}),
+                "bank_details": data.get("bank_details"),
+                "documents": [],
+                "additional_info": data.get("additional_info"),
+                "remarks": data.get("remarks"),
+                "status": "pending",
+                "payment_verification_status": "not_submitted",
+                "payment_amount": scheme.get("application_fee", 0),
+                "payment_method": "razorpay",
+                "is_archived": False,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "applied_at": datetime.utcnow()
+            }
+            
+            result = await self.applications.insert_one(application_doc)
+            
+            module_logger.info(f"✅ Scheme application created: {application_id}")
+            
+            # Send notification
+            if background_tasks:
+                background_tasks.add_task(
+                    self._send_application_notification,
+                    user_email,
+                    user_name,
+                    scheme.get("scheme_name"),
+                    application_id
+                )
+            
+            return {
+                "success": True,
+                "application_id": application_id,
+                "message": "Application submitted successfully",
+                "status": "pending"
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            module_logger.error(f"Error creating scheme application: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_user_applications(
+        self,
+        user_email: str,
+        status: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Get all scheme applications for a user
+        """
+        try:
+            query = {
+                "user_email": user_email,
+                "is_archived": {"$ne": True}
+            }
+            
+            if status and status != "all":
+                query["status"] = status
+            
+            applications = await self.applications.find(query).sort(
+                "created_at", -1
+            ).to_list(100)
+            
+            for app in applications:
+                app["_id"] = str(app["_id"])
+                if "created_at" in app and isinstance(app["created_at"], datetime):
+                    app["created_at"] = app["created_at"].isoformat()
+                if "updated_at" in app and isinstance(app["updated_at"], datetime):
+                    app["updated_at"] = app["updated_at"].isoformat()
+                if "applied_at" in app and isinstance(app["applied_at"], datetime):
+                    app["applied_at"] = app["applied_at"].isoformat()
+            
+            return {
+                "success": True,
+                "applications": applications,
+                "total": len(applications)
+            }
+            
+        except Exception as e:
+            module_logger.error(f"Error getting user applications: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def get_application_detail(
+        self,
+        application_id: str,
+        user_email: str
+    ) -> Dict[str, Any]:
+        """
+        Get detailed information about a specific application
+        """
+        try:
+            application = await self.applications.find_one({
+                "application_id": application_id,
+                "user_email": user_email
+            })
+            
+            if not application:
+                raise HTTPException(status_code=404, detail="Application not found")
+            
+            application["_id"] = str(application["_id"])
+            
+            # Get scheme details
+            scheme = await self.schemes.find_one({
+                "scheme_id": application.get("scheme_id")
+            })
+            
+            if scheme:
+                scheme["_id"] = str(scheme["_id"])
+            
+            return {
+                "success": True,
+                "application": application,
+                "scheme": scheme
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            module_logger.error(f"Error getting application detail: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def upload_document(
+        self,
+        application_id: str,
+        user_email: str,
+        document_type: str,
+        document_name: str,
+        document_url: str,
+        public_id: str = None
+    ) -> Dict[str, Any]:
+        """
+        Upload a document for a scheme application
+        """
+        try:
+            application = await self.applications.find_one({
+                "application_id": application_id,
+                "user_email": user_email
+            })
+            
+            if not application:
+                raise HTTPException(status_code=404, detail="Application not found")
+            
+            document = {
+                "document_type": document_type,
+                "document_name": document_name,
+                "document_url": document_url,
+                "public_id": public_id,
+                "uploaded_at": datetime.utcnow(),
+                "verified": False
+            }
+            
+            # Remove existing document of same type
+            await self.applications.update_one(
+                {"application_id": application_id},
+                {"$pull": {"documents": {"document_type": document_type}}}
+            )
+            
+            # Add new document
+            await self.applications.update_one(
+                {"application_id": application_id},
+                {
+                    "$push": {"documents": document},
+                    "$set": {"updated_at": datetime.utcnow()}
+                }
+            )
+            
+            return {
+                "success": True,
+                "message": "Document uploaded successfully",
+                "document": document
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            module_logger.error(f"Error uploading document: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    # ============================================================
+    # ADMIN OPERATIONS
+    # ============================================================
+    
+    async def get_all_applications(
+        self,
+        admin_email: str,
+        status: Optional[str] = None,
+        scheme_id: Optional[str] = None,
+        limit: int = 100,
+        skip: int = 0
+    ) -> Dict[str, Any]:
+        """
+        Get all scheme applications (Admin only)
+        """
+        try:
+            # Verify admin
+            admin = await self.auth.find_one({"email": admin_email})
+            if not admin or admin.get("role") not in ["admin", "customadmin", "superadmin"]:
+                raise HTTPException(status_code=403, detail="Access denied")
+            
+            query = {"is_archived": {"$ne": True}}
+            
+            if status and status != "all":
+                query["status"] = status
+            
+            if scheme_id:
+                query["scheme_id"] = scheme_id
+            
+            total = await self.applications.count_documents(query)
+            
+            applications = await self.applications.find(query).sort(
+                "created_at", -1
+            ).skip(skip).limit(limit).to_list(limit)
+            
+            for app in applications:
+                app["_id"] = str(app["_id"])
+                if "created_at" in app and isinstance(app["created_at"], datetime):
+                    app["created_at"] = app["created_at"].isoformat()
+                if "updated_at" in app and isinstance(app["updated_at"], datetime):
+                    app["updated_at"] = app["updated_at"].isoformat()
+            
+            return {
+                "success": True,
+                "applications": applications,
+                "total": total,
+                "skip": skip,
+                "limit": limit
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            module_logger.error(f"Error getting all applications: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    async def update_application_status(
+        self,
+        application_id: str,
+        status: str,
+        admin_email: str,
+        notes: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Update application status (Admin only)
+        """
+        try:
+            # Verify admin
+            admin = await self.auth.find_one({"email": admin_email})
+            if not admin or admin.get("role") not in ["admin", "customadmin", "superadmin"]:
+                raise HTTPException(status_code=403, detail="Access denied")
+            
+            application = await self.applications.find_one({
+                "application_id": application_id
+            })
+            
+            if not application:
+                raise HTTPException(status_code=404, detail="Application not found")
+            
+            update_data = {
+                "status": status,
+                "updated_at": datetime.utcnow(),
+                "reviewed_by": admin_email,
+                "reviewed_at": datetime.utcnow()
+            }
+            
+            if notes:
+                update_data["admin_notes"] = notes
+            
+            await self.applications.update_one(
+                {"application_id": application_id},
+                {"$set": update_data}
+            )
+            
+            # Send notification to user
+            user_email = application.get("user_email")
+            user_name = application.get("user_name", "User")
+            scheme_name = application.get("scheme_name", "Scheme")
+            
+            await central_notification.send_notification(
+                user_ids=[user_email],
+                notification_type="application_status",
+                title=f"Scheme Application Update: {scheme_name}",
+                message=f"Your application for '{scheme_name}' has been updated to: {status.upper()}",
+                related_id=application_id,
+                metadata={
+                    "application_id": application_id,
+                    "scheme_name": scheme_name,
+                    "status": status,
+                    "admin_notes": notes
+                },
+                send_email=True,
+                send_websocket=True
+            )
+            
+            return {
+                "success": True,
+                "message": f"Application status updated to {status}",
+                "application_id": application_id
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            module_logger.error(f"Error updating application status: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+    
+    # ============================================================
+    # HELPER METHODS
+    # ============================================================
+    
+    async def _send_application_notification(
+        self,
+        user_email: str,
+        user_name: str,
+        scheme_name: str,
+        application_id: str
+    ):
+        """Send notification for new application"""
+        try:
+            await central_notification.send_notification(
+                user_ids=[user_email],
+                notification_type="application_status",
+                title=f"✅ Scheme Application Submitted: {scheme_name}",
+                message=f"Dear {user_name}, your application for '{scheme_name}' has been submitted successfully. Application ID: {application_id}",
+                related_id=application_id,
+                metadata={
+                    "application_id": application_id,
+                    "scheme_name": scheme_name,
+                    "status": "pending"
+                },
+                send_email=True,
+                send_websocket=True
+            )
+        except Exception as e:
+            module_logger.error(f"Error sending notification: {e}")
+    
+    # ============================================================
+    # SEED DATA (For development/testing)
+    # ============================================================
+    
+    async def seed_schemes(self) -> Dict[str, Any]:
+        """
+        Seed database with sample schemes (for development)
+        """
+        try:
+            # Check if schemes already exist
+            count = await self.schemes.count_documents({})
+            if count > 0:
+                return {
+                    "success": True,
+                    "message": f"Schemes already seeded ({count} schemes exist)",
+                    "seeded": 0
+                }
+            
+            # Sample schemes would be inserted here
+            # In production, schemes should be managed via admin panel
+            
+            return {
+                "success": True,
+                "message": "Schemes seeding not implemented",
+                "seeded": 0
+            }
+            
+        except Exception as e:
+            module_logger.error(f"Error seeding schemes: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+
+print("✅ Scheme Service Loaded Successfully")
+
+
+================================================================================
+[ 135/ 167] 🐍 PYTHON FILE: app\modules\services\__init__.py
 📏 SIZE: 200 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -42536,7 +43909,7 @@ __all__ = ['router', 'ServiceService']
 
 
 ================================================================================
-[ 132/ 163] 🐍 PYTHON FILE: app\modules\services\models\service_types.py
+[ 136/ 167] 🐍 PYTHON FILE: app\modules\services\models\service_types.py
 📏 SIZE: 18,287 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -42971,7 +44344,7 @@ class ServiceMasterData:
 
 
 ================================================================================
-[ 133/ 163] 🐍 PYTHON FILE: app\modules\services\routes.py
+[ 137/ 167] 🐍 PYTHON FILE: app\modules\services\routes.py
 📏 SIZE: 33,556 bytes
 🕐 MODIFIED: 2026-10-01 07:42:53
 
@@ -43873,7 +45246,7 @@ print("   payment_status='completed' + verification='pending' → 'approved'")
 
 
 ================================================================================
-[ 134/ 163] 🐍 PYTHON FILE: app\modules\services\schema.py
+[ 138/ 167] 🐍 PYTHON FILE: app\modules\services\schema.py
 📏 SIZE: 5,743 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -44055,7 +45428,7 @@ print("✅ Services Schema Loaded - With CONFIRMED_APPLICATION and UPDATE_APPLIC
 
 
 ================================================================================
-[ 135/ 163] 🐍 PYTHON FILE: app\modules\services\service.py
+[ 139/ 167] 🐍 PYTHON FILE: app\modules\services\service.py
 📏 SIZE: 42,963 bytes
 🕐 MODIFIED: 2026-09-20 16:58:47
 
@@ -45059,7 +46432,7 @@ print("=" * 70)
 
 
 ================================================================================
-[ 136/ 163] 🐍 PYTHON FILE: app\modules\superadmin\AI\__init__.py
+[ 140/ 167] 🐍 PYTHON FILE: app\modules\superadmin\AI\__init__.py
 📏 SIZE: 433 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -45082,7 +46455,7 @@ __all__ = [
 
 
 ================================================================================
-[ 137/ 163] 🐍 PYTHON FILE: app\modules\superadmin\AI\ai_routes.py
+[ 141/ 167] 🐍 PYTHON FILE: app\modules\superadmin\AI\ai_routes.py
 📏 SIZE: 4,037 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -45201,7 +46574,7 @@ async def superadmin_sentiment_analysis(
 
 
 ================================================================================
-[ 138/ 163] 🐍 PYTHON FILE: app\modules\superadmin\AI\anomaly_detection.py
+[ 142/ 167] 🐍 PYTHON FILE: app\modules\superadmin\AI\anomaly_detection.py
 📏 SIZE: 2,307 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -45277,7 +46650,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 139/ 163] 🐍 PYTHON FILE: app\modules\superadmin\AI\growth_predictor.py
+[ 143/ 167] 🐍 PYTHON FILE: app\modules\superadmin\AI\growth_predictor.py
 📏 SIZE: 2,302 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -45351,7 +46724,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 140/ 163] 🐍 PYTHON FILE: app\modules\superadmin\AI\platform_analytics.py
+[ 144/ 167] 🐍 PYTHON FILE: app\modules\superadmin\AI\platform_analytics.py
 📏 SIZE: 2,387 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -45424,7 +46797,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 141/ 163] 🐍 PYTHON FILE: app\modules\superadmin\AI\sentiment_analysis.py
+[ 145/ 167] 🐍 PYTHON FILE: app\modules\superadmin\AI\sentiment_analysis.py
 📏 SIZE: 4,412 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -45552,7 +46925,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 142/ 163] 🐍 PYTHON FILE: app\modules\superadmin\routes.py
+[ 146/ 167] 🐍 PYTHON FILE: app\modules\superadmin\routes.py
 📏 SIZE: 7,264 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -45774,7 +47147,7 @@ print("✅ SuperAdmin Routes Loaded - AUTH DELETION DISABLED (Soft Delete Only)"
 
 
 ================================================================================
-[ 143/ 163] 🐍 PYTHON FILE: app\modules\superadmin\schema.py
+[ 147/ 167] 🐍 PYTHON FILE: app\modules\superadmin\schema.py
 📏 SIZE: 1,427 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -45833,7 +47206,7 @@ class AISmartDashboardResponse(BaseModel):
 
 
 ================================================================================
-[ 144/ 163] 🐍 PYTHON FILE: app\modules\superadmin\service.py
+[ 148/ 167] 🐍 PYTHON FILE: app\modules\superadmin\service.py
 📏 SIZE: 15,167 bytes
 🕐 MODIFIED: 2026-10-01 10:29:10
 
@@ -46233,7 +47606,7 @@ print("   ✅ All user records are PERMANENT")
 
 
 ================================================================================
-[ 145/ 163] 🐍 PYTHON FILE: app\modules\support\routes.py
+[ 149/ 167] 🐍 PYTHON FILE: app\modules\support\routes.py
 📏 SIZE: 10,934 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -46564,7 +47937,7 @@ print("✅ Support Routes Loaded")
 
 
 ================================================================================
-[ 146/ 163] 🐍 PYTHON FILE: app\modules\user\AI\__init__.py
+[ 150/ 167] 🐍 PYTHON FILE: app\modules\user\AI\__init__.py
 📏 SIZE: 291 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -46580,7 +47953,7 @@ __all__ = ['AICareerAnalyzer', 'AIJobMatcher', 'AISkillAnalyzer', 'ai_router']
 
 
 ================================================================================
-[ 147/ 163] 🐍 PYTHON FILE: app\modules\user\AI\ai_routes.py
+[ 151/ 167] 🐍 PYTHON FILE: app\modules\user\AI\ai_routes.py
 📏 SIZE: 41,523 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -47639,7 +49012,7 @@ print("✅ User AI Routes Loaded - Real-time Data & Full Analysis")
 
 
 ================================================================================
-[ 148/ 163] 🐍 PYTHON FILE: app\modules\user\AI\career_analysis.py
+[ 152/ 167] 🐍 PYTHON FILE: app\modules\user\AI\career_analysis.py
 📏 SIZE: 13,305 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -47945,7 +49318,7 @@ print("✅ AICareerAnalyzer loaded")
 
 
 ================================================================================
-[ 149/ 163] 🐍 PYTHON FILE: app\modules\user\AI\job_matching.py
+[ 153/ 167] 🐍 PYTHON FILE: app\modules\user\AI\job_matching.py
 📏 SIZE: 4,749 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -48074,7 +49447,7 @@ print("✅ AIJobMatcher loaded")
 
 
 ================================================================================
-[ 150/ 163] 🐍 PYTHON FILE: app\modules\user\AI\skill_analyzer.py
+[ 154/ 167] 🐍 PYTHON FILE: app\modules\user\AI\skill_analyzer.py
 📏 SIZE: 3,416 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -48168,7 +49541,7 @@ print("✅ AISkillAnalyzer loaded")
 
 
 ================================================================================
-[ 151/ 163] 🐍 PYTHON FILE: app\modules\user\career_routes.py
+[ 155/ 167] 🐍 PYTHON FILE: app\modules\user\career_routes.py
 📏 SIZE: 18,241 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -48667,7 +50040,7 @@ print("✅ Ultra Career Guidance Routes loaded - Using Unified AI Insights Colle
 
 
 ================================================================================
-[ 152/ 163] 🐍 PYTHON FILE: app\modules\user\dashboard_service.py
+[ 156/ 167] 🐍 PYTHON FILE: app\modules\user\dashboard_service.py
 📏 SIZE: 21,430 bytes
 🕐 MODIFIED: 2026-10-09 17:46:15
 
@@ -49249,7 +50622,7 @@ print("✅ User Dashboard Service Loaded — Resume (upload OR generate) counts 
 
 
 ================================================================================
-[ 153/ 163] 🐍 PYTHON FILE: app\modules\user\routes.py
+[ 157/ 167] 🐍 PYTHON FILE: app\modules\user\routes.py
 📏 SIZE: 74,676 bytes
 🕐 MODIFIED: 2026-10-09 08:25:42
 
@@ -51291,7 +52664,7 @@ print("✅ NEW: /upload-profile-photo — auto-rebuilds resume after photo uploa
 
 
 ================================================================================
-[ 154/ 163] 🐍 PYTHON FILE: app\modules\user\schema.py
+[ 158/ 167] 🐍 PYTHON FILE: app\modules\user\schema.py
 📏 SIZE: 13,620 bytes
 🕐 MODIFIED: 2026-09-13 20:56:43
 
@@ -51767,7 +53140,7 @@ class OtherDetailsSchema(BaseModel):
 
 
 ================================================================================
-[ 155/ 163] 🐍 PYTHON FILE: app\modules\user\service.py
+[ 159/ 167] 🐍 PYTHON FILE: app\modules\user\service.py
 📏 SIZE: 70,006 bytes
 🕐 MODIFIED: 2026-09-13 21:01:58
 
@@ -53299,7 +54672,7 @@ print("✅ Profile Service Loaded - Fixed for KeyError issues and Phone sync")
 
 
 ================================================================================
-[ 156/ 163] 🐍 PYTHON FILE: app\modules\voice\routes.py
+[ 160/ 167] 🐍 PYTHON FILE: app\modules\voice\routes.py
 📏 SIZE: 6,027 bytes
 🕐 MODIFIED: 2026-09-10 10:40:32
 
@@ -53466,7 +54839,7 @@ print("✅ Voice module loaded")
 
 
 ================================================================================
-[ 157/ 163] 📄 TEXT FILE: requirements.txt
+[ 161/ 167] 📄 TEXT FILE: requirements.txt
 📏 SIZE: 5,234 bytes
 🕐 MODIFIED: 2026-08-28 19:54:28
 
@@ -53615,7 +54988,7 @@ yarl==1.23.0
 
 
 ================================================================================
-[ 158/ 163] 🐍 PYTHON FILE: scripts\color.py
+[ 162/ 167] 🐍 PYTHON FILE: scripts\color.py
 📏 SIZE: 2,922 bytes
 🕐 MODIFIED: 2026-09-27 08:52:32
 
@@ -53720,7 +55093,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[ 159/ 163] 🐍 PYTHON FILE: scripts\python test_atlas_connection.py
+[ 163/ 167] 🐍 PYTHON FILE: scripts\python test_atlas_connection.py
 📏 SIZE: 9,492 bytes
 🕐 MODIFIED: 2026-07-16 19:38:08
 
@@ -53982,7 +55355,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[ 160/ 163] 🐍 PYTHON FILE: scripts\remove_ttl_indexes.py
+[ 164/ 167] 🐍 PYTHON FILE: scripts\remove_ttl_indexes.py
 📏 SIZE: 2,348 bytes
 🕐 MODIFIED: 2026-10-01 09:09:01
 
@@ -54062,7 +55435,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[ 161/ 163] 🐍 PYTHON FILE: scripts\test.py
+[ 165/ 167] 🐍 PYTHON FILE: scripts\test.py
 📏 SIZE: 2,028 bytes
 🕐 MODIFIED: 2026-08-28 19:07:08
 
@@ -54132,7 +55505,7 @@ print("=" * 60)
 
 
 ================================================================================
-[ 162/ 163] 🐍 PYTHON FILE: scripts\test_connection.py
+[ 166/ 167] 🐍 PYTHON FILE: scripts\test_connection.py
 📏 SIZE: 1,552 bytes
 🕐 MODIFIED: 2026-06-17 20:14:04
 
@@ -54183,7 +55556,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[ 163/ 163] 🐍 PYTHON FILE: scripts\test_network.py
+[ 167/ 167] 🐍 PYTHON FILE: scripts\test_network.py
 📏 SIZE: 5,509 bytes
 🕐 MODIFIED: 2026-06-15 19:48:54
 

@@ -45,7 +45,7 @@ from app.modules.customadmin.routes import router as customadmin_router
 from app.modules.location.routes import router as location_router
 from app.modules.payment.routes import router as payment_router
 from app.modules.support.routes import router as support_router
-
+from app.modules.schemes.routes import router as schemes_router
 # ================= ORJSON FALLBACK =================
 try:
     DefaultResponse = ORJSONResponse
@@ -467,6 +467,9 @@ app.include_router(
 )
 app.include_router(
     support_router, prefix="/api/v1", tags=["Support"]
+)
+app.include_router(
+    schemes_router, prefix="/api/v1/schemes", tags=["Government Schemes"]
 )
 
 

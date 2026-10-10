@@ -4,6 +4,11 @@
 // ✅ Right-side content changes ONLY when a submenu is tapped
 // ✅ ListTile warnings avoided (Material + InkWell everywhere)
 // ✅ NULLABLE submenus — no auto-select
+// ✅ AI MENU HIDDEN
+// ✅ PROFILE MENU MOVED TO BELOW DASHBOARD
+// ✅ ADVANCED DETAILS SUBMENU HIDDEN
+// ✅ ATS SCORE & AI RESUME SUBMENUS HIDDEN
+// ✅ NEW: SCHEMES MENU ADDED (below Resume, above Support)
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +21,7 @@ class UserSidebar extends StatefulWidget {
   final JobSubMenu? selectedJobSubMenu;
   final ServiceSubMenu? selectedServiceSubMenu;
   final ResumeSubMenu? selectedResumeSubMenu;
+  final SchemesSubMenu? selectedSchemesSubMenu;
   final AISubMenu? selectedAISubMenu;
   final ProfileSubMenu? selectedProfileSubMenu;
   final SettingsSubMenu? selectedSettingsSubMenu;
@@ -25,6 +31,7 @@ class UserSidebar extends StatefulWidget {
   final Function(JobSubMenu) onJobSubMenuSelected;
   final Function(ServiceSubMenu) onServiceSubMenuSelected;
   final Function(ResumeSubMenu) onResumeSubMenuSelected;
+  final Function(SchemesSubMenu) onSchemesSubMenuSelected;
   final Function(AISubMenu) onAISubMenuSelected;
   final Function(ProfileSubMenu) onProfileSubMenuSelected;
   final Function(SettingsSubMenu) onSettingsSubMenuSelected;
@@ -35,6 +42,7 @@ class UserSidebar extends StatefulWidget {
     required this.selectedJobSubMenu,
     required this.selectedServiceSubMenu,
     required this.selectedResumeSubMenu,
+    required this.selectedSchemesSubMenu,
     required this.selectedAISubMenu,
     required this.selectedProfileSubMenu,
     required this.selectedSettingsSubMenu,
@@ -42,6 +50,7 @@ class UserSidebar extends StatefulWidget {
     required this.onJobSubMenuSelected,
     required this.onServiceSubMenuSelected,
     required this.onResumeSubMenuSelected,
+    required this.onSchemesSubMenuSelected,
     required this.onAISubMenuSelected,
     required this.onProfileSubMenuSelected,
     required this.onSettingsSubMenuSelected,
@@ -59,7 +68,7 @@ class _UserSidebarState extends State<UserSidebar> {
   bool _jobExpanded = false;
   bool _serviceExpanded = false;
   bool _resumeExpanded = false;
-  bool _aiExpanded = false;
+  bool _schemesExpanded = false;
   bool _profileExpanded = false;
   bool _settingsExpanded = false;
 
@@ -82,8 +91,8 @@ class _UserSidebarState extends State<UserSidebar> {
       if (widget.selectedMenu == UserMenuType.resume) {
         _resumeExpanded = true;
       }
-      if (widget.selectedMenu == UserMenuType.ai) {
-        _aiExpanded = true;
+      if (widget.selectedMenu == UserMenuType.schemes) {
+        _schemesExpanded = true;
       }
       if (widget.selectedMenu == UserMenuType.profile) {
         _profileExpanded = true;
@@ -98,7 +107,7 @@ class _UserSidebarState extends State<UserSidebar> {
     _jobExpanded = widget.selectedMenu == UserMenuType.jobs;
     _serviceExpanded = widget.selectedMenu == UserMenuType.services;
     _resumeExpanded = widget.selectedMenu == UserMenuType.resume;
-    _aiExpanded = widget.selectedMenu == UserMenuType.ai;
+    _schemesExpanded = widget.selectedMenu == UserMenuType.schemes;
     _profileExpanded = widget.selectedMenu == UserMenuType.profile;
     _settingsExpanded = widget.selectedMenu == UserMenuType.settings;
   }
@@ -198,7 +207,7 @@ class _UserSidebarState extends State<UserSidebar> {
                 physics: const BouncingScrollPhysics(),
                 children: [
                   // ============================================================
-                  // ✅ Dashboard — LEAF (calls onMenuSelected)
+                  // ✅ Dashboard — LEAF
                   // ============================================================
                   _buildMenuItem(
                     "Dashboard",
@@ -207,162 +216,8 @@ class _UserSidebarState extends State<UserSidebar> {
                   ),
 
                   // ============================================================
-                  // ✅ Jobs — PARENT (only expands)
-                  // ============================================================
-                  _buildExpandableMenu(
-                    title: "Jobs",
-                    icon: Icons.work_rounded,
-                    isSelected: widget.selectedMenu == UserMenuType.jobs,
-                    isExpanded: _jobExpanded,
-                    onToggle: () {
-                      setState(() => _jobExpanded = !_jobExpanded);
-                    },
-                    children: [
-                      _buildSubMenuItem(
-                        "Browse Jobs",
-                        Icons.search_rounded,
-                        () => widget
-                            .onJobSubMenuSelected(JobSubMenu.browseJobs),
-                        isActive: widget.selectedMenu == UserMenuType.jobs &&
-                            widget.selectedJobSubMenu ==
-                                JobSubMenu.browseJobs,
-                      ),
-                      _buildSubMenuItem(
-                        "Job Applications",
-                        Icons.assignment_rounded,
-                        () => widget.onJobSubMenuSelected(
-                            JobSubMenu.jobApplications),
-                        isActive: widget.selectedMenu == UserMenuType.jobs &&
-                            widget.selectedJobSubMenu ==
-                                JobSubMenu.jobApplications,
-                      ),
-                    ],
-                  ),
-
-                  // ============================================================
-                  // ✅ Services — PARENT (only expands)
-                  // ============================================================
-                  _buildExpandableMenu(
-                    title: "Services",
-                    icon: Icons.miscellaneous_services_rounded,
-                    isSelected: widget.selectedMenu == UserMenuType.services,
-                    isExpanded: _serviceExpanded,
-                    onToggle: () {
-                      setState(() => _serviceExpanded = !_serviceExpanded);
-                    },
-                    children: [
-                      _buildSubMenuItem(
-                        "Browse Services",
-                        Icons.explore_rounded,
-                        () => widget.onServiceSubMenuSelected(
-                            ServiceSubMenu.browseServices),
-                        isActive: widget.selectedMenu ==
-                                UserMenuType.services &&
-                            widget.selectedServiceSubMenu ==
-                                ServiceSubMenu.browseServices,
-                      ),
-                      _buildSubMenuItem(
-                        "Service Application",
-                        Icons.workspace_premium_rounded,
-                        () => widget.onServiceSubMenuSelected(
-                            ServiceSubMenu.myApplications),
-                        isActive: widget.selectedMenu ==
-                                UserMenuType.services &&
-                            widget.selectedServiceSubMenu ==
-                                ServiceSubMenu.myApplications,
-                      ),
-                    ],
-                  ),
-
-                  // ============================================================
-                  // ✅ Resume — PARENT (only expands)
-                  // ============================================================
-                  _buildExpandableMenu(
-                    title: "Resume",
-                    icon: Icons.description_rounded,
-                    isSelected: widget.selectedMenu == UserMenuType.resume,
-                    isExpanded: _resumeExpanded,
-                    onToggle: () {
-                      setState(() => _resumeExpanded = !_resumeExpanded);
-                    },
-                    children: [
-                      _buildSubMenuItem(
-                        "Build Resume",
-                        Icons.build_rounded,
-                        () => widget.onResumeSubMenuSelected(
-                            ResumeSubMenu.buildResume),
-                        isActive: widget.selectedMenu ==
-                                UserMenuType.resume &&
-                            widget.selectedResumeSubMenu ==
-                                ResumeSubMenu.buildResume,
-                      ),
-                      _buildSubMenuItem(
-                        "View Resume",
-                        Icons.visibility_rounded,
-                        () => widget.onResumeSubMenuSelected(
-                            ResumeSubMenu.viewResume),
-                        isActive: widget.selectedMenu ==
-                                UserMenuType.resume &&
-                            widget.selectedResumeSubMenu ==
-                                ResumeSubMenu.viewResume,
-                      ),
-                      _buildSubMenuItem(
-                        "ATS Score",
-                        Icons.analytics_rounded,
-                        () => widget.onResumeSubMenuSelected(
-                            ResumeSubMenu.atsScore),
-                        isActive: widget.selectedMenu ==
-                                UserMenuType.resume &&
-                            widget.selectedResumeSubMenu ==
-                                ResumeSubMenu.atsScore,
-                      ),
-                      _buildSubMenuItem(
-                        "AI Resume",
-                        Icons.auto_awesome_rounded,
-                        () => widget.onResumeSubMenuSelected(
-                            ResumeSubMenu.aiGenerator),
-                        isActive: widget.selectedMenu ==
-                                UserMenuType.resume &&
-                            widget.selectedResumeSubMenu ==
-                                ResumeSubMenu.aiGenerator,
-                      ),
-                    ],
-                  ),
-
-                  // ============================================================
-                  // ✅ AI — PARENT (only expands)
-                  // ============================================================
-                  _buildExpandableMenu(
-                    title: "AI",
-                    icon: Icons.auto_awesome_rounded,
-                    isSelected: widget.selectedMenu == UserMenuType.ai,
-                    isExpanded: _aiExpanded,
-                    onToggle: () {
-                      setState(() => _aiExpanded = !_aiExpanded);
-                    },
-                    children: [
-                      _buildSubMenuItem(
-                        "AI Insights",
-                        Icons.dashboard_customize_rounded,
-                        () => widget
-                            .onAISubMenuSelected(AISubMenu.dashboard),
-                        isActive: widget.selectedMenu == UserMenuType.ai &&
-                            widget.selectedAISubMenu == AISubMenu.dashboard,
-                      ),
-                      _buildSubMenuItem(
-                        "Career Roadmap",
-                        Icons.route_rounded,
-                        () => widget.onAISubMenuSelected(
-                            AISubMenu.careerRoadmap),
-                        isActive: widget.selectedMenu == UserMenuType.ai &&
-                            widget.selectedAISubMenu ==
-                                AISubMenu.careerRoadmap,
-                      ),
-                    ],
-                  ),
-
-                  // ============================================================
-                  // ✅ Profile — PARENT (only expands)
+                  // ✅ Profile — PARENT (below Dashboard)
+                  // ✅ "Advanced Details" submenu HIDDEN
                   // ============================================================
                   _buildExpandableMenu(
                     title: "Profile",
@@ -403,16 +258,17 @@ class _UserSidebarState extends State<UserSidebar> {
                             widget.selectedProfileSubMenu ==
                                 ProfileSubMenu.experience,
                       ),
-                      _buildSubMenuItem(
-                        "Advanced Details",
-                        Icons.tune_rounded,
-                        () => widget.onProfileSubMenuSelected(
-                            ProfileSubMenu.advancedDetails),
-                        isActive: widget.selectedMenu ==
-                                UserMenuType.profile &&
-                            widget.selectedProfileSubMenu ==
-                                ProfileSubMenu.advancedDetails,
-                      ),
+                      // ✅ ADVANCED DETAILS — HIDDEN
+                      // _buildSubMenuItem(
+                      //   "Advanced Details",
+                      //   Icons.tune_rounded,
+                      //   () => widget.onProfileSubMenuSelected(
+                      //       ProfileSubMenu.advancedDetails),
+                      //   isActive: widget.selectedMenu ==
+                      //           UserMenuType.profile &&
+                      //       widget.selectedProfileSubMenu ==
+                      //           ProfileSubMenu.advancedDetails,
+                      // ),
                       _buildSubMenuItem(
                         "Documents",
                         Icons.folder_rounded,
@@ -427,7 +283,179 @@ class _UserSidebarState extends State<UserSidebar> {
                   ),
 
                   // ============================================================
-                  // ✅ Support — LEAF (calls onMenuSelected)
+                  // ✅ Jobs — PARENT
+                  // ============================================================
+                  _buildExpandableMenu(
+                    title: "Jobs",
+                    icon: Icons.work_rounded,
+                    isSelected: widget.selectedMenu == UserMenuType.jobs,
+                    isExpanded: _jobExpanded,
+                    onToggle: () {
+                      setState(() => _jobExpanded = !_jobExpanded);
+                    },
+                    children: [
+                      _buildSubMenuItem(
+                        "Browse Jobs",
+                        Icons.search_rounded,
+                        () => widget
+                            .onJobSubMenuSelected(JobSubMenu.browseJobs),
+                        isActive: widget.selectedMenu == UserMenuType.jobs &&
+                            widget.selectedJobSubMenu ==
+                                JobSubMenu.browseJobs,
+                      ),
+                      _buildSubMenuItem(
+                        "Job Applications",
+                        Icons.assignment_rounded,
+                        () => widget.onJobSubMenuSelected(
+                            JobSubMenu.jobApplications),
+                        isActive: widget.selectedMenu == UserMenuType.jobs &&
+                            widget.selectedJobSubMenu ==
+                                JobSubMenu.jobApplications,
+                      ),
+                    ],
+                  ),
+
+                  // ============================================================
+                  // ✅ Services — PARENT
+                  // ============================================================
+                  _buildExpandableMenu(
+                    title: "Services",
+                    icon: Icons.miscellaneous_services_rounded,
+                    isSelected: widget.selectedMenu == UserMenuType.services,
+                    isExpanded: _serviceExpanded,
+                    onToggle: () {
+                      setState(() => _serviceExpanded = !_serviceExpanded);
+                    },
+                    children: [
+                      _buildSubMenuItem(
+                        "Browse Services",
+                        Icons.explore_rounded,
+                        () => widget.onServiceSubMenuSelected(
+                            ServiceSubMenu.browseServices),
+                        isActive: widget.selectedMenu ==
+                                UserMenuType.services &&
+                            widget.selectedServiceSubMenu ==
+                                ServiceSubMenu.browseServices,
+                      ),
+                      _buildSubMenuItem(
+                        "Service Application",
+                        Icons.workspace_premium_rounded,
+                        () => widget.onServiceSubMenuSelected(
+                            ServiceSubMenu.myApplications),
+                        isActive: widget.selectedMenu ==
+                                UserMenuType.services &&
+                            widget.selectedServiceSubMenu ==
+                                ServiceSubMenu.myApplications,
+                      ),
+                    ],
+                  ),
+
+                  // ============================================================
+                  // ✅ Resume — PARENT
+                  // ✅ "ATS Score" & "AI Resume" submenus HIDDEN
+                  // ============================================================
+                  _buildExpandableMenu(
+                    title: "Resume",
+                    icon: Icons.description_rounded,
+                    isSelected: widget.selectedMenu == UserMenuType.resume,
+                    isExpanded: _resumeExpanded,
+                    onToggle: () {
+                      setState(() => _resumeExpanded = !_resumeExpanded);
+                    },
+                    children: [
+                      _buildSubMenuItem(
+                        "Build Resume",
+                        Icons.build_rounded,
+                        () => widget.onResumeSubMenuSelected(
+                            ResumeSubMenu.buildResume),
+                        isActive: widget.selectedMenu ==
+                                UserMenuType.resume &&
+                            widget.selectedResumeSubMenu ==
+                                ResumeSubMenu.buildResume,
+                      ),
+                      _buildSubMenuItem(
+                        "View Resume",
+                        Icons.visibility_rounded,
+                        () => widget.onResumeSubMenuSelected(
+                            ResumeSubMenu.viewResume),
+                        isActive: widget.selectedMenu ==
+                                UserMenuType.resume &&
+                            widget.selectedResumeSubMenu ==
+                                ResumeSubMenu.viewResume,
+                      ),
+                      // ============================================================
+                      // ✅ ATS SCORE — HIDDEN
+                      // ============================================================
+                      // _buildSubMenuItem(
+                      //   "ATS Score",
+                      //   Icons.analytics_rounded,
+                      //   () => widget.onResumeSubMenuSelected(
+                      //       ResumeSubMenu.atsScore),
+                      //   isActive: widget.selectedMenu ==
+                      //           UserMenuType.resume &&
+                      //       widget.selectedResumeSubMenu ==
+                      //           ResumeSubMenu.atsScore,
+                      // ),
+                      // ============================================================
+                      // ✅ AI RESUME — HIDDEN
+                      // ============================================================
+                      // _buildSubMenuItem(
+                      //   "AI Resume",
+                      //   Icons.auto_awesome_rounded,
+                      //   () => widget.onResumeSubMenuSelected(
+                      //       ResumeSubMenu.aiGenerator),
+                      //   isActive: widget.selectedMenu ==
+                      //           UserMenuType.resume &&
+                      //       widget.selectedResumeSubMenu ==
+                      //           ResumeSubMenu.aiGenerator,
+                      // ),
+                    ],
+                  ),
+
+                  // ============================================================
+                  // ✅ NEW: Government Schemes — PARENT
+                  // ✅ Added BELOW Resume menu
+                  // ✅ Submenus: Browse Schemes + Scheme Applications
+                  // ============================================================
+                  _buildExpandableMenu(
+                    title: "सरकारी योजनाएं",
+                    icon: Icons.account_balance_rounded,
+                    isSelected: widget.selectedMenu == UserMenuType.schemes,
+                    isExpanded: _schemesExpanded,
+                    onToggle: () {
+                      setState(() => _schemesExpanded = !_schemesExpanded);
+                    },
+                    children: [
+                      _buildSubMenuItem(
+                        "योजनाएं ब्राउज़ करें",
+                        Icons.travel_explore_rounded,
+                        () => widget.onSchemesSubMenuSelected(
+                            SchemesSubMenu.browseSchemes),
+                        isActive: widget.selectedMenu ==
+                                UserMenuType.schemes &&
+                            widget.selectedSchemesSubMenu ==
+                                SchemesSubMenu.browseSchemes,
+                      ),
+                      _buildSubMenuItem(
+                        "योजना आवेदन",
+                        Icons.assignment_turned_in_rounded,
+                        () => widget.onSchemesSubMenuSelected(
+                            SchemesSubMenu.schemeApplications),
+                        isActive: widget.selectedMenu ==
+                                UserMenuType.schemes &&
+                            widget.selectedSchemesSubMenu ==
+                                SchemesSubMenu.schemeApplications,
+                      ),
+                    ],
+                  ),
+
+                  // ============================================================
+                  // ✅ AI — MENU HIDDEN (commented out)
+                  // ============================================================
+                  // _buildExpandableMenu(...)
+
+                  // ============================================================
+                  // ✅ Support — LEAF
                   // ============================================================
                   _buildMenuItem(
                     "Support",
@@ -436,7 +464,7 @@ class _UserSidebarState extends State<UserSidebar> {
                   ),
 
                   // ============================================================
-                  // ✅ Settings — PARENT (only expands)
+                  // ✅ Settings — PARENT
                   // ============================================================
                   _buildExpandableMenu(
                     title: "Settings",
@@ -619,7 +647,7 @@ class _UserSidebarState extends State<UserSidebar> {
               borderRadius: BorderRadius.circular(12),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
-                onTap: onToggle, // ✅ no navigation, just expand/collapse
+                onTap: onToggle,
                 splashColor: Colors.white.withOpacity(0.08),
                 highlightColor: Colors.white.withOpacity(0.04),
                 child: Padding(
