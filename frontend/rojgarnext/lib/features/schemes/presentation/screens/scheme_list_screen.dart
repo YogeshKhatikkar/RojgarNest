@@ -1,30 +1,16 @@
 // lib/features/schemes/presentation/screens/scheme_list_screen.dart
-// ============================================================
-// SCHEME LIST SCREEN — "Browse Schemes" page
-// Shows all Central + State Government schemes in Hindi
-// Click on a scheme → opens SchemeDetailScreen
-// ============================================================
-// ✅ NEW: isEmbedded mode — renders WITHOUT Scaffold
-// ✅ NEW: onSchemeSelected callback for embedded mode
-// ✅ NEW: onBack callback for embedded mode
-// ============================================================
+// ✅ COMPLETE FIXED - Shows all schemes from local master data
+// ✅ Works even if backend is unavailable
 
 import 'package:flutter/material.dart';
-import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/core/master_date/schemes_data.dart';
 import 'package:rojgarnext/features/schemes/data/scheme_service.dart';
 import 'package:rojgarnext/features/schemes/presentation/screens/scheme_detail_screen.dart';
 
 class SchemeListScreen extends StatefulWidget {
-  /// ✅ NEW: When true, renders WITHOUT Scaffold
-  /// so it can be embedded in the right panel of UserDashboard.
   final bool isEmbedded;
-
-  /// ✅ NEW: Optional callback when a scheme is selected (embedded mode)
   final Function(Map<String, dynamic>)? onSchemeSelected;
-
-  /// ✅ NEW: Optional back callback (for embedded mode)
   final VoidCallback? onBack;
 
   const SchemeListScreen({
@@ -39,7 +25,6 @@ class SchemeListScreen extends StatefulWidget {
 }
 
 class _SchemeListScreenState extends State<SchemeListScreen> {
-  // ==================== STATE ====================
   List<dynamic> _schemes = [];
   List<dynamic> _filteredSchemes = [];
   List<String> _states = [];
@@ -48,15 +33,13 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
   bool _isLoading = true;
   String? _errorMessage;
 
-  // Filters
-  String _selectedLevel = 'all'; // all, central, state
+  String _selectedLevel = 'all';
   String? _selectedState;
   String? _selectedCategory;
   String _searchQuery = '';
 
   final TextEditingController _searchController = TextEditingController();
 
-  // ==================== LIFECYCLE ====================
   @override
   void initState() {
     super.initState();
@@ -69,7 +52,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     super.dispose();
   }
 
-  // ==================== DATA LOADING ====================
   Future<void> _loadInitialData() async {
     setState(() {
       _isLoading = true;
@@ -77,71 +59,131 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     });
 
     try {
-      final results = await Future.wait([
-        SchemeService.listSchemes(limit: 200),
-        SchemeService.getStates(),
-        SchemeService.getCategories(),
-      ]);
-
+      // ✅ Load schemes, states, and categories
+      final schemesResult = await SchemeService.listSchemes(limit: 200);
+      
       if (!mounted) return;
-
-      final schemesResult = results[0] as Map<String, dynamic>;
-      final statesResult = results[1] as List<String>;
-      final categoriesResult = results[2] as List<dynamic>;
 
       setState(() {
         _schemes = (schemesResult['schemes'] as List?) ?? [];
-        _states = statesResult;
-        _categories = categoriesResult;
-        _filteredSchemes = _schemes;
+        _filteredSchemes = List.from(_schemes);
+        
+        // Get states and categories from the schemes
+        final stateSet = <String>{};
+        final categorySet = <String>{};
+        
+        for (final scheme in _schemes) {
+          final state = scheme['state']?.toString();
+          if (state != null && state.isNotEmpty) {
+            stateSet.add(state);
+          }
+          final category = scheme['category']?.toString();
+          if (category != null && category.isNotEmpty) {
+            categorySet.add(category);
+          }
+        }
+        
+        _states = stateSet.toList()..sort();
+        _categories = categorySet.map((c) => {
+          'id': c,
+          'name': _getCategoryName(c),
+          'name_hindi': _getCategoryNameHindi(c),
+        }).toList();
+        
         _isLoading = false;
       });
+
+      debugPrint("✅ Loaded ${_schemes.length} schemes");
+      debugPrint("   States: ${_states.length}");
+      debugPrint("   Categories: ${_categories.length}");
     } catch (e) {
       if (!mounted) return;
+      
+      // ✅ Even on error, try to load from local master data directly
+      final localSchemes = SchemesMasterData.allSchemes.map((s) => {
+        'scheme_id': s.schemeId,
+        'scheme_name': s.schemeName,
+        'scheme_name_hindi': s.schemeNameHindi,
+        'short_description': s.shortDescription,
+        'short_description_hindi': s.shortDescriptionHindi,
+        'level': s.level,
+        'state': s.state,
+        'category': s.category,
+        'icon': s.icon,
+        'color': s.color,
+        'is_featured': s.isFeatured,
+      }).toList();
+
       setState(() {
+        _schemes = localSchemes;
+        _filteredSchemes = localSchemes;
         _isLoading = false;
-        _errorMessage = e.toString();
-        // Fallback to master data
-        _schemes = SchemesMasterData.allSchemes.map((s) => {
-          'scheme_id': s.schemeId,
-          'scheme_name': s.schemeName,
-          'scheme_name_hindi': s.schemeNameHindi,
-          'short_description': s.shortDescription,
-          'short_description_hindi': s.shortDescriptionHindi,
-          'level': s.level,
-          'state': s.state,
-          'category': s.category,
-          'icon': s.icon,
-          'color': s.color,
-          'is_featured': s.isFeatured,
-        }).toList();
-        _filteredSchemes = _schemes;
+        _errorMessage = null;
       });
+      
+      debugPrint("⚠️ Fallback: Loaded ${localSchemes.length} schemes from local data");
     }
   }
 
-  // ==================== FILTERING ====================
+  String _getCategoryName(String category) {
+    switch (category) {
+      case 'agriculture': return 'Agriculture';
+      case 'education': return 'Education';
+      case 'health': return 'Health';
+      case 'housing': return 'Housing';
+      case 'employment': return 'Employment';
+      case 'women_child': return 'Women & Child';
+      case 'social_welfare': return 'Social Welfare';
+      case 'financial_inclusion': return 'Financial Inclusion';
+      case 'pension': return 'Pension';
+      case 'insurance': return 'Insurance';
+      case 'skill_development': return 'Skill Development';
+      case 'entrepreneurship': return 'Entrepreneurship';
+      case 'disability': return 'Disability';
+      case 'sc_st_welfare': return 'SC/ST Welfare';
+      case 'minority_welfare': return 'Minority Welfare';
+      default: return category;
+    }
+  }
+
+  String _getCategoryNameHindi(String category) {
+    switch (category) {
+      case 'agriculture': return 'कृषि';
+      case 'education': return 'शिक्षा';
+      case 'health': return 'स्वास्थ्य';
+      case 'housing': return 'आवास';
+      case 'employment': return 'रोजगार';
+      case 'women_child': return 'महिला एवं बाल';
+      case 'social_welfare': return 'समाज कल्याण';
+      case 'financial_inclusion': return 'वित्तीय समावेशन';
+      case 'pension': return 'पेंशन';
+      case 'insurance': return 'बीमा';
+      case 'skill_development': return 'कौशल विकास';
+      case 'entrepreneurship': return 'उद्यमिता';
+      case 'disability': return 'विकलांगता';
+      case 'sc_st_welfare': return 'अनुसूचित जाति/जनजाति कल्याण';
+      case 'minority_welfare': return 'अल्पसंख्यक कल्याण';
+      default: return category;
+    }
+  }
+
   void _applyFilters() {
     List<dynamic> result = List.from(_schemes);
 
-    // Level filter
     if (_selectedLevel != 'all') {
       result = result.where((s) => s['level'] == _selectedLevel).toList();
     }
 
-    // State filter
     if (_selectedState != null && _selectedState!.isNotEmpty) {
       result = result.where((s) =>
         s['state']?.toString().toLowerCase() ==
         _selectedState!.toLowerCase()).toList();
     }
 
-    // Category filter
     if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
       result = result.where((s) => s['category'] == _selectedCategory).toList();
     }
 
-    // Search filter
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       result = result.where((s) {
@@ -197,13 +239,11 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     _applyFilters();
   }
 
-  // ==================== NAVIGATION ====================
   void _openSchemeDetail(Map<String, dynamic> scheme) {
     final schemeId = scheme['scheme_id']?.toString() ?? '';
     final schemeName = scheme['scheme_name_hindi']?.toString() ??
         scheme['scheme_name']?.toString() ?? 'योजना';
 
-    // ✅ If onSchemeSelected callback provided, use it (embedded mode)
     if (widget.onSchemeSelected != null) {
       widget.onSchemeSelected!({
         'scheme_id': schemeId,
@@ -213,7 +253,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
       return;
     }
 
-    // Full screen mode
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -225,10 +264,8 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     );
   }
 
-  // ==================== BUILD ====================
   @override
   Widget build(BuildContext context) {
-    // ✅ Build the main content
     final Widget content = Column(
       children: [
         _buildHeader(),
@@ -246,7 +283,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
       ],
     );
 
-    // ✅ EMBEDDED MODE: No Scaffold
     if (widget.isEmbedded) {
       return Container(
         decoration: const BoxDecoration(
@@ -260,7 +296,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
       );
     }
 
-    // ✅ FULL SCREEN MODE: With Scaffold
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: Container(
@@ -276,9 +311,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     );
   }
 
-  // ============================================================
-  // HEADER
-  // ============================================================
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -302,7 +334,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
       ),
       child: Row(
         children: [
-          // ✅ BACK BUTTON (only in embedded mode)
           if (widget.isEmbedded && widget.onBack != null)
             Material(
               color: Colors.white.withOpacity(0.25),
@@ -374,9 +405,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     );
   }
 
-  // ============================================================
-  // SEARCH BAR
-  // ============================================================
   Widget _buildSearchBar() {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -415,9 +443,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     );
   }
 
-  // ============================================================
-  // LEVEL TABS (All / Central / State)
-  // ============================================================
   Widget _buildLevelTabs() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -435,20 +460,15 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
       ),
       child: Row(
         children: [
-          _buildLevelChip('all', 'सभी', 'All', Icons.apps),
-          _buildLevelChip('central', 'केंद्रीय', 'Central', Icons.account_balance),
-          _buildLevelChip('state', 'राज्य', 'State', Icons.location_city),
+          _buildLevelChip('all', 'सभी', Icons.apps),
+          _buildLevelChip('central', 'केंद्रीय', Icons.account_balance),
+          _buildLevelChip('state', 'राज्य', Icons.location_city),
         ],
       ),
     );
   }
 
-  Widget _buildLevelChip(
-    String value,
-    String labelHindi,
-    String labelEn,
-    IconData icon,
-  ) {
+  Widget _buildLevelChip(String value, String label, IconData icon) {
     final isSelected = _selectedLevel == value;
     return Expanded(
       child: GestureDetector(
@@ -475,7 +495,7 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
               ),
               const SizedBox(height: 3),
               Text(
-                labelHindi,
+                label,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
@@ -489,9 +509,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     );
   }
 
-  // ============================================================
-  // STATE FILTER (only when 'state' selected)
-  // ============================================================
   Widget _buildStateFilter() {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -523,9 +540,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     );
   }
 
-  // ============================================================
-  // CATEGORY FILTER CHIPS
-  // ============================================================
   Widget _buildCategoryFilter() {
     return Container(
       height: 42,
@@ -534,13 +548,14 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
-          _buildCategoryChip(null, 'सभी', 'All', Icons.grid_view),
+          _buildCategoryChip(null, 'सभी', Icons.grid_view),
           ..._categories.map((cat) {
+            final id = cat['id']?.toString();
+            final nameHindi = cat['name_hindi']?.toString() ?? '';
             return _buildCategoryChip(
-              cat['id']?.toString(),
-              cat['name_hindi']?.toString() ?? cat['name']?.toString() ?? '',
-              cat['name']?.toString() ?? '',
-              _getCategoryIcon(cat['id']?.toString() ?? ''),
+              id,
+              nameHindi,
+              _getCategoryIcon(id ?? ''),
             );
           }),
         ],
@@ -548,12 +563,7 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     );
   }
 
-  Widget _buildCategoryChip(
-    String? value,
-    String labelHindi,
-    String labelEn,
-    IconData icon,
-  ) {
+  Widget _buildCategoryChip(String? value, String label, IconData icon) {
     final isSelected = _selectedCategory == value;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
@@ -590,7 +600,7 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
               ),
               const SizedBox(width: 6),
               Text(
-                labelHindi,
+                label,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
@@ -606,44 +616,25 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
 
   IconData _getCategoryIcon(String categoryId) {
     switch (categoryId) {
-      case 'agriculture':
-        return Icons.agriculture;
-      case 'education':
-        return Icons.school;
-      case 'health':
-        return Icons.local_hospital;
-      case 'housing':
-        return Icons.home;
-      case 'employment':
-        return Icons.work;
-      case 'women_child':
-        return Icons.pregnant_woman;
-      case 'social_welfare':
-        return Icons.people;
-      case 'financial_inclusion':
-        return Icons.account_balance_wallet;
-      case 'pension':
-        return Icons.elderly;
-      case 'insurance':
-        return Icons.security;
-      case 'skill_development':
-        return Icons.construction;
-      case 'entrepreneurship':
-        return Icons.rocket_launch;
-      case 'disability':
-        return Icons.accessible;
-      case 'sc_st_welfare':
-        return Icons.groups;
-      case 'minority_welfare':
-        return Icons.mosque;
-      default:
-        return Icons.category;
+      case 'agriculture': return Icons.agriculture;
+      case 'education': return Icons.school;
+      case 'health': return Icons.local_hospital;
+      case 'housing': return Icons.home;
+      case 'employment': return Icons.work;
+      case 'women_child': return Icons.pregnant_woman;
+      case 'social_welfare': return Icons.people;
+      case 'financial_inclusion': return Icons.account_balance_wallet;
+      case 'pension': return Icons.elderly;
+      case 'insurance': return Icons.security;
+      case 'skill_development': return Icons.construction;
+      case 'entrepreneurship': return Icons.rocket_launch;
+      case 'disability': return Icons.accessible;
+      case 'sc_st_welfare': return Icons.groups;
+      case 'minority_welfare': return Icons.mosque;
+      default: return Icons.category;
     }
   }
 
-  // ============================================================
-  // LOADING STATE
-  // ============================================================
   Widget _buildLoadingState() {
     return const Center(
       child: Column(
@@ -662,9 +653,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     );
   }
 
-  // ============================================================
-  // EMPTY STATE
-  // ============================================================
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -727,9 +715,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     );
   }
 
-  // ============================================================
-  // SCHEME LIST
-  // ============================================================
   Widget _buildSchemeList() {
     return RefreshIndicator(
       onRefresh: _loadInitialData,
@@ -744,9 +729,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
     );
   }
 
-  // ============================================================
-  // SCHEME CARD
-  // ============================================================
   Widget _buildSchemeCard(Map<String, dynamic> scheme, int index) {
     final schemeNameHindi = scheme['scheme_name_hindi']?.toString() ??
         scheme['scheme_name']?.toString() ?? 'योजना';
@@ -790,7 +772,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header row
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -895,8 +876,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
                   ),
                 ],
               ),
-
-              // Description
               if (shortDescHindi.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Container(
@@ -917,8 +896,6 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
                   ),
                 ),
               ],
-
-              // View details button
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
@@ -970,29 +947,18 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
 
   Color _getAccentColor(String colorKey) {
     switch (colorKey) {
-      case 'green':
-        return const Color(0xFF10B981);
-      case 'red':
-        return const Color(0xFFEF4444);
-      case 'orange':
-        return const Color(0xFFF59E0B);
-      case 'purple':
-        return const Color(0xFF8B5CF6);
-      case 'teal':
-        return const Color(0xFF14B8A6);
-      case 'pink':
-        return const Color(0xFFEC4899);
-      case 'indigo':
-        return const Color(0xFF4F46E5);
-      case 'amber':
-        return const Color(0xFFD97706);
-      case 'cyan':
-        return const Color(0xFF06B6D4);
-      case 'grey':
-        return const Color(0xFF6B7280);
+      case 'green': return const Color(0xFF10B981);
+      case 'red': return const Color(0xFFEF4444);
+      case 'orange': return const Color(0xFFF59E0B);
+      case 'purple': return const Color(0xFF8B5CF6);
+      case 'teal': return const Color(0xFF14B8A6);
+      case 'pink': return const Color(0xFFEC4899);
+      case 'indigo': return const Color(0xFF4F46E5);
+      case 'amber': return const Color(0xFFD97706);
+      case 'cyan': return const Color(0xFF06B6D4);
+      case 'grey': return const Color(0xFF6B7280);
       case 'blue':
-      default:
-        return const Color(0xFF2563EB);
+      default: return const Color(0xFF2563EB);
     }
   }
 }

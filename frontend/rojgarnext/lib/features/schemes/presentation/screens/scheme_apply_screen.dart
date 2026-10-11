@@ -3,13 +3,13 @@
 // SCHEME APPLY SCREEN
 // Multi-step form to apply for a government scheme
 // ============================================================
-// ✅ FIXED: Added missing import for SecureStorage
 // ✅ application_type is forced to "schemes" (backend-side too)
 // ✅ NEW: Document upload step — collects all required documents
-//         BEFORE submission. Documents are uploaded right after
-//         the application is created, and linked to that exact
-//         application_id so they appear ONLY in the matching
-//         "My Applications" card.
+// ✅ FIXED: SecureStorage import added
+// ✅ FIXED: applyForScheme call no longer passes removed params
+// ✅ FIXED: Submit now works from Documents tab (Step 3)
+// ✅ FIXED: Manual validation instead of formKey.validate()
+// ✅ FIXED: All fields validated before submission
 // ============================================================
 
 import 'dart:typed_data';
@@ -17,7 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
-import 'package:rojgarnext/core/storage/secure_storage.dart'; // ✅ FIXED: added
+import 'package:rojgarnext/core/storage/secure_storage.dart'; // ✅ ADDED
 import 'package:rojgarnext/features/schemes/data/scheme_service.dart';
 
 class SchemeApplyScreen extends StatefulWidget {
@@ -74,7 +74,6 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
   double _disabilityPercentage = 0;
 
   // ✅ Documents — one entry per required doc
-  // Map: documentLabel -> _PickedDoc
   final Map<String, _PickedDoc> _pickedDocs = {};
 
   // ✅ Loading flag per doc while uploading
@@ -137,9 +136,6 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
 
   // ==================== DOCUMENT SLOTS ====================
   void _initDocumentSlots() {
-    // Read `required_documents` from the scheme object.
-    // Each entry can be a Map {name, name_hindi, required, description}
-    // or a plain String.
     final raw = widget.scheme['required_documents'];
 
     if (raw is List && raw.isNotEmpty) {
@@ -166,14 +162,106 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
     }
   }
 
+  // ============================================================
+  // ✅ MANUAL VALIDATION HELPERS
+  // ============================================================
+
+  /// Validate Personal Step (Step 0)
+  bool _validatePersonalStep() {
+    if (_fullNameCtrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया पूरा नाम भरें / Please enter full name");
+      return false;
+    }
+    if (_mobileCtrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया मोबाइल नंबर भरें / Please enter mobile number");
+      return false;
+    }
+    if (_mobileCtrl.text.trim().length != 10) {
+      _showSnackBar("कृपया 10 अंकों का मोबाइल नंबर भरें / Please enter 10-digit mobile");
+      return false;
+    }
+    if (_emailCtrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया ईमेल भरें / Please enter email");
+      return false;
+    }
+    if (!_emailCtrl.text.contains('@') || !_emailCtrl.text.contains('.')) {
+      _showSnackBar("कृपया वैध ईमेल भरें / Please enter valid email");
+      return false;
+    }
+    if (_dobCtrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया जन्म तिथि भरें / Please enter date of birth");
+      return false;
+    }
+    return true;
+  }
+
+  /// Validate Address Step (Step 1)
+  bool _validateAddressStep() {
+    if (_address1Ctrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया पता पंक्ति 1 भरें / Please enter address line 1");
+      return false;
+    }
+    if (_villageCtrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया गाँव/शहर भरें / Please enter village/city");
+      return false;
+    }
+    if (_districtCtrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया जिला भरें / Please enter district");
+      return false;
+    }
+    if (_stateCtrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया राज्य भरें / Please enter state");
+      return false;
+    }
+    if (_pincodeCtrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया पिनकोड भरें / Please enter pincode");
+      return false;
+    }
+    if (_pincodeCtrl.text.trim().length != 6) {
+      _showSnackBar("कृपया 6 अंकों का पिनकोड भरें / Please enter 6-digit pincode");
+      return false;
+    }
+    return true;
+  }
+
+  /// Validate Bank Step (Step 2)
+  bool _validateBankStep() {
+    if (_accountHolderCtrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया खाताधारक का नाम भरें / Please enter account holder name");
+      return false;
+    }
+    if (_bankNameCtrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया बैंक का नाम भरें / Please enter bank name");
+      return false;
+    }
+    if (_accountNumberCtrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया खाता संख्या भरें / Please enter account number");
+      return false;
+    }
+    if (_ifscCtrl.text.trim().isEmpty) {
+      _showSnackBar("कृपया IFSC कोड भरें / Please enter IFSC code");
+      return false;
+    }
+    if (_ifscCtrl.text.trim().length != 11) {
+      _showSnackBar("कृपया 11 अंकों का IFSC कोड भरें / Please enter 11-character IFSC code");
+      return false;
+    }
+    return true;
+  }
+
+  void _showSnackBar(String message, {bool isError = true}) {
+    if (!mounted) return;
+    showMessage(context, message, isError: isError);
+  }
+
   // ==================== STEP NAVIGATION ====================
   void _goNext() {
     if (_currentStep == 0) {
-      if (!(_formKeyPersonal.currentState?.validate() ?? false)) return;
+      if (!_validatePersonalStep()) return;
     } else if (_currentStep == 1) {
-      if (!(_formKeyAddress.currentState?.validate() ?? false)) return;
+      if (!_validateAddressStep()) return;
     } else if (_currentStep == 2) {
-      if (!(_formKeyBank.currentState?.validate() ?? false)) return;
+      if (!_validateBankStep()) return;
     }
     setState(() => _currentStep++);
   }
@@ -287,22 +375,50 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
 
   // ============================================================
   // ✅ SUBMIT — creates application → uploads docs one by one
+  // ✅ FIXED: Manual validation of all steps before submission
+  // ✅ FIXED: No more formKey.validate() which fails when tab not rendered
   // ============================================================
   Future<void> _submitApplication() async {
-    if (!(_formKeyBank.currentState?.validate() ?? false)) {
+    debugPrint("=" * 70);
+    debugPrint("📝 _submitApplication CALLED");
+    debugPrint("   Current Step: $_currentStep");
+    debugPrint("=" * 70);
+
+    // ✅ STEP 1: Validate Personal fields (manual, not formKey)
+    if (!_validatePersonalStep()) {
+      debugPrint("❌ Personal validation failed → jumping to Step 0");
+      setState(() => _currentStep = 0);
+      return;
+    }
+
+    // ✅ STEP 2: Validate Address fields (manual, not formKey)
+    if (!_validateAddressStep()) {
+      debugPrint("❌ Address validation failed → jumping to Step 1");
+      setState(() => _currentStep = 1);
+      return;
+    }
+
+    // ✅ STEP 3: Validate Bank fields (manual, not formKey)
+    if (!_validateBankStep()) {
+      debugPrint("❌ Bank validation failed → jumping to Step 2");
       setState(() => _currentStep = 2);
       return;
     }
 
+    // ✅ STEP 4: Validate required documents
     if (!_allRequiredDocsPicked()) {
+      debugPrint("❌ Required documents missing");
       showMessage(
         context,
-        "Please upload all required documents before submitting.",
+        "कृपया सभी आवश्यक दस्तावेज़ अपलोड करें / Please upload all required documents",
         isError: true,
       );
       setState(() => _currentStep = 3);
       return;
     }
+
+    // ✅ All validations passed — proceed with submission
+    debugPrint("✅ All validations passed → submitting...");
 
     setState(() => _isSubmitting = true);
 
@@ -360,20 +476,23 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
         "account_type": _accountType,
       };
 
-      // ✅ 1) Create the application (with empty `documents` array)
+      // ✅ 1) Create the application
+      debugPrint("📤 Calling SchemeService.applyForScheme...");
+
       final result = await SchemeService.applyForScheme(
         schemeId: schemeId,
         applicantDetails: applicantDetails,
         applicantAddress: applicantAddress,
         bankDetails: bankDetails,
         remarks: _remarksCtrl.text.trim(),
-        schemeNameOverride: resolvedSchemeName,
-        documents: const [], // populated in step 2
       );
+
+      debugPrint("📥 applyForScheme response: $result");
 
       if (!mounted) return;
 
       if (result['success'] != true) {
+        debugPrint("❌ Application creation failed: ${result['message']}");
         showMessage(
           context,
           result['message'] ?? 'आवेदन सबमिट नहीं हो सका',
@@ -386,6 +505,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
           result['application_id']?.toString() ?? '';
 
       if (applicationId.isEmpty) {
+        debugPrint("⚠️ Application ID missing from response");
         showMessage(
           context,
           "Application created but ID missing. Please contact support.",
@@ -402,8 +522,6 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
       if (!mounted) return;
 
       if (!uploadedOk) {
-        // The application is already created — don't roll back.
-        // Show partial-success message.
         _showSuccessDialog(
           applicationId,
           partial: true,
@@ -414,6 +532,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
       // ✅ 3) Full success
       _showSuccessDialog(applicationId, partial: false);
     } catch (e) {
+      debugPrint("❌ Submission error: $e");
       if (!mounted) return;
       showMessage(context, 'आवेदन विफल: ${e.toString()}', isError: true);
     } finally {
@@ -431,14 +550,14 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
       final label = entry.key;
       final doc = entry.value;
 
-      // Skip docs that were not picked
       if (doc.bytes == null || doc.bytes!.isEmpty) continue;
 
       setState(() => _uploadingDoc[label] = true);
 
       try {
-        // document_type must be URL-safe
         final docType = _slugify(label);
+
+        debugPrint("📤 Uploading: $label → $docType");
 
         await SchemeService.uploadSchemeDocument(
           applicationId: applicationId,
@@ -687,7 +806,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
   }
 
   // ============================================================
-  // STEP INDICATOR (now 4 steps)
+  // STEP INDICATOR
   // ============================================================
   Widget _buildStepIndicator() {
     const steps = ['व्यक्तिगत', 'पता', 'बैंक', 'दस्तावेज़'];
@@ -1306,7 +1425,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
                     onPressed: _isSubmitting
                         ? null
                         : (isLastStep
-                            ? (canSubmit ? _submitApplication : null)
+                            ? _submitApplication
                             : _goNext),
                     icon: _isSubmitting
                         ? const SizedBox(
@@ -1333,6 +1452,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),

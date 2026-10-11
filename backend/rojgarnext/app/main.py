@@ -1,5 +1,5 @@
 # app/main.py - COMPLETE FIXED VERSION
-# ✅ FIXED: HTTPException dict detail preserved for account lock info
+# ✅ FIXED: Added schemes router registration
 # ✅ FIXED: All error handlers return proper dict details
 # ✅ FIXED: No data loss on error responses
 
@@ -45,7 +45,10 @@ from app.modules.customadmin.routes import router as customadmin_router
 from app.modules.location.routes import router as location_router
 from app.modules.payment.routes import router as payment_router
 from app.modules.support.routes import router as support_router
+
+# ✅ CRITICAL FIX: Import schemes router
 from app.modules.schemes.routes import router as schemes_router
+
 # ================= ORJSON FALLBACK =================
 try:
     DefaultResponse = ORJSONResponse
@@ -101,7 +104,6 @@ async def lifespan(app: FastAPI):
 
         scheduler = AsyncIOScheduler(timezone="Asia/Kolkata")
 
-        # Only add IP cleanup scheduler
         scheduler.add_job(
             ip_blacklist.cleanup_expired,
             trigger='interval',
@@ -319,23 +321,12 @@ app.add_middleware(
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     """
     ✅ Handle HTTP exceptions with FULL detail support.
-
-    - If `detail` is a **dict** → return it as-is (preserves account lock
-      info like `code`, `seconds_remaining`, `lock_until`, etc.)
-    - If `detail` is a **string** → wrap it in a standard error response.
-    - If `detail` is a **list** → join as a message.
     """
-    logger.debug(
-        f"🔴 HTTPException [{exc.status_code}]: {exc.detail}"
-    )
+    logger.debug(f"🔴 HTTPException [{exc.status_code}]: {exc.detail}")
 
-    # ============================================================
-    # ✅ CASE 1: dict detail → preserve everything (account lock, etc.)
-    # ============================================================
+    # ✅ CASE 1: dict detail → preserve everything
     if isinstance(exc.detail, dict):
         detail_dict = dict(exc.detail)
-
-        # Extract top-level message / code if present
         message = (
             detail_dict.get("message")
             or detail_dict.get("detail")
@@ -343,22 +334,18 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         )
         code = detail_dict.get("code") or f"E{exc.status_code}"
 
-        # ✅ Return the full detail dict so the client can read
-        #    `seconds_remaining`, `lock_until`, `remaining_attempts`, etc.
         return JSONResponse(
             status_code=exc.status_code,
             content={
                 "success": False,
                 "code": code,
                 "message": message,
-                "detail": detail_dict,  # ✅ full nested info preserved
+                "detail": detail_dict,
                 "request_id": str(uuid.uuid4())[:8],
             },
         )
 
-    # ============================================================
     # ✅ CASE 2: list detail → join into a single message
-    # ============================================================
     if isinstance(exc.detail, list):
         message = "; ".join(str(item) for item in exc.detail)
         return JSONResponse(
@@ -372,9 +359,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
             },
         )
 
-    # ============================================================
     # ✅ CASE 3: string detail (or anything else) → standard wrapper
-    # ============================================================
     return ApiResponse.error(
         message=str(exc.detail) if exc.detail else "HTTP Error",
         code=f"E{exc.status_code}",
@@ -468,6 +453,8 @@ app.include_router(
 app.include_router(
     support_router, prefix="/api/v1", tags=["Support"]
 )
+
+# ✅ CRITICAL FIX: Register schemes router
 app.include_router(
     schemes_router, prefix="/api/v1/schemes", tags=["Government Schemes"]
 )

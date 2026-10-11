@@ -1,14 +1,12 @@
 # app/modules/schemes/service.py
 """
 Government Schemes Service
-Handles all scheme-related operations
 
-✅ FIXED:
-   - All applications go to the UNIFIED `applications` collection.
-   - application_type = "schemes" is always set.
-   - Documents are stored inside applications.documents[] and
-     are read back per-application so they show ONLY in the
-     matching "My Applications" card.
+✅ All applications go to UNIFIED `applications` collection
+✅ application_type = "schemes" always set
+✅ Documents stored in applications.documents[] — read per-application
+✅ submit_application() for final submission
+✅ Handles typed SchemeApplyRequest payloads
 """
 
 from fastapi import HTTPException, BackgroundTasks
@@ -36,7 +34,7 @@ class SchemeService:
         self.profile = db.profile
 
     # ============================================================
-    # SCHEME LISTING (unchanged)
+    # SCHEME LISTING
     # ============================================================
     async def list_schemes(
         self,
@@ -49,7 +47,7 @@ class SchemeService:
         skip: int = 0,
     ) -> Dict[str, Any]:
         try:
-            query = {"is_active": True}
+            query: Dict[str, Any] = {"is_active": True}
             if level and level != "all":
                 query["level"] = level
             if state and state != "all":
@@ -58,6 +56,7 @@ class SchemeService:
                 query["category"] = category
             if is_featured is not None:
                 query["is_featured"] = is_featured
+
             if search and search.strip():
                 term = search.strip()
                 query["$or"] = [
@@ -117,7 +116,9 @@ class SchemeService:
     async def get_featured_schemes(self, limit: int = 10) -> List[Dict]:
         try:
             schemes = (
-                await self.schemes.find({"is_active": True, "is_featured": True})
+                await self.schemes.find(
+                    {"is_active": True, "is_featured": True}
+                )
                 .sort("priority", -1)
                 .limit(limit)
                 .to_list(limit)
@@ -134,7 +135,9 @@ class SchemeService:
     ) -> List[Dict]:
         try:
             schemes = (
-                await self.schemes.find({"is_active": True, "category": category})
+                await self.schemes.find(
+                    {"is_active": True, "category": category}
+                )
                 .sort("priority", -1)
                 .limit(limit)
                 .to_list(limit)
@@ -150,7 +153,11 @@ class SchemeService:
         try:
             states = await self.schemes.distinct(
                 "state",
-                {"is_active": True, "level": "state", "state": {"$ne": None}},
+                {
+                    "is_active": True,
+                    "level": "state",
+                    "state": {"$ne": None},
+                },
             )
             return sorted(states)
         except Exception as e:
@@ -158,7 +165,7 @@ class SchemeService:
             return []
 
     # ============================================================
-    # CREATE APPLICATION — persists `documents` array (may be empty)
+    # CREATE APPLICATION
     # ============================================================
     async def create_application(
         self,
@@ -170,29 +177,42 @@ class SchemeService:
         try:
             scheme_id = (data.get("scheme_id") or "").strip()
             if not scheme_id:
-                raise HTTPException(status_code=400, detail="scheme_id is required")
+                raise HTTPException(
+                    status_code=400, detail="scheme_id is required"
+                )
 
             scheme = await self.schemes.find_one(
                 {"scheme_id": scheme_id, "is_active": True}
             )
             if not scheme:
-                raise HTTPException(status_code=404, detail="Scheme not found")
+                raise HTTPException(
+                    status_code=404, detail="Scheme not found"
+                )
 
-            scheme_name_hindi = (scheme.get("scheme_name_hindi") or "").strip()
+            scheme_name_hindi = (
+                scheme.get("scheme_name_hindi") or ""
+            ).strip()
             scheme_name_en = (scheme.get("scheme_name") or "").strip()
-            resolved_scheme_name = scheme_name_hindi or scheme_name_en or scheme_id
+            resolved_scheme_name = (
+                scheme_name_hindi or scheme_name_en or scheme_id
+            )
 
             override_name = (data.get("scheme_name") or "").strip()
             if override_name:
                 resolved_scheme_name = override_name
 
+            # Duplicate check
             existing = await self.applications.find_one(
                 {
                     "application_type": SCHEME_APPLICATION_TYPE,
                     "user_email": user_email,
                     "scheme_id": scheme_id,
                     "status": {
-                        "$nin": ["rejected", "verification_rejected", "cancelled"]
+                        "$nin": [
+                            "rejected",
+                            "verification_rejected",
+                            "cancelled",
+                        ]
                     },
                     "is_archived": {"$ne": True},
                 }
@@ -209,62 +229,67 @@ class SchemeService:
 
             profile = await self.profile.find_one({"email": user_email})
             user_name = (
-                profile.get("full_name") if profile else user_email.split("@")[0]
+                profile.get("full_name")
+                if profile
+                else user_email.split("@")[0]
             )
             user_mobile = profile.get("phone") if profile else None
 
             application_id = str(uuid.uuid4())
             now = datetime.utcnow()
 
-            # ✅ Normalize incoming documents (usually empty at creation time)
-            incoming_docs = data.get("documents")
+            # Normalize documents
+            incoming_docs = data.get("documents") or []
             normalized_docs: List[Dict[str, Any]] = []
-            if isinstance(incoming_docs, list):
-                for d in incoming_docs:
-                    if not isinstance(d, dict):
-                        continue
-                    normalized_docs.append(
-                        {
-                            "document_type": (d.get("document_type") or "").strip(),
-                            "document_name": (d.get("document_name") or "").strip(),
-                            "document_url": (d.get("document_url") or "").strip(),
-                            "public_id": d.get("public_id"),
-                            "uploaded_at": now,
-                            "verified": False,
-                        }
-                    )
+            for d in incoming_docs:
+                if not isinstance(d, dict):
+                    continue
+                doc_url = (
+                    d.get("document_url") or d.get("url") or ""
+                ).strip()
+                if not doc_url:
+                    continue
+                normalized_docs.append(
+                    {
+                        "document_type": (
+                            d.get("document_type") or ""
+                        ).strip(),
+                        "document_name": (
+                            d.get("document_name")
+                            or d.get("label")
+                            or ""
+                        ).strip(),
+                        "document_url": doc_url,
+                        "public_id": d.get("public_id"),
+                        "uploaded_at": now,
+                        "verified": False,
+                    }
+                )
 
             application_doc: Dict[str, Any] = {
                 "application_id": application_id,
-
-                # ✅ always "schemes"
                 "application_type": SCHEME_APPLICATION_TYPE,
-
                 "user_email": user_email,
                 "user_id": user_id,
                 "user_name": user_name,
                 "user_mobile": user_mobile,
-
                 "scheme_id": scheme_id,
                 "scheme_name": resolved_scheme_name,
                 "scheme_name_hindi": scheme_name_hindi,
                 "scheme_level": scheme.get("level", "central"),
                 "scheme_state": scheme.get("state"),
                 "scheme_category": scheme.get("category", "other"),
-
                 "applicant_details": data.get("applicant_details", {}) or {},
                 "applicant_address": data.get("applicant_address", {}) or {},
-                "bank_details": data.get("bank_details"),
+                "bank_details": data.get("bank_details") or {},
                 "documents": normalized_docs,
                 "additional_info": data.get("additional_info"),
                 "remarks": data.get("remarks"),
-
                 "status": "pending",
                 "payment_verification_status": "not_submitted",
                 "payment_amount": scheme.get("application_fee", 0),
                 "payment_method": "razorpay",
                 "is_archived": False,
-
                 "created_at": now,
                 "updated_at": now,
                 "applied_at": now,
@@ -273,8 +298,8 @@ class SchemeService:
             await self.applications.insert_one(application_doc)
 
             module_logger.info(
-                f"✅ Scheme application created in `applications`: "
-                f"{application_id} | type={SCHEME_APPLICATION_TYPE}"
+                f"✅ Scheme application created: {application_id} | "
+                f"type={SCHEME_APPLICATION_TYPE}"
             )
 
             if background_tasks:
@@ -294,7 +319,9 @@ class SchemeService:
                         application_id,
                     )
                 except Exception as e:
-                    module_logger.warning(f"Notification send failed: {e}")
+                    module_logger.warning(
+                        f"Notification send failed: {e}"
+                    )
 
             return {
                 "success": True,
@@ -306,11 +333,118 @@ class SchemeService:
         except HTTPException:
             raise
         except Exception as e:
-            module_logger.error(f"Error creating scheme application: {e}")
+            module_logger.error(
+                f"Error creating scheme application: {e}"
+            )
             raise HTTPException(status_code=500, detail=str(e))
 
     # ============================================================
-    # UPLOAD A DOCUMENT — pushes into applications.documents[]
+    # SUBMIT APPLICATION (FINAL SUBMIT)
+    # ============================================================
+    async def submit_application(
+        self,
+        application_id: str,
+        user_email: str,
+        additional_data: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        try:
+            application = await self.applications.find_one(
+                {
+                    "application_type": SCHEME_APPLICATION_TYPE,
+                    "application_id": application_id,
+                    "user_email": user_email,
+                }
+            )
+
+            if not application:
+                raise HTTPException(
+                    status_code=404, detail="Application not found"
+                )
+
+            current_status = application.get("status", "")
+            if current_status in [
+                "submitted",
+                "under_review",
+                "approved",
+                "completed",
+            ]:
+                return {
+                    "success": True,
+                    "message": f"Application already {current_status}",
+                    "application_id": application_id,
+                    "status": current_status,
+                }
+
+            now = datetime.utcnow()
+
+            update_data: Dict[str, Any] = {
+                "status": "submitted",
+                "submitted_at": now,
+                "updated_at": now,
+            }
+
+            if additional_data:
+                if additional_data.get("remarks"):
+                    update_data["remarks"] = additional_data["remarks"]
+                if additional_data.get("additional_info"):
+                    update_data["additional_info"] = additional_data[
+                        "additional_info"
+                    ]
+
+            await self.applications.update_one(
+                {"application_id": application_id},
+                {"$set": update_data},
+            )
+
+            module_logger.info(
+                f"✅ Application {application_id} submitted successfully"
+            )
+
+            scheme_name = (
+                application.get("scheme_name")
+                or application.get("scheme_name_hindi")
+                or "Scheme"
+            )
+            user_name = application.get("user_name", "User")
+
+            try:
+                await central_notification.send_notification(
+                    user_ids=[user_email],
+                    notification_type="application_status",
+                    title=f"✅ Application Submitted: {scheme_name}",
+                    message=(
+                        f"Dear {user_name}, your application for "
+                        f"'{scheme_name}' has been submitted "
+                        f"successfully. Application ID: {application_id}"
+                    ),
+                    related_id=application_id,
+                    metadata={
+                        "application_id": application_id,
+                        "scheme_name": scheme_name,
+                        "status": "submitted",
+                    },
+                    send_email=True,
+                    send_websocket=True,
+                )
+            except Exception as ne:
+                module_logger.warning(f"Notification failed: {ne}")
+
+            return {
+                "success": True,
+                "message": "Application submitted successfully",
+                "application_id": application_id,
+                "status": "submitted",
+                "submitted_at": now.isoformat(),
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            module_logger.error(f"Error submitting application: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # ============================================================
+    # UPLOAD A DOCUMENT
     # ============================================================
     async def upload_document(
         self,
@@ -319,16 +453,8 @@ class SchemeService:
         document_type: str,
         document_name: str,
         document_url: str,
-        public_id: str = None,
+        public_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Save an uploaded document into the matching scheme application.
-
-        ✅ The document is stored inside applications.documents[].
-        ✅ Because it is keyed by application_id, it will only be
-           returned for THIS scheme application — never mixed with
-           another application's documents.
-        """
         try:
             if not document_url or not document_url.strip():
                 raise HTTPException(
@@ -357,10 +483,16 @@ class SchemeService:
                 "verified": False,
             }
 
-            # Remove existing doc of same type (replace)
+            # Replace existing doc of same type
             await self.applications.update_one(
                 {"application_id": application_id},
-                {"$pull": {"documents": {"document_type": doc["document_type"]}}},
+                {
+                    "$pull": {
+                        "documents": {
+                            "document_type": doc["document_type"]
+                        }
+                    }
+                },
             )
 
             # Push new doc
@@ -389,7 +521,7 @@ class SchemeService:
             raise HTTPException(status_code=500, detail=str(e))
 
     # ============================================================
-    # GET USER APPLICATIONS — returns documents[] per application
+    # GET USER APPLICATIONS
     # ============================================================
     async def get_user_applications(
         self,
@@ -419,8 +551,9 @@ class SchemeService:
                     app["updated_at"] = app["updated_at"].isoformat()
                 if isinstance(app.get("applied_at"), datetime):
                     app["applied_at"] = app["applied_at"].isoformat()
+                if isinstance(app.get("submitted_at"), datetime):
+                    app["submitted_at"] = app["submitted_at"].isoformat()
 
-                # Normalize `documents`
                 docs = app.get("documents")
                 normalized = []
                 if isinstance(docs, list):
@@ -442,7 +575,9 @@ class SchemeService:
                                 "public_id": d.get("public_id"),
                                 "uploaded_at": (
                                     d["uploaded_at"].isoformat()
-                                    if isinstance(d.get("uploaded_at"), datetime)
+                                    if isinstance(
+                                        d.get("uploaded_at"), datetime
+                                    )
                                     else d.get("uploaded_at")
                                 ),
                                 "verified": d.get("verified", False),
@@ -456,7 +591,9 @@ class SchemeService:
                 "total": len(applications),
             }
         except Exception as e:
-            module_logger.error(f"Error getting user applications: {e}")
+            module_logger.error(
+                f"Error getting user applications: {e}"
+            )
             raise HTTPException(status_code=500, detail=str(e))
 
     async def get_application_detail(
@@ -476,6 +613,17 @@ class SchemeService:
                 )
             application["_id"] = str(application["_id"])
 
+            # Normalize dates
+            for field in [
+                "created_at",
+                "updated_at",
+                "applied_at",
+                "submitted_at",
+                "reviewed_at",
+            ]:
+                if isinstance(application.get(field), datetime):
+                    application[field] = application[field].isoformat()
+
             scheme = await self.schemes.find_one(
                 {"scheme_id": application.get("scheme_id")}
             )
@@ -490,7 +638,9 @@ class SchemeService:
         except HTTPException:
             raise
         except Exception as e:
-            module_logger.error(f"Error getting application detail: {e}")
+            module_logger.error(
+                f"Error getting application detail: {e}"
+            )
             raise HTTPException(status_code=500, detail=str(e))
 
     # ============================================================
@@ -511,7 +661,9 @@ class SchemeService:
                 "customadmin",
                 "superadmin",
             ):
-                raise HTTPException(status_code=403, detail="Access denied")
+                raise HTTPException(
+                    status_code=403, detail="Access denied"
+                )
 
             query: Dict[str, Any] = {
                 "application_type": SCHEME_APPLICATION_TYPE,
@@ -536,18 +688,20 @@ class SchemeService:
                     app["created_at"] = app["created_at"].isoformat()
                 if isinstance(app.get("updated_at"), datetime):
                     app["updated_at"] = app["updated_at"].isoformat()
+                if isinstance(app.get("applied_at"), datetime):
+                    app["applied_at"] = app["applied_at"].isoformat()
 
             return {
                 "success": True,
                 "applications": apps,
                 "total": total,
-                "skip": skip,
-                "limit": limit,
             }
         except HTTPException:
             raise
         except Exception as e:
-            module_logger.error(f"Error getting all applications: {e}")
+            module_logger.error(
+                f"Error getting all applications: {e}"
+            )
             raise HTTPException(status_code=500, detail=str(e))
 
     async def update_application_status(
@@ -564,7 +718,9 @@ class SchemeService:
                 "customadmin",
                 "superadmin",
             ):
-                raise HTTPException(status_code=403, detail="Access denied")
+                raise HTTPException(
+                    status_code=403, detail="Access denied"
+                )
 
             application = await self.applications.find_one(
                 {
@@ -577,11 +733,12 @@ class SchemeService:
                     status_code=404, detail="Application not found"
                 )
 
+            now = datetime.utcnow()
             update_data: Dict[str, Any] = {
                 "status": status,
-                "updated_at": datetime.utcnow(),
+                "updated_at": now,
                 "reviewed_by": admin_email,
-                "reviewed_at": datetime.utcnow(),
+                "reviewed_at": now,
             }
             if notes:
                 update_data["admin_notes"] = notes
@@ -592,7 +749,6 @@ class SchemeService:
             )
 
             user_email = application.get("user_email")
-            user_name = application.get("user_name", "User")
             scheme_name = (
                 application.get("scheme_name")
                 or application.get("scheme_name_hindi")
@@ -603,7 +759,9 @@ class SchemeService:
                 await central_notification.send_notification(
                     user_ids=[user_email],
                     notification_type="application_status",
-                    title=f"Scheme Application Update: {scheme_name}",
+                    title=(
+                        f"Scheme Application Update: {scheme_name}"
+                    ),
                     message=(
                         f"Your application for '{scheme_name}' "
                         f"has been updated to: {status.upper()}"
@@ -629,7 +787,9 @@ class SchemeService:
         except HTTPException:
             raise
         except Exception as e:
-            module_logger.error(f"Error updating application status: {e}")
+            module_logger.error(
+                f"Error updating application status: {e}"
+            )
             raise HTTPException(status_code=500, detail=str(e))
 
     # ============================================================
@@ -646,10 +806,12 @@ class SchemeService:
             await central_notification.send_notification(
                 user_ids=[user_email],
                 notification_type="application_status",
-                title=f"✅ Scheme Application Submitted: {scheme_name}",
+                title=(
+                    f"✅ Scheme Application Submitted: {scheme_name}"
+                ),
                 message=(
-                    f"Dear {user_name}, your application for '{scheme_name}' "
-                    f"has been submitted successfully. "
+                    f"Dear {user_name}, your application for "
+                    f"'{scheme_name}' has been submitted successfully. "
                     f"Application ID: {application_id}"
                 ),
                 related_id=application_id,
@@ -662,7 +824,9 @@ class SchemeService:
                 send_websocket=True,
             )
         except Exception as e:
-            module_logger.error(f"Error sending notification: {e}")
+            module_logger.error(
+                f"Error sending notification: {e}"
+            )
 
     async def seed_schemes(self) -> Dict[str, Any]:
         try:
@@ -683,4 +847,4 @@ class SchemeService:
             return {"success": False, "error": str(e)}
 
 
-print("✅ Scheme Service Loaded Successfully (UNIFIED `applications` + DOCS)")
+print("✅ Scheme Service Loaded Successfully (TYPED + DOCS + SUBMIT)")

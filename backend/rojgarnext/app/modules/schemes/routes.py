@@ -2,10 +2,14 @@
 """
 Government Schemes API Routes
 
-✅ FIXED:
-   - `/apply` accepts and persists `documents[]`.
-   - `/application/{id}/upload-document` saves into the UNIFIED
-     `applications` collection with `application_type = "schemes"`.
+✅ Router prefix removed (main.py handles /api/v1/schemes)
+✅ Full Pydantic validation via schemas.py
+✅ /apply accepts and persists documents[]
+✅ /application/{id}/upload-document saves into UNIFIED
+   `applications` collection with application_type = "schemes"
+✅ /application/{id}/submit endpoint for final submission
+✅ Admin endpoints for listing and status updates
+✅ All applications go to `applications` collection
 """
 
 from fastapi import (
@@ -13,20 +17,38 @@ from fastapi import (
     Depends,
     HTTPException,
     Query,
-    Body,
     UploadFile,
     File,
     Form,
     BackgroundTasks,
 )
-from typing import Optional, List, Dict, Any
+from typing import Optional
+from datetime import datetime
 
 from app.core.services.dependencies import get_current_user, role_required
 from app.db.connection import get_db
 from app.modules.schemes.service import SchemeService
+from app.modules.schemes.schemas import (
+    SchemeApplyRequest,
+    SchemeApplyResponse,
+    SchemeSubmitRequest,
+    SchemeSubmitResponse,
+    ApplicationResponse,
+    ApplicationDetailResponse,
+    DocumentUploadResponse,
+    TempDocumentUploadResponse,
+    AdminUpdateStatusRequest,
+    AdminUpdateStatusResponse,
+    SchemeListResponse,
+    SchemeDetailResponse,
+    SchemeCategoriesResponse,
+    SchemeStatesResponse,
+)
 from app.core.services.cloudinary import upload_user_document
+from app.core.utils.logger import logger
 
-router = APIRouter(prefix="/schemes", tags=["Government Schemes"])
+# ✅ NO prefix here — main.py adds /api/v1/schemes
+router = APIRouter(tags=["Government Schemes"])
 
 
 async def get_scheme_service(db=Depends(get_db)) -> SchemeService:
@@ -36,7 +58,7 @@ async def get_scheme_service(db=Depends(get_db)) -> SchemeService:
 # ============================================================
 # SCHEME LISTING
 # ============================================================
-@router.get("/list")
+@router.get("/list", response_model=SchemeListResponse)
 async def list_schemes(
     level: Optional[str] = Query(None),
     state: Optional[str] = Query(None),
@@ -59,17 +81,23 @@ async def list_schemes(
     )
 
 
-@router.get("/featured")
+@router.get("/featured", response_model=SchemeListResponse)
 async def get_featured_schemes(
     limit: int = Query(10, ge=1, le=50),
     service: SchemeService = Depends(get_scheme_service),
     current_user: dict = Depends(get_current_user),
 ):
     schemes = await service.get_featured_schemes(limit)
-    return {"success": True, "schemes": schemes, "total": len(schemes)}
+    return {
+        "success": True,
+        "schemes": schemes,
+        "total": len(schemes),
+        "skip": 0,
+        "limit": limit,
+    }
 
 
-@router.get("/categories")
+@router.get("/categories", response_model=SchemeCategoriesResponse)
 async def get_scheme_categories(
     current_user: dict = Depends(get_current_user),
 ):
@@ -94,7 +122,7 @@ async def get_scheme_categories(
     return {"success": True, "categories": categories}
 
 
-@router.get("/states")
+@router.get("/states", response_model=SchemeStatesResponse)
 async def get_states_with_schemes(
     service: SchemeService = Depends(get_scheme_service),
     current_user: dict = Depends(get_current_user),
@@ -103,7 +131,7 @@ async def get_states_with_schemes(
     return {"success": True, "states": states}
 
 
-@router.get("/detail/{scheme_id}")
+@router.get("/detail/{scheme_id}", response_model=SchemeDetailResponse)
 async def get_scheme_detail(
     scheme_id: str,
     service: SchemeService = Depends(get_scheme_service),
@@ -113,30 +141,87 @@ async def get_scheme_detail(
 
 
 # ============================================================
-# APPLY
+# APPLY - MAIN APPLICATION SUBMISSION
 # ============================================================
-@router.post("/apply")
+@router.post("/apply", response_model=SchemeApplyResponse)
 async def apply_for_scheme(
     background_tasks: BackgroundTasks,
-    data: Dict[str, Any] = Body(...),
+    payload: SchemeApplyRequest,
     service: SchemeService = Depends(get_scheme_service),
     current_user: dict = Depends(get_current_user),
 ):
+    """
+    Submit a scheme application.
+
+    Saves to UNIFIED `applications` collection with:
+    - application_type = "schemes"
+    - Full applicant details (personal / address / bank)
+    - Documents array (may be empty)
+
+    Returns:
+    - success: true
+    - application_id: UUID
+    - status: "pending"
+    """
     user_email = current_user.get("email")
     user_id = current_user.get("user_id")
 
     if not user_email:
         raise HTTPException(status_code=400, detail="User email not found")
 
+    logger.info("=" * 70)
+    logger.info("📝 SCHEME APPLICATION SUBMISSION")
+    logger.info(f"   User: {user_email}")
+    logger.info(f"   Scheme: {payload.scheme_id}")
+    logger.info(f"   Documents: {len(payload.documents or [])}")
+    logger.info("=" * 70)
+
     return await service.create_application(
-        data=data,
+        data=payload.dict(),
         user_email=user_email,
         user_id=user_id,
         background_tasks=background_tasks,
     )
 
 
-@router.get("/my-applications")
+# ============================================================
+# FINAL SUBMISSION
+# ============================================================
+@router.post(
+    "/application/{application_id}/submit",
+    response_model=SchemeSubmitResponse,
+)
+async def submit_application(
+    application_id: str,
+    payload: SchemeSubmitRequest = SchemeSubmitRequest(),
+    service: SchemeService = Depends(get_scheme_service),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    ✅ Submit an application after all documents are uploaded.
+    This marks the application as 'submitted' and triggers notifications.
+    """
+    user_email = current_user.get("email")
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+
+    logger.info("=" * 70)
+    logger.info("📤 FINAL APPLICATION SUBMISSION")
+    logger.info(f"   Application ID: {application_id}")
+    logger.info(f"   User: {user_email}")
+    logger.info("=" * 70)
+
+    return await service.submit_application(
+        application_id=application_id,
+        user_email=user_email,
+        additional_data=payload.dict(),
+    )
+
+
+# ============================================================
+# MY APPLICATIONS
+# ============================================================
+@router.get("/my-applications", response_model=ApplicationResponse)
 async def get_my_scheme_applications(
     status: Optional[str] = Query(None),
     service: SchemeService = Depends(get_scheme_service),
@@ -148,7 +233,10 @@ async def get_my_scheme_applications(
     return await service.get_user_applications(user_email, status)
 
 
-@router.get("/application/{application_id}")
+@router.get(
+    "/application/{application_id}",
+    response_model=ApplicationDetailResponse,
+)
 async def get_application_detail(
     application_id: str,
     service: SchemeService = Depends(get_scheme_service),
@@ -163,7 +251,10 @@ async def get_application_detail(
 # ============================================================
 # UPLOAD DOCUMENT (per application)
 # ============================================================
-@router.post("/application/{application_id}/upload-document")
+@router.post(
+    "/application/{application_id}/upload-document",
+    response_model=DocumentUploadResponse,
+)
 async def upload_application_document(
     application_id: str,
     file: UploadFile = File(...),
@@ -176,8 +267,7 @@ async def upload_application_document(
     Upload a single document for a scheme application.
 
     ✅ Saved into applications.documents[]
-    ✅ Tied to application_id so it appears ONLY in the matching
-       "My Applications" card.
+    ✅ Tied to application_id — shows ONLY in matching card
     """
     user_email = current_user.get("email")
     if not user_email:
@@ -201,11 +291,12 @@ async def upload_application_document(
     if file_size > 10 * 1024 * 1024:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Max: 10MB, yours: "
-            f"{file_size // (1024 * 1024)}MB",
+            detail=(
+                f"File too large. Max: 10MB, yours: "
+                f"{file_size // (1024 * 1024)}MB"
+            ),
         )
 
-    # Upload to Cloudinary
     username = user_email.split("@")[0]
     upload_result = await upload_user_document(
         file=file,
@@ -229,9 +320,82 @@ async def upload_application_document(
 
 
 # ============================================================
+# TEMP DOCUMENT UPLOAD
+# ============================================================
+@router.post(
+    "/upload-temp-document",
+    response_model=TempDocumentUploadResponse,
+)
+async def upload_temp_document(
+    file: UploadFile = File(...),
+    document_type: str = Form(...),
+    document_name: str = Form(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Upload a document temporarily for scheme application.
+    Returns Cloudinary URL to be stored when the application is submitted.
+    """
+    user_email = current_user.get("email")
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+
+    if not file or not file.filename:
+        raise HTTPException(status_code=400, detail="File is required")
+
+    allowed = ["pdf", "jpg", "jpeg", "png"]
+    file_ext = file.filename.split(".")[-1].lower() if file.filename else ""
+    if file_ext not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed: {', '.join(allowed)}",
+        )
+
+    file_content = await file.read()
+    file_size = len(file_content)
+    await file.seek(0)
+
+    if file_size > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=413,
+            detail="File too large. Max: 10MB",
+        )
+
+    username = user_email.split("@")[0]
+    upload_result = await upload_user_document(
+        file=file,
+        username=username,
+        document_type=f"scheme_documents/{document_type}",
+    )
+
+    if not upload_result or not upload_result.get("url"):
+        raise HTTPException(
+            status_code=500, detail="Cloudinary upload failed"
+        )
+
+    logger.info(
+        f"✅ Temp document uploaded: {document_name} → "
+        f"{upload_result['url']}"
+    )
+
+    return {
+        "success": True,
+        "message": "Document uploaded successfully",
+        "document": {
+            "url": upload_result.get("url"),
+            "public_id": upload_result.get("public_id"),
+            "document_type": document_type,
+            "document_name": document_name,
+            "filename": file.filename,
+            "size_bytes": file_size,
+        },
+    }
+
+
+# ============================================================
 # ADMIN
 # ============================================================
-@router.get("/admin/all-applications")
+@router.get("/admin/all-applications", response_model=ApplicationResponse)
 async def get_all_scheme_applications(
     status: Optional[str] = Query(None),
     scheme_id: Optional[str] = Query(None),
@@ -251,11 +415,13 @@ async def get_all_scheme_applications(
     )
 
 
-@router.put("/admin/application/{application_id}/status")
+@router.put(
+    "/admin/application/{application_id}/status",
+    response_model=AdminUpdateStatusResponse,
+)
 async def update_application_status(
     application_id: str,
-    status: str = Query(...),
-    notes: Optional[str] = Query(None),
+    payload: AdminUpdateStatusRequest,
     service: SchemeService = Depends(get_scheme_service),
     current_user: dict = Depends(
         role_required(["admin", "customadmin", "superadmin"])
@@ -263,10 +429,10 @@ async def update_application_status(
 ):
     return await service.update_application_status(
         application_id=application_id,
-        status=status,
+        status=payload.status,
         admin_email=current_user.get("email"),
-        notes=notes,
+        notes=payload.notes,
     )
 
 
-print("✅ Schemes Routes Loaded Successfully (DOCS ENABLED)")
+print("✅ Schemes Routes Loaded Successfully (TYPED SCHEMAS + SUBMIT)")

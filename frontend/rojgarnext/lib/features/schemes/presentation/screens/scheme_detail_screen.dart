@@ -9,11 +9,16 @@
 // ✅ NEW: onApply callback for embedded mode
 // ✅ NEW: When embedded, Apply button opens SchemeApplyScreen
 //         IN THE SAME RIGHT PANEL (with its own back button)
+// ✅ FIXED: _loadSchemeDetail now ALWAYS falls back to local master data,
+//           even when the backend returns success:false or an empty scheme.
+// ✅ FIXED: _getMasterDataAsMap wrapped in try/catch for safety.
+// ✅ FIXED: Added missing fields (fullDescription, shortDescription,
+//           targetBeneficiaries, tags, category, applicationMode) so
+//           every card can render.
 // ============================================================
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
 import 'package:rojgarnext/core/master_date/schemes_data.dart';
 import 'package:rojgarnext/features/schemes/data/scheme_service.dart';
@@ -23,24 +28,21 @@ class SchemeDetailScreen extends StatefulWidget {
   final String schemeId;
   final String schemeName;
 
-  /// ✅ NEW: When true, renders WITHOUT Scaffold/AppBar
-  /// so it can be embedded in the right panel of UserDashboard.
+  /// ✅ When true, renders WITHOUT Scaffold/AppBar
   final bool isEmbedded;
 
-  /// ✅ NEW: Optional back callback (for embedded mode)
+  /// ✅ Optional back callback (for embedded mode)
   final VoidCallback? onBack;
 
-  /// ✅ NEW: Optional apply callback — if provided, called instead of
+  /// ✅ Optional apply callback — if provided, called instead of
   /// opening SchemeApplyScreen internally.
   final VoidCallback? onApply;
 
-  /// ✅ NEW: When true, the Apply button opens SchemeApplyScreen
-  /// INSIDE the current panel (with its own back button) instead of
-  /// pushing a new route. Used by UserDashboard's embedded flow.
+  /// ✅ When true, the Apply button opens SchemeApplyScreen
+  /// INSIDE the current panel (with its own back button)
   final bool openApplyInline;
 
-  /// ✅ NEW: Callback invoked when the inline apply screen wants to go back
-  /// (only used when [openApplyInline] is true).
+  /// ✅ Callback invoked when the inline apply screen wants to go back
   final VoidCallback? onApplyBack;
 
   const SchemeDetailScreen({
@@ -93,101 +95,164 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
     super.dispose();
   }
 
-  // ==================== LOAD DATA ====================
+  // ============================================================
+  // ✅ FIXED: LOAD DATA — backend first, then ALWAYS local fallback
+  // ============================================================
   Future<void> _loadSchemeDetail() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
+    Map<String, dynamic>? schemeData;
+
+    // ---------- STEP 1: Try backend ----------
     try {
       final result = await SchemeService.getSchemeDetail(widget.schemeId);
 
-      if (!mounted) return;
+      if (result['success'] == true && result['scheme'] is Map) {
+        schemeData = Map<String, dynamic>.from(result['scheme'] as Map);
+        debugPrint("✅ SchemeDetail: loaded from BACKEND");
+      } else {
+        debugPrint(
+            "⚠️ SchemeDetail: backend returned no scheme — trying local");
+      }
+    } catch (e) {
+      debugPrint("⚠️ SchemeDetail: backend failed ($e) — trying local");
+    }
 
-      final schemeData = result['scheme'] as Map<String, dynamic>? ??
-          _getMasterDataAsMap();
+    // ---------- STEP 2: ALWAYS fall back to local master data ----------
+    if (schemeData == null) {
+      schemeData = _getMasterDataAsMap();
 
+      if (schemeData != null) {
+        debugPrint("✅ SchemeDetail: loaded from LOCAL master data");
+      }
+    }
+
+    if (!mounted) return;
+
+    // ---------- STEP 3: Commit ----------
+    if (schemeData != null && schemeData.isNotEmpty) {
       setState(() {
         _scheme = schemeData;
         _isLoading = false;
+        _errorMessage = null;
       });
-
       _animController.forward();
-    } catch (e) {
-      if (!mounted) return;
+    } else {
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString();
-        // Fallback to master data
-        _scheme = _getMasterDataAsMap();
+        _errorMessage =
+            'योजना "${widget.schemeId}" उपलब्ध नहीं है। / Scheme not found.';
       });
     }
   }
 
+  // ============================================================
+  // ✅ FIXED: Convert local GovernmentScheme → full Map
+  //           (with all fields + safe null handling)
+  // ============================================================
   Map<String, dynamic>? _getMasterDataAsMap() {
-    final scheme = SchemesMasterData.getSchemeById(widget.schemeId);
-    if (scheme == null) return null;
+    try {
+      final scheme = SchemesMasterData.getSchemeById(widget.schemeId);
+      if (scheme == null) {
+        debugPrint("❌ SchemeDetail: master data has no entry for "
+            "'${widget.schemeId}'");
+        return null;
+      }
 
-    return {
-      'scheme_id': scheme.schemeId,
-      'scheme_name': scheme.schemeName,
-      'scheme_name_hindi': scheme.schemeNameHindi,
-      'short_description': scheme.shortDescription,
-      'short_description_hindi': scheme.shortDescriptionHindi,
-      'level': scheme.level,
-      'state': scheme.state,
-      'category': scheme.category,
-      'full_description': scheme.fullDescription,
-      'full_description_hindi': scheme.fullDescriptionHindi,
-      'icon': scheme.icon,
-      'color': scheme.color,
-      'is_featured': scheme.isFeatured,
-      'benefits': scheme.benefits.map((b) => {
-        'title': b.title,
-        'description': b.description,
-        'amount': b.amount,
-        'type': b.type,
-      }).toList(),
-      'eligibility': {
-        'age_min': scheme.eligibility.ageMin,
-        'age_max': scheme.eligibility.ageMax,
-        'gender': scheme.eligibility.gender,
-        'income_limit': scheme.eligibility.incomeLimit,
-        'category': scheme.eligibility.category,
-        'occupation': scheme.eligibility.occupation,
-        'domicile_state': scheme.eligibility.domicileState,
-        'disability_required': scheme.eligibility.disabilityRequired,
-        'bpl_required': scheme.eligibility.bplRequired,
-        'aadhaar_required': scheme.eligibility.aadhaarRequired,
-      },
-      'eligibility_details_hindi': scheme.eligibilityDetailsHindi,
-      'target_beneficiaries_hindi': scheme.targetBeneficiariesHindi,
-      'required_documents': scheme.requiredDocuments.map((d) => {
-        'name': d.name,
-        'name_hindi': d.nameHindi,
-        'required': d.required,
-        'description': d.description,
-      }).toList(),
-      'application_steps': scheme.applicationSteps.map((st) => {
-        'step_number': st.stepNumber,
-        'title': st.title,
-        'title_hindi': st.titleHindi,
-        'description': st.description,
-        'description_hindi': st.descriptionHindi,
-      }).toList(),
-      'application_mode': scheme.applicationMode,
-      'contact_info': {
-        'helpline': scheme.contactInfo.helpline,
-        'email': scheme.contactInfo.email,
-        'website': scheme.contactInfo.website,
-      },
-      'official_website': scheme.officialWebsite,
-      'apply_link': scheme.applyLink,
-      'has_application_fee': scheme.hasApplicationFee,
-      'application_fee': scheme.applicationFee,
-      'fee_details_hindi': scheme.feeDetailsHindi,
-    };
+      return {
+        'scheme_id': scheme.schemeId,
+        'scheme_name': scheme.schemeName,
+        'scheme_name_hindi': scheme.schemeNameHindi,
+        'short_description': scheme.shortDescription,
+        'short_description_hindi': scheme.shortDescriptionHindi,
+        'level': scheme.level,
+        'state': scheme.state,
+        'category': scheme.category,
+        'full_description': scheme.fullDescription,
+        'full_description_hindi': scheme.fullDescriptionHindi,
+        'icon': scheme.icon,
+        'color': scheme.color,
+        'is_featured': scheme.isFeatured,
+        'tags': scheme.tags,
+
+        // -------- Benefits --------
+        'benefits': scheme.benefits
+            .map((b) => {
+                  'title': b.title,
+                  'description': b.description,
+                  'amount': b.amount,
+                  'type': b.type,
+                })
+            .toList(),
+
+        // -------- Eligibility --------
+        'eligibility': {
+          'age_min': scheme.eligibility.ageMin,
+          'age_max': scheme.eligibility.ageMax,
+          'gender': scheme.eligibility.gender,
+          'income_limit': scheme.eligibility.incomeLimit,
+          'category': scheme.eligibility.category,
+          'education_level': scheme.eligibility.educationLevel,
+          'occupation': scheme.eligibility.occupation,
+          'domicile_state': scheme.eligibility.domicileState,
+          'disability_required': scheme.eligibility.disabilityRequired,
+          'bpl_required': scheme.eligibility.bplRequired,
+          'aadhaar_required': scheme.eligibility.aadhaarRequired,
+        },
+        'eligibility_details_hindi': scheme.eligibilityDetailsHindi,
+
+        // -------- Target Beneficiaries --------
+        'target_beneficiaries': scheme.targetBeneficiaries,
+        'target_beneficiaries_hindi': scheme.targetBeneficiariesHindi,
+
+        // -------- Documents --------
+        'required_documents': scheme.requiredDocuments
+            .map((d) => {
+                  'name': d.name,
+                  'name_hindi': d.nameHindi,
+                  'required': d.required,
+                  'description': d.description,
+                })
+            .toList(),
+
+        // -------- Steps --------
+        'application_steps': scheme.applicationSteps
+            .map((st) => {
+                  'step_number': st.stepNumber,
+                  'title': st.title,
+                  'title_hindi': st.titleHindi,
+                  'description': st.description,
+                  'description_hindi': st.descriptionHindi,
+                })
+            .toList(),
+
+        // -------- Mode / Contact / Links --------
+        'application_mode': scheme.applicationMode,
+        'contact_info': {
+          'helpline': scheme.contactInfo.helpline,
+          'email': scheme.contactInfo.email,
+          'website': scheme.contactInfo.website,
+          'office_address': scheme.contactInfo.officeAddress,
+        },
+        'official_website': scheme.officialWebsite,
+        'apply_link': scheme.applyLink,
+
+        // -------- Fee --------
+        'has_application_fee': scheme.hasApplicationFee,
+        'application_fee': scheme.applicationFee,
+        'fee_details_hindi': scheme.feeDetailsHindi,
+
+        // -------- Meta --------
+        'is_active': true,
+        'source': 'local',
+      };
+    } catch (e) {
+      debugPrint("❌ SchemeDetail: _getMasterDataAsMap error: $e");
+      return null;
+    }
   }
 
   // ==================== NAVIGATION ====================
@@ -200,7 +265,7 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
       return;
     }
 
-    // ✅ NEW: Inline apply mode — show SchemeApplyScreen in the SAME panel
+    // ✅ Inline apply mode — show SchemeApplyScreen in the SAME panel
     if (widget.openApplyInline || widget.isEmbedded) {
       setState(() {
         _showInlineApply = true;
@@ -222,7 +287,6 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
     setState(() {
       _showInlineApply = false;
     });
-    // Notify parent (optional)
     widget.onApplyBack?.call();
   }
 
@@ -255,14 +319,13 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
       return _buildInlineApplyScreen();
     }
 
-    // ✅ Build the main content
     final Widget content = _isLoading
         ? _buildLoadingScreen()
         : _scheme == null
             ? _buildErrorScreen()
             : _buildContent();
 
-    // ✅ EMBEDDED MODE: No Scaffold, no AppBar
+    // ✅ EMBEDDED MODE
     if (widget.isEmbedded) {
       return Container(
         decoration: const BoxDecoration(
@@ -283,7 +346,7 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
       );
     }
 
-    // ✅ FULL SCREEN MODE: With Scaffold
+    // ✅ FULL SCREEN MODE
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       body: Container(
@@ -300,9 +363,7 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
   }
 
   // ============================================================
-  // ✅ INLINE APPLY SCREEN WRAPPER
-  //    Shows SchemeApplyScreen inside the current panel with its
-  //    own back button at the top.
+  // INLINE APPLY SCREEN WRAPPER
   // ============================================================
   Widget _buildInlineApplyScreen() {
     return Container(
@@ -316,7 +377,6 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
       child: SafeArea(
         child: Column(
           children: [
-            // ==================== INLINE APPLY HEADER ====================
             Container(
               padding: const EdgeInsets.all(16),
               decoration: const BoxDecoration(
@@ -381,8 +441,6 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
                 ],
               ),
             ),
-
-            // ==================== APPLY SCREEN BODY ====================
             Expanded(
               child: SchemeApplyScreen(scheme: _scheme!),
             ),
@@ -393,7 +451,7 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
   }
 
   // ============================================================
-  // EMBEDDED HEADER (with back button)
+  // EMBEDDED HEADER
   // ============================================================
   Widget _buildEmbeddedHeader() {
     return Container(
@@ -533,7 +591,6 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
       opacity: _fadeAnimation,
       child: Column(
         children: [
-          // Only show full header in non-embedded mode
           if (!widget.isEmbedded) _buildHeader(),
           Expanded(
             child: SingleChildScrollView(
@@ -564,7 +621,6 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
               ),
             ),
           ),
-          // Bottom action bar
           _buildBottomBar(),
         ],
       ),
@@ -572,7 +628,7 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
   }
 
   // ============================================================
-  // HEADER (only in full screen mode)
+  // HEADER (full screen mode only)
   // ============================================================
   Widget _buildHeader() {
     return Container(
@@ -643,7 +699,8 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
   Widget _buildHeroCard() {
     final icon = _scheme!['icon']?.toString() ?? '📋';
     final schemeNameHindi = _scheme!['scheme_name_hindi']?.toString() ??
-        _scheme!['scheme_name']?.toString() ?? '';
+        _scheme!['scheme_name']?.toString() ??
+        '';
     final schemeNameEn = _scheme!['scheme_name']?.toString() ?? '';
     final level = _scheme!['level']?.toString() ?? 'central';
     final state = _scheme!['state']?.toString();
@@ -651,7 +708,7 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
 
     final levelLabel = level == 'central'
         ? 'केंद्रीय सरकार योजना'
-        : 'राज्य सरकार योजना${state != null ? " • $state" : ""}';
+        : 'राज्य सरकार योजना${state != null && state.isNotEmpty ? " • $state" : ""}';
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -778,7 +835,8 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
   // ============================================================
   Widget _buildFullDescriptionCard() {
     final fullDescHindi = _scheme!['full_description_hindi']?.toString() ??
-        _scheme!['full_description']?.toString() ?? '';
+        _scheme!['full_description']?.toString() ??
+        '';
 
     if (fullDescHindi.isEmpty) return const SizedBox();
 
@@ -965,7 +1023,6 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
 
     final List<Widget> items = [];
 
-    // Hindi text first (if available)
     if (eligibilityDetails.isNotEmpty) {
       items.add(
         Container(
@@ -989,7 +1046,6 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
       );
     }
 
-    // Structured eligibility
     if (ageMin != null || ageMax != null) {
       items.add(_buildEligibilityRow(
         Icons.cake,
@@ -1104,7 +1160,8 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
         ...documents.asMap().entries.map((entry) {
           final doc = entry.value as Map;
           final nameHindi = doc['name_hindi']?.toString() ??
-              doc['name']?.toString() ?? '';
+              doc['name']?.toString() ??
+              '';
           final nameEn = doc['name']?.toString() ?? '';
           final isRequired = doc['required'] != false;
 
@@ -1200,9 +1257,11 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
           final step = entry.value as Map;
           final stepNum = step['step_number'] ?? (entry.key + 1);
           final titleHindi = step['title_hindi']?.toString() ??
-              step['title']?.toString() ?? '';
+              step['title']?.toString() ??
+              '';
           final descHindi = step['description_hindi']?.toString() ??
-              step['description']?.toString() ?? '';
+              step['description']?.toString() ??
+              '';
 
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
