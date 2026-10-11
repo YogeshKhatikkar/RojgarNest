@@ -2,11 +2,8 @@
 """
 Government Schemes Pydantic Schemas
 
-✅ Fully detailed request/response models
-✅ Matches routes.py + service.py + frontend contract
-✅ Supports all application fields (personal, address, bank, documents)
-✅ Supports submit flow + admin actions + notifications
-✅ FIXED: documents accept BOTH `url` and `document_url`
+✅ FULLY FIXED: Documents accept BOTH `url` and `document_url` (AND `documentUrl`)
+✅ Full backward compatibility with all frontend formats
 """
 
 from pydantic import BaseModel, Field, EmailStr, validator
@@ -137,14 +134,23 @@ class BankDetails(BaseModel):
 
 
 # ============================================================
-# DOCUMENT (normalized) — ✅ accepts BOTH `url` and `document_url`
+# DOCUMENT ITEM — ✅ CRITICAL FIX: Accepts ALL field name variants
 # ============================================================
 class SchemeDocumentItem(BaseModel):
     """
     A single uploaded document.
-    Accepts BOTH `url` and `document_url` as input.
-    Always outputs `document_url` in the model.
+
+    ✅ CRITICAL FIX: Accepts ALL of these field names as input:
+       - `document_url` (primary)
+       - `url` (legacy / current frontend)
+       - `documentUrl` (camelCase)
+       - `file_url` (alternative)
+       - `fileUrl` (camelCase alternative)
+
+    Output ALWAYS uses `document_url` (snake_case) for consistency.
     """
+
+    # Output fields
     document_type: Optional[str] = Field(default="", max_length=100)
     document_name: Optional[str] = Field(default="", max_length=200)
     document_url: Optional[str] = Field(default="", max_length=2000)
@@ -152,30 +158,67 @@ class SchemeDocumentItem(BaseModel):
     uploaded_at: Optional[datetime] = None
     verified: Optional[bool] = False
 
-    # Allow legacy / alias input fields (they will NOT appear in output)
+    # ✅ Input aliases (accepted but NOT output)
     url: Optional[str] = None
+    documentUrl: Optional[str] = None
+    file_url: Optional[str] = None
+    fileUrl: Optional[str] = None
     label: Optional[str] = None
+    name: Optional[str] = None
 
     class Config:
         extra = "allow"
 
     @validator("document_url", always=True, pre=True)
     def resolve_document_url(cls, v, values):
-        # Prefer explicit document_url, fall back to url
+        """
+        ✅ CRITICAL FIX: Try all possible field names in priority order.
+        """
+        # 1. Primary field
         if v and str(v).strip():
             return str(v).strip()
+
+        # 2. Legacy frontend field `url`
         url = values.get("url")
         if url and str(url).strip():
             return str(url).strip()
+
+        # 3. camelCase variant
+        doc_url = values.get("documentUrl")
+        if doc_url and str(doc_url).strip():
+            return str(doc_url).strip()
+
+        # 4. Alternative `file_url`
+        file_url = values.get("file_url")
+        if file_url and str(file_url).strip():
+            return str(file_url).strip()
+
+        # 5. Alternative camelCase `fileUrl`
+        fileUrl = values.get("fileUrl")
+        if fileUrl and str(fileUrl).strip():
+            return str(fileUrl).strip()
+
         return ""
 
     @validator("document_name", always=True, pre=True)
     def resolve_document_name(cls, v, values):
+        """Resolve document name from multiple possible fields."""
         if v and str(v).strip():
             return str(v).strip()
+
         label = values.get("label")
         if label and str(label).strip():
             return str(label).strip()
+
+        name = values.get("name")
+        if name and str(name).strip():
+            return str(name).strip()
+
+        # Fallback to document_type
+        doc_type = values.get("document_type")
+        if doc_type and str(doc_type).strip():
+            return str(doc_type).replace("_", " ").title()
+
         return ""
 
 

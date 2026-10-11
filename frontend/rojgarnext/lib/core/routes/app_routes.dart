@@ -26,6 +26,10 @@ class AppRoutes {
   static final GoRouter router = GoRouter(
     initialLocation: splash,
     debugLogDiagnostics: true,
+    // ✅ CRITICAL: No redirect. Each screen handles its own auth.
+    //    This prevents the router from bouncing the user to / when
+    //    a scheme application finishes and a background API call
+    //    happens to return 401 momentarily.
     routes: [
       GoRoute(
         path: splash,

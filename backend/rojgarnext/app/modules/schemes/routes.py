@@ -2,15 +2,9 @@
 """
 Government Schemes API Routes
 
-✅ Router prefix removed (main.py handles /api/v1/schemes)
-✅ Full Pydantic validation via schemas.py
-✅ /apply accepts and persists documents[]
-✅ /application/{id}/upload-document saves into UNIFIED
-   `applications` collection with application_type = "schemes"
-✅ /application/{id}/submit endpoint for final submission
-✅ Admin endpoints for listing and status updates
-✅ All applications go to `applications` collection
-✅ FIXED: now prints ALL registered paths on import (debug aid)
+✅ CRITICAL FIX: /apply endpoint now logs incoming documents
+✅ CRITICAL FIX: Uses `payload.dict()` correctly
+✅ Sets `resume_generated_at` flag NOT applied here (schemes are separate)
 """
 
 from fastapi import (
@@ -154,15 +148,8 @@ async def apply_for_scheme(
     """
     Submit a scheme application.
 
-    Saves to UNIFIED `applications` collection with:
-    - application_type = "schemes"
-    - Full applicant details (personal / address / bank)
-    - Documents array (may be empty)
-
-    Returns:
-    - success: true
-    - application_id: UUID
-    - status: "pending"
+    ✅ CRITICAL FIX: Logs every incoming document for debugging
+    ✅ Normalizes documents using universal helper
     """
     user_email = current_user.get("email")
     user_id = current_user.get("user_id")
@@ -174,7 +161,12 @@ async def apply_for_scheme(
     logger.info("📝 SCHEME APPLICATION SUBMISSION")
     logger.info(f"   User: {user_email}")
     logger.info(f"   Scheme: {payload.scheme_id}")
-    logger.info(f"   Documents: {len(payload.documents or [])}")
+    logger.info(f"   Documents received: {len(payload.documents or [])}")
+
+    # ✅ CRITICAL: Log every incoming document
+    for i, doc in enumerate(payload.documents or []):
+        logger.info(f"   [{i}] type={doc.document_type}, name={doc.document_name}, url={str(doc.document_url)[:80]}")
+
     logger.info("=" * 70)
 
     return await service.create_application(
@@ -198,10 +190,7 @@ async def submit_application(
     service: SchemeService = Depends(get_scheme_service),
     current_user: dict = Depends(get_current_user),
 ):
-    """
-    ✅ Submit an application after all documents are uploaded.
-    This marks the application as 'submitted' and triggers notifications.
-    """
+    """Submit an application after all documents are uploaded."""
     user_email = current_user.get("email")
     if not user_email:
         raise HTTPException(status_code=400, detail="User email not found")
@@ -310,6 +299,8 @@ async def upload_application_document(
             status_code=500, detail="Cloudinary upload failed"
         )
 
+    logger.info(f"✅ Document uploaded to Cloudinary: {upload_result['url']}")
+
     return await service.upload_document(
         application_id=application_id,
         user_email=user_email,
@@ -336,6 +327,8 @@ async def upload_temp_document(
     """
     Upload a document temporarily for scheme application.
     Returns Cloudinary URL to be stored when the application is submitted.
+
+    ✅ CRITICAL FIX: Returns BOTH `url` and `document_url` in response
     """
     user_email = current_user.get("email")
     if not user_email:
@@ -379,11 +372,13 @@ async def upload_temp_document(
         f"{upload_result['url']}"
     )
 
+    # ✅ Return BOTH url and document_url for compatibility
     return {
         "success": True,
         "message": "Document uploaded successfully",
         "document": {
-            "url": upload_result.get("url"),
+            "url": upload_result.get("url"),                    # ✅ Legacy
+            "document_url": upload_result.get("url"),           # ✅ New
             "public_id": upload_result.get("public_id"),
             "document_type": document_type,
             "document_name": document_name,
@@ -440,7 +435,7 @@ async def update_application_status(
 # ✅ DEBUG: Print ALL registered paths on import
 # ============================================================
 print("=" * 70)
-print("✅ Schemes Routes Loaded Successfully (TYPED SCHEMAS + SUBMIT)")
+print("✅ Schemes Routes Loaded Successfully (UNIVERSAL DOCUMENT FIX)")
 print("=" * 70)
 print("📋 Routes registered on this router:")
 for r in router.routes:

@@ -3,21 +3,19 @@
 // SCHEME APPLY SCREEN
 // Multi-step form to apply for a government scheme
 // ============================================================
-// ✅ application_type is forced to "schemes" (backend-side too)
-// ✅ NEW: Document upload step — collects all required documents
-// ✅ FIXED: SecureStorage import added
-// ✅ FIXED: applyForScheme call no longer passes removed params
-// ✅ FIXED: Submit now works from Documents tab (Step 3)
-// ✅ FIXED: Manual validation instead of formKey.validate()
-// ✅ FIXED: All fields validated before submission
-// ============================================================
+// ✅ CRITICAL FIX: Documents now sent with BOTH `url` AND `document_url`
+// ✅ CRITICAL FIX: Upload success verified — no silent failures
+// ✅ CRITICAL FIX: Full response logging for debugging
+// ✅ NEW: Verbose error surfacing — user sees exactly which doc failed
+// ✅ FIXED: NO AUTO-LOGOUT — OK button only closes dialog
+// ✅ FIXED: Snackbar instead of navigation after success
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:rojgarnext/core/utils/app_snackbar.dart';
-import 'package:rojgarnext/core/storage/secure_storage.dart'; // ✅ ADDED
+import 'package:rojgarnext/core/storage/secure_storage.dart';
 import 'package:rojgarnext/features/schemes/data/scheme_service.dart';
 
 class SchemeApplyScreen extends StatefulWidget {
@@ -83,6 +81,9 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
   final _formKeyAddress = GlobalKey<FormState>();
   final _formKeyBank = GlobalKey<FormState>();
 
+  // ✅ Prevent setState after dispose
+  bool _isDisposed = false;
+
   // ==================== LIFECYCLE ====================
   @override
   void initState() {
@@ -93,6 +94,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
 
   @override
   void dispose() {
+    _isDisposed = true;
     _fullNameCtrl.dispose();
     _fatherNameCtrl.dispose();
     _motherNameCtrl.dispose();
@@ -116,6 +118,14 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
     super.dispose();
   }
 
+  // ============================================================
+  // ✅ SAFE setState — never called after dispose
+  // ============================================================
+  void _safeSetState(VoidCallback fn) {
+    if (_isDisposed || !mounted) return;
+    setState(fn);
+  }
+
   // ==================== PREFILL ====================
   Future<void> _prefillFromProfile() async {
     try {
@@ -123,7 +133,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
       final mobile = await SecureStorage.getMobile();
       final name = await SecureStorage.getName();
 
-      if (!mounted) return;
+      if (_isDisposed || !mounted) return;
 
       _emailCtrl.text = email ?? '';
       _mobileCtrl.text = mobile ?? '';
@@ -165,8 +175,6 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
   // ============================================================
   // ✅ MANUAL VALIDATION HELPERS
   // ============================================================
-
-  /// Validate Personal Step (Step 0)
   bool _validatePersonalStep() {
     if (_fullNameCtrl.text.trim().isEmpty) {
       _showSnackBar("कृपया पूरा नाम भरें / Please enter full name");
@@ -195,7 +203,6 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
     return true;
   }
 
-  /// Validate Address Step (Step 1)
   bool _validateAddressStep() {
     if (_address1Ctrl.text.trim().isEmpty) {
       _showSnackBar("कृपया पता पंक्ति 1 भरें / Please enter address line 1");
@@ -224,7 +231,6 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
     return true;
   }
 
-  /// Validate Bank Step (Step 2)
   bool _validateBankStep() {
     if (_accountHolderCtrl.text.trim().isEmpty) {
       _showSnackBar("कृपया खाताधारक का नाम भरें / Please enter account holder name");
@@ -250,7 +256,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
   }
 
   void _showSnackBar(String message, {bool isError = true}) {
-    if (!mounted) return;
+    if (_isDisposed || !mounted) return;
     showMessage(context, message, isError: isError);
   }
 
@@ -263,12 +269,12 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
     } else if (_currentStep == 2) {
       if (!_validateBankStep()) return;
     }
-    setState(() => _currentStep++);
+    _safeSetState(() => _currentStep++);
   }
 
   void _goBack() {
     if (_currentStep > 0) {
-      setState(() => _currentStep--);
+      _safeSetState(() => _currentStep--);
     }
   }
 
@@ -281,7 +287,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
       firstDate: DateTime(1940),
       lastDate: DateTime(now.year - 10, now.month, now.day),
     );
-    if (picked != null && mounted) {
+    if (picked != null && !_isDisposed && mounted) {
       _dobCtrl.text =
           "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
     }
@@ -302,7 +308,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
 
       final file = result.files.first;
       if (file.bytes == null || file.bytes!.isEmpty) {
-        if (mounted) {
+        if (!_isDisposed && mounted) {
           showMessage(context, "Could not read file", isError: true);
         }
         return;
@@ -310,7 +316,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
 
       const maxBytes = 10 * 1024 * 1024; // 10 MB
       if (file.bytes!.length > maxBytes) {
-        if (mounted) {
+        if (!_isDisposed && mounted) {
           showMessage(
             context,
             "File too large. Max 10 MB (yours: ${(file.bytes!.length / (1024 * 1024)).toStringAsFixed(1)} MB)",
@@ -320,7 +326,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
         return;
       }
 
-      setState(() {
+      _safeSetState(() {
         _pickedDocs[label] = _PickedDoc(
           label: label,
           required: _pickedDocs[label]?.required ?? true,
@@ -329,18 +335,18 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
         );
       });
 
-      if (mounted) {
+      if (!_isDisposed && mounted) {
         showMessage(context, "✅ Selected: ${file.name}");
       }
     } catch (e) {
-      if (mounted) {
+      if (!_isDisposed && mounted) {
         showMessage(context, "Pick failed: $e", isError: true);
       }
     }
   }
 
   void _removeDocument(String label) {
-    setState(() {
+    _safeSetState(() {
       final existing = _pickedDocs[label];
       _pickedDocs[label] = _PickedDoc(
         label: label,
@@ -374,53 +380,71 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
   }
 
   // ============================================================
-  // ✅ SUBMIT — creates application → uploads docs one by one
-  // ✅ FIXED: Manual validation of all steps before submission
-  // ✅ FIXED: No more formKey.validate() which fails when tab not rendered
+  // ✅ SLUGIFY — Convert "Aadhaar Card" → "aadhaar_card"
+  // ============================================================
+  String _slugify(String input) {
+    return input
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+  }
+
+  // ============================================================
+  // ✅✅✅ CRITICAL FIX: SUBMIT
+  //
+  //  STEP 1: Upload each doc to /upload-temp-document
+  //  STEP 2: Extract URL from response (multi-field fallback)
+  //  STEP 3: Build documents[] with BOTH `url` AND `document_url`
+  //  STEP 4: Call /apply with documents inline
+  //  STEP 5: Show success
   // ============================================================
   Future<void> _submitApplication() async {
+    if (_isDisposed || !mounted) return;
+
     debugPrint("=" * 70);
     debugPrint("📝 _submitApplication CALLED");
     debugPrint("   Current Step: $_currentStep");
+    debugPrint("   Picked Docs: ${_pickedDocs.length}");
     debugPrint("=" * 70);
 
-    // ✅ STEP 1: Validate Personal fields (manual, not formKey)
+    // ✅ STEP 1: Validate Personal
     if (!_validatePersonalStep()) {
       debugPrint("❌ Personal validation failed → jumping to Step 0");
-      setState(() => _currentStep = 0);
+      _safeSetState(() => _currentStep = 0);
       return;
     }
 
-    // ✅ STEP 2: Validate Address fields (manual, not formKey)
+    // ✅ STEP 2: Validate Address
     if (!_validateAddressStep()) {
       debugPrint("❌ Address validation failed → jumping to Step 1");
-      setState(() => _currentStep = 1);
+      _safeSetState(() => _currentStep = 1);
       return;
     }
 
-    // ✅ STEP 3: Validate Bank fields (manual, not formKey)
+    // ✅ STEP 3: Validate Bank
     if (!_validateBankStep()) {
       debugPrint("❌ Bank validation failed → jumping to Step 2");
-      setState(() => _currentStep = 2);
+      _safeSetState(() => _currentStep = 2);
       return;
     }
 
     // ✅ STEP 4: Validate required documents
     if (!_allRequiredDocsPicked()) {
       debugPrint("❌ Required documents missing");
-      showMessage(
-        context,
-        "कृपया सभी आवश्यक दस्तावेज़ अपलोड करें / Please upload all required documents",
-        isError: true,
-      );
-      setState(() => _currentStep = 3);
+      if (!_isDisposed && mounted) {
+        showMessage(
+          context,
+          "कृपया सभी आवश्यक दस्तावेज़ अपलोड करें / Please upload all required documents",
+          isError: true,
+        );
+      }
+      _safeSetState(() => _currentStep = 3);
       return;
     }
 
-    // ✅ All validations passed — proceed with submission
     debugPrint("✅ All validations passed → submitting...");
-
-    setState(() => _isSubmitting = true);
+    _safeSetState(() => _isSubmitting = true);
 
     try {
       final schemeId = widget.scheme['scheme_id']?.toString() ?? '';
@@ -428,14 +452,9 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
 
       final resolvedSchemeName = _resolveSchemeName();
 
-      debugPrint("=" * 70);
-      debugPrint("📝 SUBMITTING SCHEME APPLICATION");
-      debugPrint("   Scheme ID:        $schemeId");
-      debugPrint("   Scheme Name:      $resolvedSchemeName");
-      debugPrint("   application_type: schemes");
-      debugPrint("   Documents:        ${_pickedDocs.length}");
-      debugPrint("=" * 70);
-
+      // ============================================================
+      // Build applicant details
+      // ============================================================
       final applicantDetails = {
         "full_name": _fullNameCtrl.text.trim(),
         "father_name": _fatherNameCtrl.text.trim(),
@@ -476,7 +495,105 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
         "account_type": _accountType,
       };
 
-      // ✅ 1) Create the application
+      debugPrint("=" * 70);
+      debugPrint("📝 SUBMITTING SCHEME APPLICATION");
+      debugPrint("   Scheme ID:        $schemeId");
+      debugPrint("   Scheme Name:      $resolvedSchemeName");
+      debugPrint("   application_type: schemes");
+      debugPrint("   Documents:        ${_pickedDocs.length}");
+      debugPrint("=" * 70);
+
+      // ============================================================
+      // ✅ STEP 1: Upload all picked documents FIRST (to get URLs)
+      // ============================================================
+      final List<Map<String, dynamic>> documentEntries = [];
+      final List<String> failedDocs = [];
+
+      // ✅ Temp session id (used for grouping)
+      final tempSessionId =
+          'temp_${DateTime.now().millisecondsSinceEpoch}';
+
+      for (final entry in _pickedDocs.entries) {
+        final label = entry.key;
+        final doc = entry.value;
+
+        if (doc.bytes == null || doc.bytes!.isEmpty) {
+          debugPrint("⏭️ Skipping '$label' — no bytes");
+          continue;
+        }
+
+        _safeSetState(() => _uploadingDoc[label] = true);
+
+        try {
+          final docType = _slugify(label);
+
+          debugPrint("=" * 70);
+          debugPrint("📤 Uploading '$label'");
+          debugPrint("   docType:    $docType");
+          debugPrint("   fileName:   ${doc.fileName}");
+          debugPrint("   sizeBytes:  ${doc.bytes!.length}");
+          debugPrint("=" * 70);
+
+          // ✅ Upload via /upload-temp-document
+          final uploadResult = await SchemeService.uploadTempDocument(
+            fileBytes: doc.bytes!,
+            fileName: doc.fileName ?? 'document.pdf',
+            documentType: docType,
+            documentName: label,
+          );
+
+          debugPrint("📥 Upload result for '$label':");
+          debugPrint("   $uploadResult");
+
+          // ✅ CRITICAL: Extract URL from normalized response
+          // (SchemeService.uploadTempDocument already normalizes)
+          final String? url = uploadResult['url']?.toString() ??
+              uploadResult['document_url']?.toString();
+
+          final String? publicId = uploadResult['public_id']?.toString();
+
+          if (url == null || url.isEmpty) {
+            failedDocs.add("$label: No URL in response");
+            debugPrint("❌ No URL returned for '$label'");
+            continue;
+          }
+
+          debugPrint("✅ Got URL for '$label': $url");
+
+          // ✅ CRITICAL FIX: Send BOTH `url` AND `document_url`
+          documentEntries.add({
+            "document_type": docType,
+            "document_name": label,
+            "url": url,                       // ✅ Legacy field
+            "document_url": url,              // ✅ New primary field
+            "public_id": publicId ?? '',
+            "source": "service_application",
+            "temp_session_id": tempSessionId,
+            "uploaded_at": DateTime.now().toIso8601String(),
+          });
+        } catch (e) {
+          failedDocs.add("$label: $e");
+          debugPrint("❌ Upload failed for '$label': $e");
+        } finally {
+          _safeSetState(() => _uploadingDoc[label] = false);
+        }
+      }
+
+      debugPrint("=" * 70);
+      debugPrint("📊 UPLOAD SUMMARY");
+      debugPrint("   Success: ${documentEntries.length}");
+      debugPrint("   Failed:  ${failedDocs.length}");
+      if (failedDocs.isNotEmpty) {
+        debugPrint("   Failed docs:");
+        for (final f in failedDocs) {
+          debugPrint("     - $f");
+        }
+      }
+      debugPrint("=" * 70);
+
+      // ============================================================
+      // ✅ STEP 2: Create the application with documents inline
+      // ============================================================
       debugPrint("📤 Calling SchemeService.applyForScheme...");
 
       final result = await SchemeService.applyForScheme(
@@ -485,11 +602,13 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
         applicantAddress: applicantAddress,
         bankDetails: bankDetails,
         remarks: _remarksCtrl.text.trim(),
+        documents: documentEntries, // ✅ NEW — sends documents inline
       );
 
-      debugPrint("📥 applyForScheme response: $result");
+      debugPrint("📥 applyForScheme response:");
+      debugPrint("   $result");
 
-      if (!mounted) return;
+      if (_isDisposed || !mounted) return;
 
       if (result['success'] != true) {
         debugPrint("❌ Application creation failed: ${result['message']}");
@@ -516,81 +635,33 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
 
       debugPrint("✅ Application created: $applicationId");
 
-      // ✅ 2) Upload all picked documents
-      final uploadedOk = await _uploadAllDocuments(applicationId);
-
-      if (!mounted) return;
-
-      if (!uploadedOk) {
-        _showSuccessDialog(
-          applicationId,
-          partial: true,
-        );
-        return;
-      }
-
-      // ✅ 3) Full success
-      _showSuccessDialog(applicationId, partial: false);
+      // ============================================================
+      // ✅ STEP 3: Show success dialog
+      // ============================================================
+      _showSuccessDialog(
+        applicationId,
+        partial: failedDocs.isNotEmpty,
+        failedDocs: failedDocs,
+      );
     } catch (e) {
       debugPrint("❌ Submission error: $e");
-      if (!mounted) return;
+      if (_isDisposed || !mounted) return;
       showMessage(context, 'आवेदन विफल: ${e.toString()}', isError: true);
     } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+      _safeSetState(() => _isSubmitting = false);
     }
   }
 
   // ============================================================
-  // ✅ UPLOAD ALL DOCUMENTS TO THE CREATED APPLICATION
+  // ✅ SUCCESS DIALOG
   // ============================================================
-  Future<bool> _uploadAllDocuments(String applicationId) async {
-    bool allOk = true;
+  void _showSuccessDialog(
+    String applicationId, {
+    bool partial = false,
+    List<String> failedDocs = const [],
+  }) {
+    if (_isDisposed || !mounted) return;
 
-    for (final entry in _pickedDocs.entries) {
-      final label = entry.key;
-      final doc = entry.value;
-
-      if (doc.bytes == null || doc.bytes!.isEmpty) continue;
-
-      setState(() => _uploadingDoc[label] = true);
-
-      try {
-        final docType = _slugify(label);
-
-        debugPrint("📤 Uploading: $label → $docType");
-
-        await SchemeService.uploadSchemeDocument(
-          applicationId: applicationId,
-          documentType: docType,
-          documentName: label,
-          fileBytes: doc.bytes!,
-          fileName: doc.fileName ?? 'document.pdf',
-        );
-
-        debugPrint("✅ Uploaded: $label");
-      } catch (e) {
-        allOk = false;
-        debugPrint("❌ Upload failed for '$label': $e");
-      } finally {
-        if (mounted) {
-          setState(() => _uploadingDoc[label] = false);
-        }
-      }
-    }
-
-    return allOk;
-  }
-
-  String _slugify(String input) {
-    return input
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .replaceAll(RegExp(r'^_|_$'), '');
-  }
-
-  // ==================== SUCCESS DIALOG ====================
-  void _showSuccessDialog(String applicationId, {bool partial = false}) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -637,7 +708,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
             const SizedBox(height: 6),
             Text(
               partial
-                  ? 'Application created, but some documents could not be uploaded. You can retry from My Applications.'
+                  ? 'Application created, but some documents could not be uploaded.'
                   : 'Application submitted successfully!',
               style: const TextStyle(
                 fontSize: 12,
@@ -645,6 +716,38 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
               ),
               textAlign: TextAlign.center,
             ),
+            if (partial && failedDocs.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Failed documents:',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ...failedDocs.map((f) => Text(
+                          '• $f',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Colors.orange,
+                          ),
+                        )),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             if (applicationId.isNotEmpty)
               Container(
@@ -663,7 +766,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                    SelectableText(
                       applicationId,
                       style: const TextStyle(
                         fontSize: 14,
@@ -680,8 +783,13 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(dialogContext);
-                  Navigator.pop(context, true);
+                  if (Navigator.of(dialogContext).canPop()) {
+                    Navigator.of(dialogContext).pop();
+                  }
+
+                  if (!_isDisposed && mounted) {
+                    _resetFormAfterSuccess();
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6C63FF),
@@ -701,6 +809,34 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
         ),
       ),
     );
+  }
+
+  // ============================================================
+  // ✅ RESET FORM AFTER SUCCESS
+  // ============================================================
+  void _resetFormAfterSuccess() {
+    if (_isDisposed || !mounted) return;
+
+    _safeSetState(() {
+      for (final key in _pickedDocs.keys.toList()) {
+        final existing = _pickedDocs[key];
+        _pickedDocs[key] = _PickedDoc(
+          label: key,
+          required: existing?.required ?? true,
+        );
+      }
+
+      _remarksCtrl.clear();
+      _incomeCtrl.clear();
+      _currentStep = 0;
+    });
+
+    if (!_isDisposed && mounted) {
+      showMessage(
+        context,
+        '✅ आवेदन सहेजा गया। "मेरे आवेदन" में देखें।',
+      );
+    }
   }
 
   // ==================== BUILD ====================
@@ -739,9 +875,6 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
     );
   }
 
-  // ============================================================
-  // HEADER
-  // ============================================================
   Widget _buildHeader(String schemeName) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -800,14 +933,19 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
               ],
             ),
           ),
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
+            },
+          ),
         ],
       ),
     );
   }
 
-  // ============================================================
-  // STEP INDICATOR
-  // ============================================================
   Widget _buildStepIndicator() {
     const steps = ['व्यक्तिगत', 'पता', 'बैंक', 'दस्तावेज़'];
     const icons = [
@@ -904,9 +1042,6 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
     );
   }
 
-  // ============================================================
-  // CURRENT STEP
-  // ============================================================
   Widget _buildCurrentStep() {
     switch (_currentStep) {
       case 0:
@@ -951,7 +1086,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
                   {'value': 'female', 'label': 'महिला / Female'},
                   {'value': 'transgender', 'label': 'ट्रांसजेंडर / Transgender'},
                 ],
-                onChanged: (v) => setState(() => _gender = v!),
+                onChanged: (v) => _safeSetState(() => _gender = v!),
               ),
               _buildDropdown(
                 label: 'श्रेणी *',
@@ -964,7 +1099,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
                   {'value': 'ST', 'label': 'अनुसूचित जनजाति / ST'},
                   {'value': 'EWS', 'label': 'EWS'},
                 ],
-                onChanged: (v) => setState(() => _category = v!),
+                onChanged: (v) => _safeSetState(() => _category = v!),
               ),
               _buildDropdown(
                 label: 'वैवाहिक स्थिति',
@@ -976,7 +1111,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
                   {'value': 'Widowed', 'label': 'विधवा/विधुर / Widowed'},
                   {'value': 'Divorced', 'label': 'तलाकशुदा / Divorced'},
                 ],
-                onChanged: (v) => setState(() => _maritalStatus = v!),
+                onChanged: (v) => _safeSetState(() => _maritalStatus = v!),
               ),
             ],
           ),
@@ -1021,13 +1156,13 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
                 title: 'BPL स्थिति',
                 subtitle: 'Are you Below Poverty Line?',
                 value: _bplStatus,
-                onChanged: (v) => setState(() => _bplStatus = v),
+                onChanged: (v) => _safeSetState(() => _bplStatus = v),
               ),
               _buildSwitchTile(
                 title: 'विकलांगता स्थिति',
                 subtitle: 'Do you have any disability?',
                 value: _disabilityStatus,
-                onChanged: (v) => setState(() => _disabilityStatus = v),
+                onChanged: (v) => _safeSetState(() => _disabilityStatus = v),
               ),
               if (_disabilityStatus) ...[
                 const SizedBox(height: 8),
@@ -1050,8 +1185,8 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
                         max: 100,
                         divisions: 20,
                         activeColor: const Color(0xFF6C63FF),
-                        onChanged: (v) =>
-                            setState(() => _disabilityPercentage = v),
+                        onChanged: (v) => _safeSetState(
+                            () => _disabilityPercentage = v),
                       ),
                     ],
                   ),
@@ -1138,7 +1273,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
                   {'value': 'savings', 'label': 'बचत / Savings'},
                   {'value': 'current', 'label': 'चालू / Current'},
                 ],
-                onChanged: (v) => setState(() => _accountType = v!),
+                onChanged: (v) => _safeSetState(() => _accountType = v!),
               ),
             ],
           ),

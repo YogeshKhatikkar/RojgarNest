@@ -1,5 +1,7 @@
 // lib/core/storage/secure_storage.dart
 // ✅ COMPLETE FIXED VERSION - NEVER DELETES BIOMETRIC DATA ON LOGOUT
+// ✅ FIXED: clearAuthData() now ONLY deletes tokens, never email/mobile/name
+// ✅ FIXED: logout() preserves email/mobile/name for MPIN/biometric login
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -134,24 +136,20 @@ class SecureStorage {
     return await storage.read(key: "biometric_type");
   }
 
-  // ==================== ✅ LOGOUT - NEVER DELETE BIOMETRIC/MPIN ====================
+  // ==================== ✅ LOGOUT - NEVER DELETE BIOMETRIC/MPIN/EMAIL ====================
   static Future<void> logout() async {
-    // ✅ Delete ONLY auth data
+    // ✅ Delete ONLY the auth tokens and login flag
     await storage.delete(key: "token");
     await storage.delete(key: "role");
     await storage.delete(key: "is_logged_in");
-    await storage.delete(key: "user_name");
-    await storage.delete(key: "user_mobile");
 
     // ✅ CRITICAL: NEVER DELETE THESE ON LOGOUT
-    // await storage.delete(key: "user_email");        // ❌ NEVER DELETE
-    // await storage.delete(key: "biometric_enabled"); // ❌ NEVER DELETE
-    // await storage.delete(key: "biometric_type");    // ❌ NEVER DELETE
-    // await storage.delete(key: "mpin_enabled");      // ❌ NEVER DELETE
-    // await storage.delete(key: "user_mpin");         // ❌ NEVER DELETE
+    // - user_email, user_mobile, user_name (needed by MPIN/biometric)
+    // - biometric_enabled, biometric_type
+    // - mpin_enabled, user_mpin
 
     if (kDebugMode) {
-      debugPrint("🔐 Logout - Auth data cleared");
+      debugPrint("🔐 Logout - Auth tokens cleared");
       debugPrint("   ✅ Email retained: ${await getEmail()}");
       debugPrint("   ✅ Biometric enabled: ${await isBiometricEnabled()}");
       debugPrint("   ✅ MPIN enabled: ${await isMpinEnabled()}");
@@ -175,16 +173,24 @@ class SecureStorage {
   // ==================== CLEAR - ONLY FOR FULL APP RESET ====================
   static Future<void> clear() async {
     await storage.deleteAll();
-    if (kDebugMode) debugPrint("🔐 All storage cleared (FULL RESET - includes biometric and MPIN)");
+    if (kDebugMode) {
+      debugPrint(
+          "🔐 All storage cleared (FULL RESET - includes biometric and MPIN)");
+    }
   }
 
+  // ==================== ✅ CLEAR AUTH DATA - ONLY TOKENS ====================
+  // ✅ CRITICAL FIX: Only delete tokens, NEVER email/mobile/name.
+  // This prevents auto-logout from wiping user identity.
   static Future<void> clearAuthData() async {
     await storage.delete(key: "token");
     await storage.delete(key: "role");
-    await storage.delete(key: "user_email");
-    await storage.delete(key: "user_mobile");
-    await storage.delete(key: "user_name");
     await storage.delete(key: "is_logged_in");
-    if (kDebugMode) debugPrint("🔐 Auth data cleared");
+    // ❌ DO NOT delete user_email, user_mobile, user_name
+    // ❌ DO NOT delete mpin/biometric
+    if (kDebugMode) {
+      debugPrint(
+          "🔐 Auth tokens cleared (email, mobile, name, MPIN, biometric preserved)");
+    }
   }
 }

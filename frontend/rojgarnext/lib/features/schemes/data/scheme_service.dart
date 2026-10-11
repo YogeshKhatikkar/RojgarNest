@@ -1,8 +1,12 @@
 // lib/features/schemes/data/scheme_service.dart
 // ✅ COMPLETE FIXED - Always returns schemes from local master data as fallback
 // ✅ Maps all fields correctly for UI
-// ✅ FIXED: uploadSchemeDocument now sends ALL required fields
+// ✅ FIXED: applyForScheme now sends documents with BOTH `url` AND `document_url`
+// ✅ FIXED: uploadTempDocument returns URL from ALL possible response fields
+// ✅ FIXED: NEVER calls logout on any error
+// ✅ FIXED: Verbose debug logging for every document sent/received
 
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -25,7 +29,7 @@ class SchemeService {
   }
 
   // ============================================================
-  // ✅ LIST SCHEMES — Always returns local data if backend fails
+  // ✅ LIST SCHEMES
   // ============================================================
   static Future<Map<String, dynamic>> listSchemes({
     String? level,
@@ -80,7 +84,7 @@ class SchemeService {
   }
 
   // ============================================================
-  // ✅ LOCAL FALLBACK — Uses SchemesMasterData
+  // ✅ LOCAL FALLBACK
   // ============================================================
   static Map<String, dynamic> _getLocalSchemes({
     String? level,
@@ -129,7 +133,7 @@ class SchemeService {
   }
 
   // ============================================================
-  // ✅ CONVERT GovernmentScheme → JSON map (COMPLETE)
+  // ✅ CONVERT GovernmentScheme → JSON
   // ============================================================
   static Map<String, dynamic> _schemeToJson(GovernmentScheme s) {
     return {
@@ -247,7 +251,7 @@ class SchemeService {
   }
 
   // ============================================================
-  // ✅ SCHEME DETAIL — Always returns from local if backend fails
+  // ✅ SCHEME DETAIL
   // ============================================================
   static Future<Map<String, dynamic>> getSchemeDetail(String schemeId) async {
     try {
@@ -277,7 +281,9 @@ class SchemeService {
   }
 
   // ============================================================
-  // ✅ APPLY FOR SCHEME
+  // ✅✅✅ CRITICAL FIX: APPLY FOR SCHEME
+  // Now sends documents with BOTH `url` AND `document_url`
+  // to guarantee the backend picks up the URL
   // ============================================================
   static Future<Map<String, dynamic>> applyForScheme({
     required String schemeId,
@@ -285,25 +291,293 @@ class SchemeService {
     required Map<String, dynamic> applicantAddress,
     required Map<String, dynamic> bankDetails,
     String? remarks,
+    List<Map<String, dynamic>>? documents,
   }) async {
     try {
-      final res = await _dio.post('$_base/apply', data: {
+      // ============================================================
+      // ✅ CRITICAL FIX: Normalize each document entry
+      // Send BOTH `url` AND `document_url` so no matter which field
+      // the backend reads, it will find the URL.
+      // ============================================================
+      final List<Map<String, dynamic>> normalizedDocuments = [];
+
+      if (documents != null && documents.isNotEmpty) {
+        for (int i = 0; i < documents.length; i++) {
+          final doc = documents[i];
+
+          // Try every possible URL field name
+          final String url = (doc['url'] ??
+                  doc['document_url'] ??
+                  doc['documentUrl'] ??
+                  doc['file_url'] ??
+                  doc['fileUrl'] ??
+                  '')
+              .toString()
+              .trim();
+
+          if (url.isEmpty) {
+            debugPrint("⚠️ Skipping document[$i] — no URL found. Keys: ${doc.keys.toList()}");
+            continue;
+          }
+
+          // Try every possible name field name
+          final String docName = (doc['document_name'] ??
+                  doc['label'] ??
+                  doc['name'] ??
+                  'Document ${i + 1}')
+              .toString()
+              .trim();
+
+          // Try every possible type field name
+          final String docType = (doc['document_type'] ??
+                  doc['type'] ??
+                  'document_${i + 1}')
+              .toString()
+              .trim();
+
+          final publicId = doc['public_id'] ?? doc['publicId'];
+
+          final normalized = <String, dynamic>{
+            'document_type': docType,
+            'document_name': docName,
+            // ✅ Send BOTH field names — backend accepts either
+            'url': url,
+            'document_url': url,
+            'public_id': publicId,
+            'uploaded_at': doc['uploaded_at'] ?? DateTime.now().toIso8601String(),
+          };
+
+          normalizedDocuments.add(normalized);
+
+          debugPrint("📎 Doc[$i] prepared → "
+              "type=$docType, name=$docName, url=${url.substring(0, url.length > 80 ? 80 : url.length)}...");
+        }
+      }
+
+      final Map<String, dynamic> payload = {
         'scheme_id': schemeId,
         'applicant_details': applicantDetails,
         'applicant_address': applicantAddress,
         'bank_details': bankDetails,
         'remarks': remarks ?? '',
-      });
+      };
+
+      if (normalizedDocuments.isNotEmpty) {
+        payload['documents'] = normalizedDocuments;
+      }
+
+      debugPrint("=" * 70);
+      debugPrint("📤 applyForScheme CALLED");
+      debugPrint("   Scheme ID: $schemeId");
+      debugPrint("   Payload keys: ${payload.keys.toList()}");
+      debugPrint("   Documents count: ${normalizedDocuments.length}");
+      for (int i = 0; i < normalizedDocuments.length; i++) {
+        debugPrint("   [$i] ${normalizedDocuments[i]['document_type']} → ${normalizedDocuments[i]['url']}");
+      }
+      debugPrint("=" * 70);
+
+      final res = await _dio.post('$_base/apply', data: payload);
+
+      debugPrint("📥 applyForScheme response: ${res.statusCode}");
+      debugPrint("   ${res.data}");
+
       return _unwrap(res.data);
     } on DioException catch (e) {
+      debugPrint("❌ applyForScheme failed: ${e.response?.data}");
       throw DioClient.extractErrorMessage(e);
     }
   }
 
   // ============================================================
-  // ✅ FIXED: UPLOAD SCHEME DOCUMENT
-  // ✅ Now sends document_type AND document_name as required fields
-  // ✅ Works on WEB and MOBILE
+  // ✅✅✅ CRITICAL FIX: UPLOAD TEMP DOCUMENT
+  // Now extracts URL from ALL possible response field names
+  // ============================================================
+  static Future<Map<String, dynamic>> uploadTempDocument({
+    required Uint8List fileBytes,
+    required String fileName,
+    required String documentType,
+    required String documentName,
+  }) async {
+    try {
+      debugPrint("=" * 70);
+      debugPrint("📤 uploadTempDocument CALLED");
+      debugPrint("   fileName: $fileName");
+      debugPrint("   documentType: $documentType");
+      debugPrint("   documentName: $documentName");
+      debugPrint("   fileBytes: ${fileBytes.length} bytes");
+      debugPrint("=" * 70);
+
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(fileBytes, filename: fileName),
+        'document_type': documentType,
+        'document_name': documentName,
+      });
+
+      final res = await _dio.post('$_base/upload-temp-document', data: formData);
+
+      debugPrint("📥 uploadTempDocument raw response: ${res.statusCode}");
+      debugPrint("   ${res.data}");
+
+      // ✅ Extract URL from ANY possible location in response
+      String? url;
+      String? publicId;
+      String? finalDocType;
+      String? finalDocName;
+
+      final rawData = res.data;
+
+      if (rawData is Map) {
+        // Case 1: Top-level `url`
+        if (rawData['url'] != null) {
+          url = rawData['url'].toString();
+        }
+        // Case 2: Top-level `document_url`
+        if ((url == null || url.isEmpty) && rawData['document_url'] != null) {
+          url = rawData['document_url'].toString();
+        }
+        // Case 3: Nested inside `document` object
+        if ((url == null || url.isEmpty) && rawData['document'] is Map) {
+          final nested = rawData['document'] as Map;
+          url = (nested['url'] ?? nested['document_url'])?.toString();
+          publicId = (nested['public_id'] ?? nested['publicId'])?.toString();
+          finalDocType = nested['document_type']?.toString();
+          finalDocName = nested['document_name']?.toString();
+        }
+        // Case 4: Nested inside `data` object
+        if ((url == null || url.isEmpty) && rawData['data'] is Map) {
+          final nested = rawData['data'] as Map;
+          url = (nested['url'] ?? nested['document_url'])?.toString();
+          if ((url == null || url.isEmpty) && nested['document'] is Map) {
+            final deeper = nested['document'] as Map;
+            url = (deeper['url'] ?? deeper['document_url'])?.toString();
+            publicId ??= (deeper['public_id'] ?? deeper['publicId'])?.toString();
+            finalDocType ??= deeper['document_type']?.toString();
+            finalDocName ??= deeper['document_name']?.toString();
+          }
+        }
+        // Case 5: Extract public_id from top level
+        if (publicId == null) {
+          publicId = (rawData['public_id'] ?? rawData['publicId'])?.toString();
+        }
+      }
+
+      if (url == null || url.isEmpty) {
+        debugPrint("❌ No URL found in uploadTempDocument response!");
+        debugPrint("   Response was: $rawData");
+        throw Exception("Upload succeeded but no URL returned from server");
+      }
+
+      debugPrint("=" * 70);
+      debugPrint("✅ uploadTempDocument SUCCESS");
+      debugPrint("   URL: $url");
+      debugPrint("   publicId: $publicId");
+      debugPrint("=" * 70);
+
+      // ✅ Return a NORMALIZED result with BOTH `url` and `document_url`
+      return {
+        'success': true,
+        'url': url,
+        'document_url': url,   // ✅ Alias
+        'public_id': publicId,
+        'document_type': finalDocType ?? documentType,
+        'document_name': finalDocName ?? documentName,
+        'filename': fileName,
+      };
+    } on DioException catch (e) {
+      debugPrint("❌ uploadTempDocument failed: ${e.response?.data}");
+      throw DioClient.extractErrorMessage(e);
+    }
+  }
+
+  // ============================================================
+  // ✅ APPLY WITH FILES (multipart) — kept for backward compat
+  // ============================================================
+  static Future<Map<String, dynamic>> applyForSchemeWithFiles({
+    required String schemeId,
+    required Map<String, dynamic> applicantDetails,
+    required Map<String, dynamic> applicantAddress,
+    required Map<String, dynamic> bankDetails,
+    String? remarks,
+    required List<Map<String, dynamic>> files,
+  }) async {
+    try {
+      debugPrint("=" * 70);
+      debugPrint("📤 applyForSchemeWithFiles CALLED");
+      debugPrint("   Scheme ID: $schemeId");
+      debugPrint("   Files count: ${files.length}");
+      for (final f in files) {
+        final bytes = f['bytes'] as Uint8List?;
+        debugPrint("   • ${f['document_name']} → "
+            "${bytes?.length ?? 0} bytes, type=${f['document_type']}");
+      }
+      debugPrint("=" * 70);
+
+      final Map<String, dynamic> payload = {
+        'scheme_id': schemeId,
+        'applicant_details': applicantDetails,
+        'applicant_address': applicantAddress,
+        'bank_details': bankDetails,
+        'remarks': remarks ?? '',
+      };
+
+      final formMap = <String, dynamic>{
+        'payload': jsonEncode(payload),
+      };
+
+      final List<MultipartFile> multipartFiles = [];
+      final List<String> docTypes = [];
+      final List<String> docNames = [];
+
+      for (final f in files) {
+        final bytes = f['bytes'] as Uint8List?;
+        if (bytes == null || bytes.isEmpty) continue;
+
+        final fileName = (f['file_name'] ?? 'document.pdf').toString();
+        final docType = (f['document_type'] ?? 'document').toString();
+        final docName = (f['document_name'] ?? 'Document').toString();
+
+        multipartFiles.add(
+          MultipartFile.fromBytes(bytes, filename: fileName),
+        );
+        docTypes.add(docType);
+        docNames.add(docName);
+      }
+
+      if (multipartFiles.isEmpty) {
+        throw Exception("No valid files to upload");
+      }
+
+      formMap['files'] = multipartFiles;
+      formMap['document_types'] = jsonEncode(docTypes);
+      formMap['document_names'] = jsonEncode(docNames);
+
+      final formData = FormData.fromMap(formMap);
+
+      debugPrint("📦 FormData prepared:");
+      debugPrint("   Files: ${multipartFiles.length}");
+      debugPrint("   Types: $docTypes");
+      debugPrint("   Names: $docNames");
+
+      final res = await _dio.post(
+        '$_base/apply-with-files',
+        data: formData,
+        options: Options(
+          headers: {"Content-Type": "multipart/form-data"},
+          sendTimeout: const Duration(minutes: 5),
+          receiveTimeout: const Duration(minutes: 5),
+        ),
+      );
+
+      debugPrint("📥 applyWithFiles response: ${res.statusCode} | ${res.data}");
+      return _unwrap(res.data);
+    } on DioException catch (e) {
+      debugPrint("❌ applyWithFiles failed: ${e.response?.data}");
+      throw DioClient.extractErrorMessage(e);
+    }
+  }
+
+  // ============================================================
+  // ✅ UPLOAD SCHEME DOCUMENT (single file, per application)
   // ============================================================
   static Future<Map<String, dynamic>> uploadSchemeDocument({
     required String applicationId,
@@ -323,21 +597,14 @@ class SchemeService {
       debugPrint("   Endpoint: $_base/application/$applicationId/upload-document");
       debugPrint("=" * 70);
 
-      // ✅ CRITICAL FIX: Build FormData with ALL required fields
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(
           fileBytes,
           filename: fileName,
         ),
-        'document_type': documentType,  // ✅ REQUIRED by backend
-        'document_name': documentName,  // ✅ Also sent
+        'document_type': documentType,
+        'document_name': documentName,
       });
-
-      // ✅ Debug: Log what we're sending
-      debugPrint("📦 FormData fields:");
-      debugPrint("   document_type: $documentType");
-      debugPrint("   document_name: $documentName");
-      debugPrint("   file filename: $fileName");
 
       final res = await _dio.post(
         '$_base/application/$applicationId/upload-document',
@@ -375,28 +642,6 @@ class SchemeService {
   static Future<Map<String, dynamic>> getApplicationDetail(String applicationId) async {
     try {
       final res = await _dio.get('$_base/application/$applicationId');
-      return _unwrap(res.data);
-    } on DioException catch (e) {
-      throw DioClient.extractErrorMessage(e);
-    }
-  }
-
-  // ============================================================
-  // ✅ UPLOAD TEMP DOCUMENT
-  // ============================================================
-  static Future<Map<String, dynamic>> uploadTempDocument({
-    required Uint8List fileBytes,
-    required String fileName,
-    required String documentType,
-    required String documentName,
-  }) async {
-    try {
-      final formData = FormData.fromMap({
-        'file': MultipartFile.fromBytes(fileBytes, filename: fileName),
-        'document_type': documentType,
-        'document_name': documentName,
-      });
-      final res = await _dio.post('$_base/upload-temp-document', data: formData);
       return _unwrap(res.data);
     } on DioException catch (e) {
       throw DioClient.extractErrorMessage(e);

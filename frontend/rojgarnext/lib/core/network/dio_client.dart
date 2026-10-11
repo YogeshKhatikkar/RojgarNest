@@ -2,6 +2,9 @@
 // ✅ COMPLETE WITH ERROR HANDLING
 // ✅ FIXED: 403, 401, 429 are treated as ERRORS
 // ✅ PRESERVES detailed error info including lock_until
+// ✅ FIXED: ONLY clears auth on GENUINE 401 (token expired/invalid)
+// ✅ NEVER clears auth on 403, 429, 500, or network errors
+// ✅ This prevents auto-logout after scheme submission
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -14,19 +17,18 @@ class ApiException implements Exception {
   final String code;
   final String message;
   final Map<String, dynamic>? detail;
-  
+
   ApiException({
     required this.statusCode,
     required this.code,
     required this.message,
     this.detail,
   });
-  
+
   /// ✅ Check if this is an account lock error
-  bool get isAccountLocked => 
-      code == 'ACCOUNT_LOCKED' || 
-      detail?['code'] == 'ACCOUNT_LOCKED';
-  
+  bool get isAccountLocked =>
+      code == 'ACCOUNT_LOCKED' || detail?['code'] == 'ACCOUNT_LOCKED';
+
   /// ✅ Get remaining seconds until unlock
   int? get secondsRemaining {
     final sec = detail?['seconds_remaining'];
@@ -34,7 +36,7 @@ class ApiException implements Exception {
     if (sec is String) return int.tryParse(sec);
     return null;
   }
-  
+
   /// ✅ Get lock_until timestamp
   DateTime? get lockUntil {
     final until = detail?['lock_until'];
@@ -45,7 +47,7 @@ class ApiException implements Exception {
     }
     return null;
   }
-  
+
   /// ✅ Get remaining attempts
   int? get remainingAttempts {
     final remaining = detail?['remaining_attempts'];
@@ -53,11 +55,10 @@ class ApiException implements Exception {
     if (remaining is String) return int.tryParse(remaining);
     return null;
   }
-  
+
   @override
   String toString() => message;
 }
-
 
 class DioClient {
   static Dio? _dio;
@@ -110,12 +111,57 @@ class DioClient {
         },
         onError: (DioException e, handler) async {
           if (kDebugMode) {
-            debugPrint("❌ DIO ERROR [${e.response?.statusCode}]: ${e.response?.data}");
+            debugPrint(
+                "❌ DIO ERROR [${e.response?.statusCode}]: ${e.response?.data}");
           }
 
-          // ✅ Clear session ONLY on 401
-          if (e.response?.statusCode == 401) {
+          // ============================================================
+          // ✅ CRITICAL FIX: ONLY clear auth on GENUINE 401
+          // ============================================================
+          // We must NOT clear auth on:
+          //   - 403 (Forbidden — account locked, role denied)
+          //   - 429 (Rate limit)
+          //   - 500 (Server error)
+          //   - Network errors (connectionError, timeout)
+          //
+          // Only clear when the backend explicitly says the token is
+          // invalid/expired.
+          // ============================================================
+          final statusCode = e.response?.statusCode;
+          final data = e.response?.data;
+
+          bool shouldClearAuth = false;
+
+          if (statusCode == 401 && data is Map) {
+            final code = (data['code'] ?? data['detail']?['code'] ?? '')
+                .toString()
+                .toUpperCase();
+            final msg = (data['message'] ??
+                    data['detail']?['message'] ??
+                    data['detail'] ??
+                    '')
+                .toString()
+                .toLowerCase();
+
+            // ✅ Only clear if the server explicitly says token is bad
+            if (code.contains('TOKEN') ||
+                code.contains('EXPIRED') ||
+                code.contains('UNAUTHORIZED') ||
+                code == 'E401' ||
+                msg.contains('token expired') ||
+                msg.contains('invalid token') ||
+                msg.contains('not authenticated') ||
+                msg.contains('session expired')) {
+              shouldClearAuth = true;
+            }
+          }
+
+          if (shouldClearAuth) {
+            debugPrint("🔐 Genuine 401 detected — clearing auth data");
             await SecureStorage.clearAuthData();
+          } else {
+            debugPrint(
+                "✅ NOT clearing auth (status=$statusCode, not a token error)");
           }
 
           return handler.next(e);
@@ -130,17 +176,18 @@ class DioClient {
   static ApiException toApiException(DioException e) {
     final statusCode = e.response?.statusCode ?? 0;
     final data = e.response?.data;
-    
+
     String code = 'E$statusCode';
     String message = e.message ?? 'Network error';
     Map<String, dynamic>? detail;
-    
+
     if (data is Map<String, dynamic>) {
       // ✅ Extract code
       code = data['code']?.toString() ?? code;
-      
+
       // ✅ Extract message (priority: message > detail > error)
-      if (data['message'] != null && data['message'].toString().isNotEmpty) {
+      if (data['message'] != null &&
+          data['message'].toString().isNotEmpty) {
         message = data['message'].toString();
       } else if (data['detail'] != null) {
         final d = data['detail'];
@@ -155,7 +202,7 @@ class DioClient {
       } else if (data['error'] != null) {
         message = data['error'].toString();
       }
-      
+
       // ✅ If detail is a dict, extract it
       if (data['detail'] is Map) {
         detail = Map<String, dynamic>.from(data['detail'] as Map);
@@ -164,7 +211,7 @@ class DioClient {
           code = detail['code'].toString();
         }
       }
-      
+
       // ✅ If top-level response IS the detail (no wrapper)
       if (detail == null && data.containsKey('seconds_remaining')) {
         detail = Map<String, dynamic>.from(data);
@@ -172,7 +219,7 @@ class DioClient {
     } else if (data is String && data.isNotEmpty) {
       message = data;
     }
-    
+
     // ✅ Handle connection errors
     if (e.type == DioExceptionType.connectionError) {
       message = "Cannot connect to server.\n\n"
@@ -184,7 +231,7 @@ class DioClient {
         e.type == DioExceptionType.sendTimeout) {
       message = "Connection timeout. Please check your internet connection.";
     }
-    
+
     return ApiException(
       statusCode: statusCode,
       code: code,
