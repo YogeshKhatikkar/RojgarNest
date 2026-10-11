@@ -1,910 +1,750 @@
 // lib/features/schemes/presentation/screens/scheme_apply_screen.dart
-// ============================================================
-// SCHEME APPLY SCREEN
-// Multi-step form to apply for a government scheme
-// ============================================================
-// ✅ CRITICAL FIX: _slugify() now handles Hindi/pure-Unicode names
-// ✅ CRITICAL FIX: document_type is NEVER empty (falls back to 'document')
-// ✅ CRITICAL FIX: Documents now sent with BOTH `url` AND `document_url`
-// ✅ CRITICAL FIX: Upload success verified — no silent failures
-// ✅ CRITICAL FIX: Full response logging for debugging
-// ✅ NEW: Verbose error surfacing — user sees exactly which doc failed
-// ✅ FIXED: NO AUTO-LOGOUT — OK button only closes dialog
-// ✅ FIXED: Snackbar instead of navigation after success
+// ✅ COMPLETE FIXED VERSION
+// ✅ FIXED: Added http import
+// ✅ REMOVED: Bank Details Tab (auto-filled from profile)
+// ✅ REMOVED: Aadhaar Card number field (auto-filled from profile)
+// ✅ REMOVED: Bank-related fields from "Profile Incomplete" warning
+// ✅ REMOVED: Back button from AppBar (automaticallyImplyLeading: false)
+// ✅ All other details auto-filled from profile
+// ✅ Tabs shown for: Personal Details, Address, Documents
 
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:rojgarnext/core/utils/app_snackbar.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:rojgarnext/core/network/dio_client.dart';
 import 'package:rojgarnext/core/storage/secure_storage.dart';
-import 'package:rojgarnext/features/schemes/data/scheme_service.dart';
+import 'package:rojgarnext/core/utils/app_snackbar.dart';
+import 'package:rojgarnext/core/config/api_config.dart';
+import 'package:rojgarnext/core/master_date/schemes_data.dart';
+
+// ============================================================
+// SCHEME APPLY SCREEN
+// ============================================================
 
 class SchemeApplyScreen extends StatefulWidget {
-  final Map<String, dynamic> scheme;
+  final GovernmentScheme scheme;
 
-  const SchemeApplyScreen({super.key, required this.scheme});
+  const SchemeApplyScreen({
+    super.key,
+    required this.scheme,
+  });
 
   @override
   State<SchemeApplyScreen> createState() => _SchemeApplyScreenState();
 }
 
-class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
-  // ==================== STATE ====================
-  int _currentStep = 0; // 0=Personal, 1=Address, 2=Bank, 3=Documents
+class _SchemeApplyScreenState extends State<SchemeApplyScreen>
+    with TickerProviderStateMixin {
+  // ============================================================
+  // TAB CONTROLLER
+  // ============================================================
+  late TabController _tabController;
+  int _currentTabIndex = 0;
+
+  // ✅ ONLY 3 TABS NOW (Bank Details tab REMOVED)
+  final List<String> _tabLabels = const [
+    'Personal Details',
+    'Address Details',
+    'Documents',
+  ];
+
+  final List<IconData> _tabIcons = const [
+    Icons.person,
+    Icons.location_on,
+    Icons.upload_file,
+  ];
+
+  // ============================================================
+  // ✅ BANK-RELATED FIELDS TO EXCLUDE FROM WARNING
+  // ============================================================
+  static const Set<String> _bankRelatedFields = {
+    'bank_name',
+    'bank_account',
+    'account_number',
+    'ifsc_code',
+    'branch_name',
+    'account_holder_name',
+    'account_type',
+    'bank_details',
+    'aadhaar_number',
+    'aadhar_number',
+    'aadhaar_card',
+    'aadhar_card',
+  };
+
+  // ============================================================
+  // LOADING STATES
+  // ============================================================
+  bool _isLoadingProfile = true;
   bool _isSubmitting = false;
+  bool _profileComplete = false;
+  List<String> _missingFields = [];
 
-  // Controllers — Personal
-  final _fullNameCtrl = TextEditingController();
-  final _fatherNameCtrl = TextEditingController();
-  final _motherNameCtrl = TextEditingController();
-  final _dobCtrl = TextEditingController();
-  final _aadhaarCtrl = TextEditingController();
-  final _mobileCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _incomeCtrl = TextEditingController();
+  // ============================================================
+  // PROFILE DATA (Auto-filled)
+  // ============================================================
+  Map<String, dynamic> _profileData = {};
 
-  // Controllers — Address
-  final _address1Ctrl = TextEditingController();
-  final _address2Ctrl = TextEditingController();
-  final _villageCtrl = TextEditingController();
-  final _districtCtrl = TextEditingController();
-  final _stateCtrl = TextEditingController();
-  final _pincodeCtrl = TextEditingController();
+  // ============================================================
+  // PERSONAL DETAILS (Read-only, auto-filled from profile)
+  // ✅ AADHAAR NUMBER FIELD REMOVED
+  // ============================================================
+  final TextEditingController fullNameCtrl = TextEditingController();
+  final TextEditingController fatherNameCtrl = TextEditingController();
+  final TextEditingController motherNameCtrl = TextEditingController();
+  final TextEditingController dobCtrl = TextEditingController();
+  final TextEditingController genderCtrl = TextEditingController();
+  final TextEditingController categoryCtrl = TextEditingController();
+  final TextEditingController maritalStatusCtrl = TextEditingController();
+  final TextEditingController mobileCtrl = TextEditingController();
+  final TextEditingController emailCtrl = TextEditingController();
+  final TextEditingController annualIncomeCtrl = TextEditingController();
+  final TextEditingController disabilityStatusCtrl = TextEditingController();
 
-  // Controllers — Bank
-  final _accountHolderCtrl = TextEditingController();
-  final _bankNameCtrl = TextEditingController();
-  final _accountNumberCtrl = TextEditingController();
-  final _ifscCtrl = TextEditingController();
-  final _branchCtrl = TextEditingController();
+  // ============================================================
+  // ADDRESS DETAILS (Read-only, auto-filled from profile)
+  // ============================================================
+  final TextEditingController addressLine1Ctrl = TextEditingController();
+  final TextEditingController addressLine2Ctrl = TextEditingController();
+  final TextEditingController villageCityCtrl = TextEditingController();
+  final TextEditingController districtCtrl = TextEditingController();
+  final TextEditingController stateCtrl = TextEditingController();
+  final TextEditingController pincodeCtrl = TextEditingController();
+  final TextEditingController countryCtrl = TextEditingController();
 
-  // Controllers — Additional
-  final _remarksCtrl = TextEditingController();
+  // ============================================================
+  // DOCUMENTS (User uploads)
+  // ============================================================
+  final Map<String, Map<String, dynamic>> _uploadedDocuments = {};
+  bool _isUploadingDoc = false;
+  String? _uploadingDocType;
 
-  // Dropdown values
-  String _gender = 'male';
-  String _category = 'General';
-  String _maritalStatus = 'Unmarried';
-  String _accountType = 'savings';
-
-  // Toggles
-  bool _bplStatus = false;
-  bool _disabilityStatus = false;
-  double _disabilityPercentage = 0;
-
-  // ✅ Documents — one entry per required doc
-  final Map<String, _PickedDoc> _pickedDocs = {};
-
-  // ✅ Loading flag per doc while uploading
-  final Map<String, bool> _uploadingDoc = {};
-
-  final _formKeyPersonal = GlobalKey<FormState>();
-  final _formKeyAddress = GlobalKey<FormState>();
-  final _formKeyBank = GlobalKey<FormState>();
-
-  // ✅ Prevent setState after dispose
-  bool _isDisposed = false;
-
-  // ==================== LIFECYCLE ====================
+  // ============================================================
+  // INIT
+  // ============================================================
   @override
   void initState() {
     super.initState();
-    _prefillFromProfile();
-    _initDocumentSlots();
+    _tabController = TabController(length: _tabLabels.length, vsync: this);
+    _tabController.addListener(() {
+      if (mounted && _currentTabIndex != _tabController.index) {
+        setState(() => _currentTabIndex = _tabController.index);
+      }
+    });
+    _loadProfileData();
   }
 
   @override
   void dispose() {
-    _isDisposed = true;
-    _fullNameCtrl.dispose();
-    _fatherNameCtrl.dispose();
-    _motherNameCtrl.dispose();
-    _dobCtrl.dispose();
-    _aadhaarCtrl.dispose();
-    _mobileCtrl.dispose();
-    _emailCtrl.dispose();
-    _incomeCtrl.dispose();
-    _address1Ctrl.dispose();
-    _address2Ctrl.dispose();
-    _villageCtrl.dispose();
-    _districtCtrl.dispose();
-    _stateCtrl.dispose();
-    _pincodeCtrl.dispose();
-    _accountHolderCtrl.dispose();
-    _bankNameCtrl.dispose();
-    _accountNumberCtrl.dispose();
-    _ifscCtrl.dispose();
-    _branchCtrl.dispose();
-    _remarksCtrl.dispose();
+    _tabController.dispose();
+    fullNameCtrl.dispose();
+    fatherNameCtrl.dispose();
+    motherNameCtrl.dispose();
+    dobCtrl.dispose();
+    genderCtrl.dispose();
+    categoryCtrl.dispose();
+    maritalStatusCtrl.dispose();
+    mobileCtrl.dispose();
+    emailCtrl.dispose();
+    annualIncomeCtrl.dispose();
+    disabilityStatusCtrl.dispose();
+    addressLine1Ctrl.dispose();
+    addressLine2Ctrl.dispose();
+    villageCityCtrl.dispose();
+    districtCtrl.dispose();
+    stateCtrl.dispose();
+    pincodeCtrl.dispose();
+    countryCtrl.dispose();
     super.dispose();
   }
 
   // ============================================================
-  // ✅ SAFE setState — never called after dispose
+  // LOAD PROFILE DATA FROM BACKEND
+  // ✅ FIXED: Removes bank-related fields from missing fields warning
   // ============================================================
-  void _safeSetState(VoidCallback fn) {
-    if (_isDisposed || !mounted) return;
-    setState(fn);
-  }
+  Future<void> _loadProfileData() async {
+    setState(() => _isLoadingProfile = true);
 
-  // ==================== PREFILL ====================
-  Future<void> _prefillFromProfile() async {
     try {
-      final email = await SecureStorage.getEmail();
-      final mobile = await SecureStorage.getMobile();
-      final name = await SecureStorage.getName();
+      debugPrint("=" * 70);
+      debugPrint("📥 LOADING PROFILE DATA FOR SCHEME APPLICATION");
+      debugPrint("   Scheme: ${widget.scheme.schemeName}");
+      debugPrint("=" * 70);
 
-      if (_isDisposed || !mounted) return;
+      // ✅ Use the new profile-data endpoint
+      final response = await DioClient.dio.get('/schemes/profile-data');
 
-      _emailCtrl.text = email ?? '';
-      _mobileCtrl.text = mobile ?? '';
-      _fullNameCtrl.text = name ?? '';
-      _accountHolderCtrl.text = name ?? '';
-    } catch (e) {
-      debugPrint("Prefill error: $e");
-    }
-  }
+      if (response.data['success'] == true) {
+        _profileData = response.data;
 
-  // ==================== DOCUMENT SLOTS ====================
-  void _initDocumentSlots() {
-    final raw = widget.scheme['required_documents'];
-
-    if (raw is List && raw.isNotEmpty) {
-      for (final item in raw) {
-        String label;
-        bool required = true;
-
-        if (item is Map) {
-          final hindi = item['name_hindi']?.toString().trim() ?? '';
-          final en = item['name']?.toString().trim() ?? '';
-          label = hindi.isNotEmpty ? hindi : (en.isNotEmpty ? en : 'Document');
-          required = item['required'] != false;
-        } else {
-          label = item.toString().trim();
-        }
-
-        if (label.isEmpty) continue;
-
-        _pickedDocs[label] = _PickedDoc(
-          label: label,
-          required: required,
+        // ✅ Get raw missing fields from backend
+        final rawMissingFields = List<String>.from(
+          response.data['missing_fields'] ?? [],
         );
+
+        // ✅ Filter out bank-related and aadhaar fields
+        _missingFields = rawMissingFields
+            .where((field) =>
+                !_bankRelatedFields.contains(field.toLowerCase()))
+            .toList();
+
+        // ✅ Recalculate profile_complete based on filtered fields
+        _profileComplete = _missingFields.isEmpty;
+
+        debugPrint("✅ Profile data loaded");
+        debugPrint("   Raw Missing Fields: $rawMissingFields");
+        debugPrint("   Filtered Missing Fields: $_missingFields");
+        debugPrint("   Profile Complete: $_profileComplete");
+
+        // ✅ Auto-fill all controllers
+        _autoFillPersonalDetails(response.data['applicant_details'] ?? {});
+        _autoFillAddressDetails(response.data['applicant_address'] ?? {});
+
+        // ✅ Bank details are NOT displayed but still loaded for backend
+        // They will be sent automatically when submitting
+      } else {
+        throw Exception(response.data['message'] ?? 'Failed to load profile');
+      }
+    } catch (e) {
+      debugPrint("❌ Failed to load profile: $e");
+      if (mounted) {
+        showMessage(
+          context,
+          "Failed to load profile: ${e.toString()}",
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingProfile = false);
       }
     }
   }
 
   // ============================================================
-  // ✅ MANUAL VALIDATION HELPERS
+  // AUTO-FILL PERSONAL DETAILS
+  // ✅ AADHAAR NUMBER REMOVED
   // ============================================================
-  bool _validatePersonalStep() {
-    if (_fullNameCtrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया पूरा नाम भरें / Please enter full name");
-      return false;
-    }
-    if (_mobileCtrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया मोबाइल नंबर भरें / Please enter mobile number");
-      return false;
-    }
-    if (_mobileCtrl.text.trim().length != 10) {
-      _showSnackBar("कृपया 10 अंकों का मोबाइल नंबर भरें / Please enter 10-digit mobile");
-      return false;
-    }
-    if (_emailCtrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया ईमेल भरें / Please enter email");
-      return false;
-    }
-    if (!_emailCtrl.text.contains('@') || !_emailCtrl.text.contains('.')) {
-      _showSnackBar("कृपया वैध ईमेल भरें / Please enter valid email");
-      return false;
-    }
-    if (_dobCtrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया जन्म तिथि भरें / Please enter date of birth");
-      return false;
-    }
-    return true;
-  }
+  void _autoFillPersonalDetails(Map<String, dynamic> details) {
+    fullNameCtrl.text = details['full_name']?.toString() ?? '';
+    fatherNameCtrl.text = details['father_name']?.toString() ?? '';
+    motherNameCtrl.text = details['mother_name']?.toString() ?? '';
+    dobCtrl.text = details['date_of_birth']?.toString() ?? '';
+    genderCtrl.text = _capitalizeFirst(details['gender']?.toString() ?? '');
+    categoryCtrl.text = details['category']?.toString() ?? 'General';
+    maritalStatusCtrl.text = details['marital_status']?.toString() ?? 'Unmarried';
+    mobileCtrl.text = details['mobile']?.toString() ?? '';
+    emailCtrl.text = details['email']?.toString() ?? '';
+    annualIncomeCtrl.text = details['annual_income']?.toString() ?? '0';
 
-  bool _validateAddressStep() {
-    if (_address1Ctrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया पता पंक्ति 1 भरें / Please enter address line 1");
-      return false;
+    // Disability status
+    final disabilityStatus = details['disability_status'] == true;
+    final disabilityPercentage = details['disability_percentage'];
+    if (disabilityStatus) {
+      disabilityStatusCtrl.text = disabilityPercentage != null &&
+              disabilityPercentage > 0
+          ? 'Yes (${disabilityPercentage.toStringAsFixed(0)}%)'
+          : 'Yes';
+    } else {
+      disabilityStatusCtrl.text = 'No';
     }
-    if (_villageCtrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया गाँव/शहर भरें / Please enter village/city");
-      return false;
-    }
-    if (_districtCtrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया जिला भरें / Please enter district");
-      return false;
-    }
-    if (_stateCtrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया राज्य भरें / Please enter state");
-      return false;
-    }
-    if (_pincodeCtrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया पिनकोड भरें / Please enter pincode");
-      return false;
-    }
-    if (_pincodeCtrl.text.trim().length != 6) {
-      _showSnackBar("कृपया 6 अंकों का पिनकोड भरें / Please enter 6-digit pincode");
-      return false;
-    }
-    return true;
-  }
 
-  bool _validateBankStep() {
-    if (_accountHolderCtrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया खाताधारक का नाम भरें / Please enter account holder name");
-      return false;
-    }
-    if (_bankNameCtrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया बैंक का नाम भरें / Please enter bank name");
-      return false;
-    }
-    if (_accountNumberCtrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया खाता संख्या भरें / Please enter account number");
-      return false;
-    }
-    if (_ifscCtrl.text.trim().isEmpty) {
-      _showSnackBar("कृपया IFSC कोड भरें / Please enter IFSC code");
-      return false;
-    }
-    if (_ifscCtrl.text.trim().length != 11) {
-      _showSnackBar("कृपया 11 अंकों का IFSC कोड भरें / Please enter 11-character IFSC code");
-      return false;
-    }
-    return true;
-  }
+    // ❌ AADHAAR NUMBER IS NOT AUTO-FILLED (field removed entirely)
 
-  void _showSnackBar(String message, {bool isError = true}) {
-    if (_isDisposed || !mounted) return;
-    showMessage(context, message, isError: isError);
-  }
-
-  // ==================== STEP NAVIGATION ====================
-  void _goNext() {
-    if (_currentStep == 0) {
-      if (!_validatePersonalStep()) return;
-    } else if (_currentStep == 1) {
-      if (!_validateAddressStep()) return;
-    } else if (_currentStep == 2) {
-      if (!_validateBankStep()) return;
-    }
-    _safeSetState(() => _currentStep++);
-  }
-
-  void _goBack() {
-    if (_currentStep > 0) {
-      _safeSetState(() => _currentStep--);
-    }
-  }
-
-  // ==================== DATE PICKER ====================
-  Future<void> _pickDob() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime(now.year - 25, now.month, now.day),
-      firstDate: DateTime(1940),
-      lastDate: DateTime(now.year - 10, now.month, now.day),
-    );
-    if (picked != null && !_isDisposed && mounted) {
-      _dobCtrl.text =
-          "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-    }
+    debugPrint("✅ Personal details auto-filled");
   }
 
   // ============================================================
-  // ✅ PICK A DOCUMENT FOR A SLOT
+  // AUTO-FILL ADDRESS DETAILS
   // ============================================================
-  Future<void> _pickDocument(String label) async {
+  void _autoFillAddressDetails(Map<String, dynamic> address) {
+    addressLine1Ctrl.text = address['address_line1']?.toString() ?? '';
+    addressLine2Ctrl.text = address['address_line2']?.toString() ?? '';
+    villageCityCtrl.text = address['village_city']?.toString() ?? '';
+    districtCtrl.text = address['district']?.toString() ?? '';
+    stateCtrl.text = address['state']?.toString() ?? '';
+    pincodeCtrl.text = address['pincode']?.toString() ?? '';
+    countryCtrl.text = address['country']?.toString() ?? 'India';
+
+    debugPrint("✅ Address details auto-filled");
+  }
+
+  String _capitalizeFirst(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1).toLowerCase();
+  }
+
+  // ============================================================
+  // DOCUMENT UPLOAD
+  // ============================================================
+  Future<void> _pickAndUploadDocument(String docType, String docName) async {
+    if (_isUploadingDoc) return;
+
     try {
+      // Determine allowed file types based on document
+      List<String> allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png'];
+
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+        allowedExtensions: allowedExtensions,
         withData: true,
       );
 
       if (result == null || result.files.isEmpty) return;
 
       final file = result.files.first;
-      if (file.bytes == null || file.bytes!.isEmpty) {
-        if (!_isDisposed && mounted) {
-          showMessage(context, "Could not read file", isError: true);
-        }
-        return;
-      }
 
-      const maxBytes = 10 * 1024 * 1024; // 10 MB
-      if (file.bytes!.length > maxBytes) {
-        if (!_isDisposed && mounted) {
+      // ✅ Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        if (mounted) {
           showMessage(
             context,
-            "File too large. Max 10 MB (yours: ${(file.bytes!.length / (1024 * 1024)).toStringAsFixed(1)} MB)",
+            "File too large. Maximum 10MB allowed.",
             isError: true,
           );
         }
         return;
       }
 
-      _safeSetState(() {
-        _pickedDocs[label] = _PickedDoc(
-          label: label,
-          required: _pickedDocs[label]?.required ?? true,
-          fileName: file.name,
-          bytes: file.bytes,
-        );
+      setState(() {
+        _isUploadingDoc = true;
+        _uploadingDocType = docType;
       });
 
-      if (!_isDisposed && mounted) {
-        showMessage(context, "✅ Selected: ${file.name}");
+      // ✅ Upload to backend
+      final token = await SecureStorage.getToken();
+      if (token == null) {
+        throw Exception("No authentication token found");
+      }
+
+      final uri = Uri.parse(
+        '${ApiConfig.baseUrl}/schemes/upload-temp-document',
+      );
+
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Authorization'] = 'Bearer $token';
+
+      final multipartFile = http.MultipartFile.fromBytes(
+        'file',
+        file.bytes!,
+        filename: file.name,
+        contentType: _getMimeType(file.name),
+      );
+      request.files.add(multipartFile);
+
+      request.fields['document_type'] = docType;
+      request.fields['document_name'] = docName;
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        if (data['success'] == true) {
+          final docData = data['document'] ?? {};
+
+          setState(() {
+            _uploadedDocuments[docType] = {
+              'document_type': docType,
+              'document_name': docName,
+              'document_url': docData['document_url'] ?? docData['url'],
+              'public_id': docData['public_id'],
+              'filename': file.name,
+              'size_bytes': file.size,
+            };
+          });
+
+          if (mounted) {
+            showMessage(context, "✅ $docName uploaded successfully!");
+          }
+        } else {
+          throw Exception(data['message'] ?? 'Upload failed');
+        }
+      } else {
+        final errorData = jsonDecode(response.body);
+        throw Exception(errorData['message'] ?? 'Upload failed');
       }
     } catch (e) {
-      if (!_isDisposed && mounted) {
-        showMessage(context, "Pick failed: $e", isError: true);
+      debugPrint("❌ Document upload failed: $e");
+      if (mounted) {
+        showMessage(
+          context,
+          "Upload failed: ${e.toString().replaceAll('Exception:', '')}",
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingDoc = false;
+          _uploadingDocType = null;
+        });
       }
     }
   }
 
-  void _removeDocument(String label) {
-    _safeSetState(() {
-      final existing = _pickedDocs[label];
-      _pickedDocs[label] = _PickedDoc(
-        label: label,
-        required: existing?.required ?? true,
-      );
+  MediaType _getMimeType(String fileName) {
+    final ext = fileName.toLowerCase().split('.').last;
+    switch (ext) {
+      case 'pdf':
+        return MediaType('application', 'pdf');
+      case 'jpg':
+      case 'jpeg':
+        return MediaType('image', 'jpeg');
+      case 'png':
+        return MediaType('image', 'png');
+      default:
+        return MediaType('application', 'octet-stream');
+    }
+  }
+
+  void _removeDocument(String docType) {
+    setState(() {
+      _uploadedDocuments.remove(docType);
     });
+    if (mounted) {
+      showMessage(context, "Document removed");
+    }
   }
 
   // ============================================================
-  // ✅ CHECK — all required docs must have bytes
-  // ============================================================
-  bool _allRequiredDocsPicked() {
-    for (final entry in _pickedDocs.values) {
-      if (entry.required) {
-        if (entry.bytes == null || entry.bytes!.isEmpty) return false;
-      }
-    }
-    return true;
-  }
-
-  // ============================================================
-  // ✅ RESOLVE SCHEME NAME
-  // ============================================================
-  String _resolveSchemeName() {
-    final schemeId = widget.scheme['scheme_id']?.toString() ?? '';
-    final hindi = widget.scheme['scheme_name_hindi']?.toString().trim() ?? '';
-    final en = widget.scheme['scheme_name']?.toString().trim() ?? '';
-    if (hindi.isNotEmpty) return hindi;
-    if (en.isNotEmpty) return en;
-    return schemeId;
-  }
-
-  // ============================================================
-  // ✅✅✅ CRITICAL FIX: SLUGIFY
-  // ------------------------------------------------------------
-  // Previously this function stripped ALL non-ASCII characters,
-  // which meant a pure-Hindi name like 'आधार कार्ड' became ''.
-  // The backend then rejected the request with:
-  //   {"loc": ["body","document_type"], "msg":"Field required"}
-  //
-  // New behavior:
-  //   1. Try known Hindi → English mapping
-  //   2. Fall back to ASCII normalization
-  //   3. If still empty, use a safe counter-based fallback
-  // ============================================================
-  String _slugify(String input, {String fallback = 'document'}) {
-    if (input.trim().isEmpty) return fallback;
-
-    final lower = input.toLowerCase().trim();
-
-    // ---- Hindi / Devanagari → English slug mapping ----
-    final hindiMap = <String, String>{
-      'आधार कार्ड': 'aadhaar_card',
-      'आधार': 'aadhaar_card',
-      'मूल निवास प्रमाण पत्र': 'domicile_certificate',
-      'मूल निवास': 'domicile_certificate',
-      'निवास प्रमाण पत्र': 'residence_certificate',
-      'निवास': 'residence_certificate',
-      'आय प्रमाण पत्र': 'income_certificate',
-      'आय': 'income_certificate',
-      'बैंक पासबुक': 'bank_passbook',
-      'बैंक पास बुक': 'bank_passbook',
-      'बैंक': 'bank_passbook',
-      'राशन कार्ड': 'ration_card',
-      'राशन': 'ration_card',
-      'जन्म प्रमाण पत्र': 'birth_certificate',
-      'जन्म': 'birth_certificate',
-      'जाति प्रमाण पत्र': 'caste_certificate',
-      'जाति': 'caste_certificate',
-      'पासपोर्ट': 'passport',
-      'फोटो': 'photo',
-      'फ़ोटो': 'photo',
-      'हस्ताक्षर': 'signature',
-      'अन्य': 'other',
-      'दस्तावेज': 'document',
-      'दस्तावेज़': 'document',
-      'प्रमाण पत्र': 'certificate',
-      'अंकतालिका': 'marksheet',
-      'मार्कशीट': 'marksheet',
-      'डिग्री': 'degree',
-      'स्नातक': 'graduate',
-      'अनुसूचित जाति': 'scheduled_caste',
-      'अनुसूचित जनजाति': 'scheduled_tribe',
-      'विकलांगता': 'disability',
-      'विकलांगता प्रमाण पत्र': 'disability_certificate',
-      'पेंशन': 'pension',
-      'बीपीएल': 'bpl_card',
-      'BPL कार्ड': 'bpl_card',
-      'मृत्यु प्रमाण पत्र': 'death_certificate',
-      'विवाह प्रमाण पत्र': 'marriage_certificate',
-      'शपथ पत्र': 'affidavit',
-      'चिकित्सा प्रमाण पत्र': 'medical_certificate',
-      'बीमा': 'insurance',
-      'भूमि': 'land',
-      'भूमि रिकॉर्ड': 'land_records',
-      'स्वास्थ्य कार्ड': 'health_card',
-      'आयुष्मान कार्ड': 'ayushman_card',
-    };
-
-    // Exact match first
-    if (hindiMap.containsKey(input.trim())) {
-      return hindiMap[input.trim()]!;
-    }
-
-    // Substring match (longest key first)
-    final sortedKeys = hindiMap.keys.toList()
-      ..sort((a, b) => b.length.compareTo(a.length));
-
-    for (final key in sortedKeys) {
-      if (lower.contains(key.toLowerCase())) {
-        return hindiMap[key]!;
-      }
-    }
-
-    // ---- ASCII normalization fallback ----
-    String slug = input
-        .toLowerCase()
-        .trim()
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .replaceAll(RegExp(r'^_|_$'), '');
-
-    if (slug.isEmpty) {
-      debugPrint("⚠️ _slugify('$input') produced empty slug — using fallback '$fallback'");
-      return fallback;
-    }
-
-    if (slug.length > 60) {
-      slug = slug.substring(0, 60).replaceAll(RegExp(r'_$'), '');
-    }
-
-    return slug;
-  }
-
-  // ============================================================
-  // ✅✅✅ CRITICAL FIX: SUBMIT
-  //
-  //  STEP 1: Upload each doc to /upload-temp-document
-  //  STEP 2: Extract URL from response (multi-field fallback)
-  //  STEP 3: Build documents[] with BOTH `url` AND `document_url`
-  //  STEP 4: Call /apply with documents inline
-  //  STEP 5: Show success
+  // SUBMIT APPLICATION
+  // ✅ Bank details are sent automatically from profile (not displayed)
+  // ✅ Aadhaar number is sent automatically from profile (not displayed)
   // ============================================================
   Future<void> _submitApplication() async {
-    if (_isDisposed || !mounted) return;
+    // Validate required documents
+    final requiredDocs = widget.scheme.requiredDocuments;
 
-    debugPrint("=" * 70);
-    debugPrint("📝 _submitApplication CALLED");
-    debugPrint("   Current Step: $_currentStep");
-    debugPrint("   Picked Docs: ${_pickedDocs.length}");
-    debugPrint("=" * 70);
-
-    // ✅ STEP 1: Validate Personal
-    if (!_validatePersonalStep()) {
-      debugPrint("❌ Personal validation failed → jumping to Step 0");
-      _safeSetState(() => _currentStep = 0);
-      return;
-    }
-
-    // ✅ STEP 2: Validate Address
-    if (!_validateAddressStep()) {
-      debugPrint("❌ Address validation failed → jumping to Step 1");
-      _safeSetState(() => _currentStep = 1);
-      return;
-    }
-
-    // ✅ STEP 3: Validate Bank
-    if (!_validateBankStep()) {
-      debugPrint("❌ Bank validation failed → jumping to Step 2");
-      _safeSetState(() => _currentStep = 2);
-      return;
-    }
-
-    // ✅ STEP 4: Validate required documents
-    if (!_allRequiredDocsPicked()) {
-      debugPrint("❌ Required documents missing");
-      if (!_isDisposed && mounted) {
-        showMessage(
-          context,
-          "कृपया सभी आवश्यक दस्तावेज़ अपलोड करें / Please upload all required documents",
-          isError: true,
-        );
+    for (var doc in requiredDocs) {
+      if (doc.required && !_uploadedDocuments.containsKey(doc.name)) {
+        if (mounted) {
+          showMessage(
+            context,
+            "Please upload: ${doc.name}",
+            isError: true,
+          );
+        }
+        // Switch to documents tab
+        _tabController.animateTo(2);
+        return;
       }
-      _safeSetState(() => _currentStep = 3);
-      return;
     }
 
-    debugPrint("✅ All validations passed → submitting...");
-    _safeSetState(() => _isSubmitting = true);
+    setState(() => _isSubmitting = true);
 
     try {
-      final schemeId = widget.scheme['scheme_id']?.toString() ?? '';
-      if (schemeId.isEmpty) throw "Scheme ID missing";
+      debugPrint("=" * 70);
+      debugPrint("📤 SUBMITTING SCHEME APPLICATION");
+      debugPrint("   Scheme ID: ${widget.scheme.schemeId}");
+      debugPrint("   Scheme Name: ${widget.scheme.schemeName}");
+      debugPrint("=" * 70);
 
-      final resolvedSchemeName = _resolveSchemeName();
-
-      // ============================================================
-      // Build applicant details
-      // ============================================================
+      // ✅ Build applicant details from auto-filled controllers
+      // NOTE: Aadhaar is sent from profile data automatically
       final applicantDetails = {
-        "full_name": _fullNameCtrl.text.trim(),
-        "father_name": _fatherNameCtrl.text.trim(),
-        "mother_name": _motherNameCtrl.text.trim(),
-        "date_of_birth": _dobCtrl.text.trim(),
-        "gender": _gender,
-        "category": _category,
-        "marital_status": _maritalStatus,
-        "aadhaar_number": _aadhaarCtrl.text.trim(),
-        "mobile": _mobileCtrl.text.trim(),
-        "email": _emailCtrl.text.trim(),
-        "annual_income": int.tryParse(_incomeCtrl.text.trim()) ?? 0,
-        "bpl_status": _bplStatus,
-        "disability_status": _disabilityStatus,
-        "disability_percentage":
-            _disabilityStatus ? _disabilityPercentage : 0,
-        "scheme_name": resolvedSchemeName,
-        "scheme_id": schemeId,
-        "application_type": "schemes",
+        'full_name': fullNameCtrl.text.trim(),
+        'father_name': fatherNameCtrl.text.trim(),
+        'mother_name': motherNameCtrl.text.trim(),
+        'date_of_birth': dobCtrl.text.trim(),
+        'gender': genderCtrl.text.toLowerCase(),
+        'category': categoryCtrl.text,
+        'marital_status': maritalStatusCtrl.text,
+        'mobile': mobileCtrl.text.trim(),
+        'email': emailCtrl.text.trim(),
+        'annual_income': int.tryParse(annualIncomeCtrl.text) ?? 0,
+        'bpl_status': false,
+        'disability_status':
+            disabilityStatusCtrl.text.toLowerCase().startsWith('yes'),
+        'disability_percentage': 0.0,
+        'scheme_name': widget.scheme.schemeName,
+        'scheme_id': widget.scheme.schemeId,
+        'application_type': 'schemes',
+        // ✅ Aadhaar number is automatically pulled from profile on backend
+        // We don't need to send it explicitly here
       };
 
+      // ✅ Build address details
       final applicantAddress = {
-        "address_line1": _address1Ctrl.text.trim(),
-        "address_line2": _address2Ctrl.text.trim(),
-        "village_city": _villageCtrl.text.trim(),
-        "district": _districtCtrl.text.trim(),
-        "state": _stateCtrl.text.trim(),
-        "pincode": _pincodeCtrl.text.trim(),
-        "country": "India",
+        'address_line1': addressLine1Ctrl.text.trim(),
+        'address_line2': addressLine2Ctrl.text.trim(),
+        'village_city': villageCityCtrl.text.trim(),
+        'district': districtCtrl.text.trim(),
+        'state': stateCtrl.text.trim(),
+        'pincode': pincodeCtrl.text.trim(),
+        'country': countryCtrl.text.trim(),
       };
 
-      final bankDetails = {
-        "account_holder_name": _accountHolderCtrl.text.trim(),
-        "bank_name": _bankNameCtrl.text.trim(),
-        "account_number": _accountNumberCtrl.text.trim(),
-        "ifsc_code": _ifscCtrl.text.trim().toUpperCase(),
-        "branch_name": _branchCtrl.text.trim(),
-        "account_type": _accountType,
+      // ✅ Build documents list
+      final documents = _uploadedDocuments.values.map((doc) {
+        return {
+          'document_type': doc['document_type'],
+          'document_name': doc['document_name'],
+          'document_url': doc['document_url'],
+          'public_id': doc['public_id'],
+        };
+      }).toList();
+
+      // ✅ Build final payload
+      // NOTE: Bank details are automatically fetched from profile on backend
+      // We don't need to send them explicitly
+      final payload = {
+        'scheme_id': widget.scheme.schemeId,
+        'scheme_name': widget.scheme.schemeName,
+        'applicant_details': applicantDetails,
+        'applicant_address': applicantAddress,
+        // ✅ Bank details are NOT sent here - backend fetches from profile
+        'documents': documents,
       };
 
-      debugPrint("=" * 70);
-      debugPrint("📝 SUBMITTING SCHEME APPLICATION");
-      debugPrint("   Scheme ID:        $schemeId");
-      debugPrint("   Scheme Name:      $resolvedSchemeName");
-      debugPrint("   application_type: schemes");
-      debugPrint("   Documents:        ${_pickedDocs.length}");
-      debugPrint("=" * 70);
+      debugPrint("📦 Payload prepared:");
+      debugPrint("   Documents: ${documents.length}");
+      debugPrint("   Personal details: Auto-filled");
+      debugPrint("   Address: Auto-filled");
+      debugPrint("   Bank details: Auto-fetched from profile on backend");
 
-      // ============================================================
-      // ✅ STEP 1: Upload all picked documents FIRST (to get URLs)
-      // ============================================================
-      final List<Map<String, dynamic>> documentEntries = [];
-      final List<String> failedDocs = [];
+      // ✅ Submit to backend
+      final response = await DioClient.dio.post(
+        '/schemes/apply',
+        data: payload,
+      );
 
-      // ✅ Temp session id (used for grouping)
-      final tempSessionId =
-          'temp_${DateTime.now().millisecondsSinceEpoch}';
+      debugPrint("📥 Response: ${response.data}");
 
-      // ✅ Counter to ensure unique fallback slugs for unnamed docs
-      int fallbackCounter = 0;
+      if (response.data['success'] == true) {
+        final applicationId = response.data['application_id'];
 
-      for (final entry in _pickedDocs.entries) {
-        final label = entry.key;
-        final doc = entry.value;
-
-        if (doc.bytes == null || doc.bytes!.isEmpty) {
-          debugPrint("⏭️ Skipping '$label' — no bytes");
-          continue;
-        }
-
-        _safeSetState(() => _uploadingDoc[label] = true);
-
-        try {
-          fallbackCounter++;
-          final fallbackSlug = 'document_$fallbackCounter';
-          final docType = _slugify(label, fallback: fallbackSlug);
-
-          // ✅ EXTRA SAFETY: never allow an empty docType
-          final safeDocType = docType.trim().isEmpty ? fallbackSlug : docType;
-
-          debugPrint("=" * 70);
-          debugPrint("📤 Uploading '$label'");
-          debugPrint("   docType:    $safeDocType");
-          debugPrint("   fileName:   ${doc.fileName}");
-          debugPrint("   sizeBytes:  ${doc.bytes!.length}");
-          debugPrint("=" * 70);
-
-          // ✅ Upload via /upload-temp-document
-          final uploadResult = await SchemeService.uploadTempDocument(
-            fileBytes: doc.bytes!,
-            fileName: doc.fileName ?? 'document.pdf',
-            documentType: safeDocType,
-            documentName: label,
+        if (mounted) {
+          // Show success dialog
+          await showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (dialogContext) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green, size: 28),
+                  SizedBox(width: 12),
+                  Text("Application Submitted!"),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Your application has been submitted successfully.",
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Application ID:",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          applicationId ?? 'N/A',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    "Scheme: ${widget.scheme.schemeName}",
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    Navigator.pop(context); // Go back to scheme detail
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text("OK"),
+                ),
+              ],
+            ),
           );
-
-          debugPrint("📥 Upload result for '$label':");
-          debugPrint("   $uploadResult");
-
-          // ✅ CRITICAL: Extract URL from normalized response
-          // (SchemeService.uploadTempDocument already normalizes)
-          final String? url = uploadResult['url']?.toString() ??
-              uploadResult['document_url']?.toString();
-
-          final String? publicId = uploadResult['public_id']?.toString();
-
-          if (url == null || url.isEmpty) {
-            failedDocs.add("$label: No URL in response");
-            debugPrint("❌ No URL returned for '$label'");
-            continue;
-          }
-
-          debugPrint("✅ Got URL for '$label': $url");
-
-          // ✅ CRITICAL FIX: Send BOTH `url` AND `document_url`
-          documentEntries.add({
-            "document_type": safeDocType,
-            "document_name": label,
-            "url": url,                       // ✅ Legacy field
-            "document_url": url,              // ✅ New primary field
-            "public_id": publicId ?? '',
-            "source": "service_application",
-            "temp_session_id": tempSessionId,
-            "uploaded_at": DateTime.now().toIso8601String(),
-          });
-        } catch (e) {
-          failedDocs.add("$label: $e");
-          debugPrint("❌ Upload failed for '$label': $e");
-        } finally {
-          _safeSetState(() => _uploadingDoc[label] = false);
         }
-      }
-
-      debugPrint("=" * 70);
-      debugPrint("📊 UPLOAD SUMMARY");
-      debugPrint("   Success: ${documentEntries.length}");
-      debugPrint("   Failed:  ${failedDocs.length}");
-      if (failedDocs.isNotEmpty) {
-        debugPrint("   Failed docs:");
-        for (final f in failedDocs) {
-          debugPrint("     - $f");
-        }
-      }
-      debugPrint("=" * 70);
-
-      // ============================================================
-      // ✅ STEP 2: Create the application with documents inline
-      // ============================================================
-      debugPrint("📤 Calling SchemeService.applyForScheme...");
-
-      final result = await SchemeService.applyForScheme(
-        schemeId: schemeId,
-        applicantDetails: applicantDetails,
-        applicantAddress: applicantAddress,
-        bankDetails: bankDetails,
-        remarks: _remarksCtrl.text.trim(),
-        documents: documentEntries, // ✅ NEW — sends documents inline
-      );
-
-      debugPrint("📥 applyForScheme response:");
-      debugPrint("   $result");
-
-      if (_isDisposed || !mounted) return;
-
-      if (result['success'] != true) {
-        debugPrint("❌ Application creation failed: ${result['message']}");
-        showMessage(
-          context,
-          result['message'] ?? 'आवेदन सबमिट नहीं हो सका',
-          isError: true,
+      } else {
+        throw Exception(
+          response.data['message'] ?? 'Application submission failed',
         );
-        return;
       }
-
-      final String applicationId =
-          result['application_id']?.toString() ?? '';
-
-      if (applicationId.isEmpty) {
-        debugPrint("⚠️ Application ID missing from response");
-        showMessage(
-          context,
-          "Application created but ID missing. Please contact support.",
-          isError: true,
-        );
-        return;
-      }
-
-      debugPrint("✅ Application created: $applicationId");
-
-      // ============================================================
-      // ✅ STEP 3: Show success dialog
-      // ============================================================
-      _showSuccessDialog(
-        applicationId,
-        partial: failedDocs.isNotEmpty,
-        failedDocs: failedDocs,
-      );
     } catch (e) {
-      debugPrint("❌ Submission error: $e");
-      if (_isDisposed || !mounted) return;
-      showMessage(context, 'आवेदन विफल: ${e.toString()}', isError: true);
+      debugPrint("❌ Submit failed: $e");
+      if (mounted) {
+        showMessage(
+          context,
+          "Failed to submit: ${e.toString().replaceAll('Exception:', '')}",
+          isError: true,
+        );
+      }
     } finally {
-      _safeSetState(() => _isSubmitting = false);
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
   // ============================================================
-  // ✅ SUCCESS DIALOG
+  // BUILD
+  // ✅ REMOVED: Back button from AppBar
   // ============================================================
-  void _showSuccessDialog(
-    String applicationId, {
-    bool partial = false,
-    List<String> failedDocs = const [],
-  }) {
-    if (_isDisposed || !mounted) return;
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoadingProfile) {
+      return _buildLoadingScreen();
+    }
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        // ✅ REMOVED: Back button (automaticallyImplyLeading = false)
+        automaticallyImplyLeading: false,
+        title: Text(
+          widget.scheme.schemeName,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+        backgroundColor: const Color(0xFF6C63FF),
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          labelStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.normal,
+          ),
+          isScrollable: true,
+          tabs: List.generate(_tabLabels.length, (index) {
+            return Tab(
+              icon: Icon(_tabIcons[index], size: 18),
+              text: _tabLabels[index],
+              height: 60,
+            );
+          }),
+        ),
+      ),
+      body: Column(
+        children: [
+          // ✅ Profile incomplete warning (bank fields filtered out)
+          if (!_profileComplete && _missingFields.isNotEmpty)
+            _buildProfileWarning(),
+
+          // ✅ Tab content
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              physics: const NeverScrollableScrollPhysics(),
+              children: [
+                _buildPersonalDetailsTab(),
+                _buildAddressDetailsTab(),
+                _buildDocumentsTab(),
+              ],
+            ),
+          ),
+
+          // ✅ Bottom bar with submit button
+          _buildBottomBar(),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // LOADING SCREEN
+  // ============================================================
+  Widget _buildLoadingScreen() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: partial
-                      ? [Colors.orange.shade400, Colors.deepOrange.shade400]
-                      : [const Color(0xFF10B981), const Color(0xFF059669)],
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
                 ),
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: (partial ? Colors.orange : Colors.green)
-                        .withOpacity(0.4),
+                    color: const Color(0xFF6C63FF).withOpacity(0.3),
                     blurRadius: 20,
                     spreadRadius: 5,
                   ),
                 ],
               ),
-              child: Icon(
-                partial ? Icons.warning_amber : Icons.check_circle,
-                size: 50,
+              child: const Icon(
+                Icons.description,
                 color: Colors.white,
+                size: 40,
               ),
             ),
-            const SizedBox(height: 20),
-            Text(
-              partial ? 'आवेदन सबमिट (Partial)' : 'आवेदन सफल!',
-              style: const TextStyle(
-                fontSize: 20,
+            const SizedBox(height: 30),
+            const Text(
+              "Loading your profile...",
+              style: TextStyle(
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF111827),
+                color: Colors.black87,
               ),
-              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 6),
-            Text(
-              partial
-                  ? 'Application created, but some documents could not be uploaded.'
-                  : 'Application submitted successfully!',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF6B7280),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (partial && failedDocs.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.orange.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Failed documents:',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.orange,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    ...failedDocs.map((f) => Text(
-                          '• $f',
-                          style: const TextStyle(
-                            fontSize: 10,
-                            color: Colors.orange,
-                          ),
-                        )),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            if (applicationId.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      'आवेदन संख्या',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    SelectableText(
-                      applicationId,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF6C63FF),
-                        fontFamily: 'monospace',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  if (Navigator.of(dialogContext).canPop()) {
-                    Navigator.of(dialogContext).pop();
-                  }
-
-                  if (!_isDisposed && mounted) {
-                    _resetFormAfterSuccess();
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C63FF),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text(
-                  'ठीक है / OK',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6C63FF)),
             ),
           ],
         ),
@@ -913,590 +753,600 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
   }
 
   // ============================================================
-  // ✅ RESET FORM AFTER SUCCESS
+  // PROFILE WARNING BANNER
+  // ✅ Bank fields already filtered — only shows non-bank fields
   // ============================================================
-  void _resetFormAfterSuccess() {
-    if (_isDisposed || !mounted) return;
-
-    _safeSetState(() {
-      for (final key in _pickedDocs.keys.toList()) {
-        final existing = _pickedDocs[key];
-        _pickedDocs[key] = _PickedDoc(
-          label: key,
-          required: existing?.required ?? true,
-        );
-      }
-
-      _remarksCtrl.clear();
-      _incomeCtrl.clear();
-      _currentStep = 0;
-    });
-
-    if (!_isDisposed && mounted) {
-      showMessage(
-        context,
-        '✅ आवेदन सहेजा गया। "मेरे आवेदन" में देखें।',
-      );
-    }
-  }
-
-  // ==================== BUILD ====================
-  @override
-  Widget build(BuildContext context) {
-    final schemeNameHindi = widget.scheme['scheme_name_hindi']?.toString() ??
-        widget.scheme['scheme_name']?.toString() ??
-        'योजना';
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFF5F7FA), Color(0xFFE8ECF1)],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(schemeNameHindi),
-              _buildStepIndicator(),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: _buildCurrentStep(),
-                ),
-              ),
-              _buildBottomBar(),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(String schemeName) {
+  Widget _buildProfileWarning() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-        ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6C63FF).withOpacity(0.3),
-            blurRadius: 20,
-            spreadRadius: 5,
-          ),
-        ],
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade300),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.25),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.edit_document,
-              color: Colors.white,
-              size: 24,
-            ),
+          Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.orange.shade700,
+            size: 24,
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'योजना आवेदन',
+                Text(
+                  "Profile Incomplete",
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: Colors.orange.shade900,
                   ),
                 ),
+                const SizedBox(height: 4),
                 Text(
-                  schemeName,
-                  style: const TextStyle(
+                  "Please complete these fields in your profile:\n${_missingFields.take(5).map((f) => '• ${_formatFieldName(f)}').join('\n')}",
+                  style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white70,
+                    color: Colors.orange.shade800,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () {
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              }
-            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStepIndicator() {
-    const steps = ['व्यक्तिगत', 'पता', 'बैंक', 'दस्तावेज़'];
-    const icons = [
-      Icons.person,
-      Icons.location_on,
-      Icons.account_balance,
-      Icons.upload_file,
-    ];
+  String _formatFieldName(String field) {
+    return field
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isNotEmpty
+            ? '${w[0].toUpperCase()}${w.substring(1)}'
+            : '')
+        .join(' ');
+  }
+
+  // ============================================================
+  // TAB 1: PERSONAL DETAILS
+  // ✅ AADHAAR NUMBER FIELD REMOVED
+  // ✅ All fields are READ-ONLY (auto-filled from profile)
+  // ============================================================
+  Widget _buildPersonalDetailsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildInfoBanner(
+            "Your personal details are automatically filled from your profile. "
+            "To make changes, please update your profile.",
+          ),
+          const SizedBox(height: 16),
+          _buildSectionCard(
+            title: "Personal Information",
+            icon: Icons.person,
+            children: [
+              _buildReadOnlyField(
+                label: "Full Name",
+                value: fullNameCtrl.text,
+                icon: Icons.person,
+              ),
+              _buildReadOnlyField(
+                label: "Father's Name",
+                value: fatherNameCtrl.text,
+                icon: Icons.family_restroom,
+              ),
+              _buildReadOnlyField(
+                label: "Mother's Name",
+                value: motherNameCtrl.text,
+                icon: Icons.family_restroom,
+              ),
+              _buildReadOnlyField(
+                label: "Date of Birth",
+                value: dobCtrl.text,
+                icon: Icons.calendar_today,
+              ),
+              _buildReadOnlyField(
+                label: "Gender",
+                value: genderCtrl.text,
+                icon: Icons.wc,
+              ),
+              _buildReadOnlyField(
+                label: "Category",
+                value: categoryCtrl.text,
+                icon: Icons.category,
+              ),
+              _buildReadOnlyField(
+                label: "Marital Status",
+                value: maritalStatusCtrl.text,
+                icon: Icons.favorite,
+              ),
+              // ❌ AADHAAR NUMBER FIELD REMOVED
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildSectionCard(
+            title: "Contact Information",
+            icon: Icons.contact_phone,
+            children: [
+              _buildReadOnlyField(
+                label: "Mobile Number",
+                value: mobileCtrl.text,
+                icon: Icons.phone,
+              ),
+              _buildReadOnlyField(
+                label: "Email Address",
+                value: emailCtrl.text,
+                icon: Icons.email,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildSectionCard(
+            title: "Additional Information",
+            icon: Icons.info_outline,
+            children: [
+              _buildReadOnlyField(
+                label: "Annual Income",
+                value: annualIncomeCtrl.text == '0' ||
+                        annualIncomeCtrl.text.isEmpty
+                    ? 'Not specified'
+                    : '₹${annualIncomeCtrl.text}',
+                icon: Icons.currency_rupee,
+              ),
+              _buildReadOnlyField(
+                label: "Disability Status",
+                value: disabilityStatusCtrl.text,
+                icon: Icons.accessibility,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // TAB 2: ADDRESS DETAILS
+  // ✅ All fields are READ-ONLY (auto-filled from profile)
+  // ============================================================
+  Widget _buildAddressDetailsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildInfoBanner(
+            "Your address details are automatically filled from your profile. "
+            "To make changes, please update your profile.",
+          ),
+          const SizedBox(height: 16),
+          _buildSectionCard(
+            title: "Current Address",
+            icon: Icons.location_on,
+            children: [
+              _buildReadOnlyField(
+                label: "Address Line 1",
+                value: addressLine1Ctrl.text,
+                icon: Icons.home,
+              ),
+              _buildReadOnlyField(
+                label: "Address Line 2",
+                value: addressLine2Ctrl.text,
+                icon: Icons.home_outlined,
+              ),
+              _buildReadOnlyField(
+                label: "Village / City",
+                value: villageCityCtrl.text,
+                icon: Icons.location_city,
+              ),
+              _buildReadOnlyField(
+                label: "District",
+                value: districtCtrl.text,
+                icon: Icons.map,
+              ),
+              _buildReadOnlyField(
+                label: "State",
+                value: stateCtrl.text,
+                icon: Icons.public,
+              ),
+              _buildReadOnlyField(
+                label: "Pincode",
+                value: pincodeCtrl.text,
+                icon: Icons.pin_drop,
+              ),
+              _buildReadOnlyField(
+                label: "Country",
+                value: countryCtrl.text,
+                icon: Icons.flag,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // ✅ Bank details section REMOVED
+          // Bank details are automatically fetched from profile on backend
+          _buildInfoBanner(
+            "Bank details are automatically fetched from your profile. "
+            "If you need to update them, please go to your profile settings.",
+            icon: Icons.account_balance,
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // TAB 3: DOCUMENTS
+  // ✅ User uploads required documents here
+  // ============================================================
+  Widget _buildDocumentsTab() {
+    final requiredDocs = widget.scheme.requiredDocuments;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildInfoBanner(
+            "Please upload all required documents. Documents marked with * are mandatory.",
+          ),
+          const SizedBox(height: 16),
+          _buildSectionCard(
+            title: "Required Documents",
+            icon: Icons.upload_file,
+            children: [
+              if (requiredDocs.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.check_circle,
+                          size: 48,
+                          color: Colors.green.shade300,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          "No documents required for this scheme",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ...requiredDocs.map((doc) => _buildDocumentUploadTile(
+                      docType: doc.name,
+                      docLabel: doc.name,
+                      docLabelHindi: doc.nameHindi,
+                      isRequired: doc.required,
+                    )),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // ✅ Optional documents section
+          if (requiredDocs.any((d) => !d.required))
+            _buildSectionCard(
+              title: "Optional Documents",
+              icon: Icons.attach_file,
+              children: requiredDocs
+                  .where((d) => !d.required)
+                  .map((doc) => _buildDocumentUploadTile(
+                        docType: doc.name,
+                        docLabel: doc.name,
+                        docLabelHindi: doc.nameHindi,
+                        isRequired: false,
+                      ))
+                  .toList(),
+            ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // DOCUMENT UPLOAD TILE
+  // ============================================================
+  Widget _buildDocumentUploadTile({
+    required String docType,
+    required String docLabel,
+    required String docLabelHindi,
+    required bool isRequired,
+  }) {
+    final isUploaded = _uploadedDocuments.containsKey(docType);
+    final isUploading = _isUploadingDoc && _uploadingDocType == docType;
+    final docData = _uploadedDocuments[docType];
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isUploaded ? Colors.green.shade50 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isUploaded
+              ? Colors.green.shade300
+              : (isRequired ? Colors.red.shade200 : Colors.grey.shade300),
+          width: isUploaded ? 2 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isUploaded
+                    ? Icons.check_circle
+                    : (isRequired ? Icons.error_outline : Icons.upload_file),
+                color: isUploaded
+                    ? Colors.green
+                    : (isRequired ? Colors.red : Colors.grey),
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            docLabel,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: isUploaded
+                                  ? Colors.green.shade800
+                                  : Colors.black87,
+                            ),
+                          ),
+                        ),
+                        if (isRequired)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              "Required",
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red.shade700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (docLabelHindi.isNotEmpty)
+                      Text(
+                        docLabelHindi,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (isUploaded && docData != null)
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.insert_drive_file,
+                    color: Colors.green.shade600,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          docData['filename'] ?? 'Document uploaded',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          "${((docData['size_bytes'] ?? 0) / 1024).toStringAsFixed(1)} KB",
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _removeDocument(docType),
+                    icon: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.red,
+                      size: 20,
+                    ),
+                    tooltip: "Remove",
+                  ),
+                ],
+              ),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: isUploading
+                    ? null
+                    : () => _pickAndUploadDocument(docType, docLabel),
+                icon: isUploading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.upload, size: 18),
+                label: Text(
+                  isUploading ? "Uploading..." : "Upload Document",
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6C63FF),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // REUSABLE COMPONENTS
+  // ============================================================
+  Widget _buildInfoBanner(String message, {IconData? icon}) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon ?? Icons.info_outline,
+            color: Colors.blue.shade700,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.blue.shade800,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
+            color: Colors.grey.withOpacity(0.1),
             blurRadius: 10,
             spreadRadius: 2,
           ),
         ],
       ),
-      child: Row(
-        children: List.generate(4, (i) {
-          final isActive = i == _currentStep;
-          final isDone = i < _currentStep;
-          return Expanded(
-            child: Row(
-              children: [
-                Column(
-                  children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        gradient: isActive || isDone
-                            ? const LinearGradient(
-                                colors: [
-                                  Color(0xFF6C63FF),
-                                  Color(0xFFFF6588)
-                                ],
-                              )
-                            : null,
-                        color: isActive || isDone
-                            ? null
-                            : Colors.grey.shade200,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: isDone
-                            ? const Icon(Icons.check,
-                                color: Colors.white, size: 18)
-                            : Icon(
-                                icons[i],
-                                color: isActive
-                                    ? Colors.white
-                                    : Colors.grey.shade600,
-                                size: 16,
-                              ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      steps[i],
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: isActive
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        color: isActive
-                            ? const Color(0xFF6C63FF)
-                            : Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-                if (i < 3)
-                  Expanded(
-                    child: Container(
-                      height: 2,
-                      margin:
-                          const EdgeInsets.only(bottom: 18, left: 4, right: 4),
-                      color: isDone
-                          ? const Color(0xFF6C63FF)
-                          : Colors.grey.shade300,
-                    ),
-                  ),
-              ],
-            ),
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget _buildCurrentStep() {
-    switch (_currentStep) {
-      case 0:
-        return _buildPersonalStep();
-      case 1:
-        return _buildAddressStep();
-      case 2:
-        return _buildBankStep();
-      case 3:
-        return _buildDocumentsStep();
-      default:
-        return const SizedBox();
-    }
-  }
-
-  // ============================================================
-  // STEP 1 — PERSONAL
-  // ============================================================
-  Widget _buildPersonalStep() {
-    return Form(
-      key: _formKeyPersonal,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionCard(
-            title: 'व्यक्तिगत जानकारी',
-            subtitle: 'Personal Information',
-            icon: Icons.person,
+          Row(
             children: [
-              _buildTextField(_fullNameCtrl, 'पूरा नाम *', 'Full Name',
-                  icon: Icons.person_outline, required: true),
-              _buildTextField(_fatherNameCtrl, 'पिता का नाम', "Father's Name",
-                  icon: Icons.person_outline),
-              _buildTextField(_motherNameCtrl, 'माता का नाम', "Mother's Name",
-                  icon: Icons.person_outline),
-              _buildDateField(_dobCtrl, 'जन्म तिथि *', 'Date of Birth'),
-              _buildDropdown(
-                label: 'लिंग *',
-                labelEn: 'Gender',
-                value: _gender,
-                items: const [
-                  {'value': 'male', 'label': 'पुरुष / Male'},
-                  {'value': 'female', 'label': 'महिला / Female'},
-                  {'value': 'transgender', 'label': 'ट्रांसजेंडर / Transgender'},
-                ],
-                onChanged: (v) => _safeSetState(() => _gender = v!),
-              ),
-              _buildDropdown(
-                label: 'श्रेणी *',
-                labelEn: 'Category',
-                value: _category,
-                items: const [
-                  {'value': 'General', 'label': 'सामान्य / General'},
-                  {'value': 'OBC', 'label': 'अन्य पिछड़ा वर्ग / OBC'},
-                  {'value': 'SC', 'label': 'अनुसूचित जाति / SC'},
-                  {'value': 'ST', 'label': 'अनुसूचित जनजाति / ST'},
-                  {'value': 'EWS', 'label': 'EWS'},
-                ],
-                onChanged: (v) => _safeSetState(() => _category = v!),
-              ),
-              _buildDropdown(
-                label: 'वैवाहिक स्थिति',
-                labelEn: 'Marital Status',
-                value: _maritalStatus,
-                items: const [
-                  {'value': 'Unmarried', 'label': 'अविवाहित / Unmarried'},
-                  {'value': 'Married', 'label': 'विवाहित / Married'},
-                  {'value': 'Widowed', 'label': 'विधवा/विधुर / Widowed'},
-                  {'value': 'Divorced', 'label': 'तलाकशुदा / Divorced'},
-                ],
-                onChanged: (v) => _safeSetState(() => _maritalStatus = v!),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _buildSectionCard(
-            title: 'संपर्क जानकारी',
-            subtitle: 'Contact Information',
-            icon: Icons.contact_phone,
-            children: [
-              _buildTextField(_aadhaarCtrl, 'आधार नंबर', 'Aadhaar Number',
-                  icon: Icons.badge,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(12),
-                  ]),
-              _buildTextField(_mobileCtrl, 'मोबाइल नंबर *', 'Mobile Number',
-                  icon: Icons.phone,
-                  required: true,
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(10),
-                  ]),
-              _buildTextField(_emailCtrl, 'ईमेल *', 'Email',
-                  icon: Icons.email,
-                  required: true,
-                  keyboardType: TextInputType.emailAddress),
-              _buildTextField(_incomeCtrl, 'वार्षिक आय (₹)',
-                  'Annual Income (₹)',
-                  icon: Icons.currency_rupee,
-                  keyboardType: TextInputType.number),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _buildSectionCard(
-            title: 'अतिरिक्त जानकारी',
-            subtitle: 'Additional Information',
-            icon: Icons.info,
-            children: [
-              _buildSwitchTile(
-                title: 'BPL स्थिति',
-                subtitle: 'Are you Below Poverty Line?',
-                value: _bplStatus,
-                onChanged: (v) => _safeSetState(() => _bplStatus = v),
-              ),
-              _buildSwitchTile(
-                title: 'विकलांगता स्थिति',
-                subtitle: 'Do you have any disability?',
-                value: _disabilityStatus,
-                onChanged: (v) => _safeSetState(() => _disabilityStatus = v),
-              ),
-              if (_disabilityStatus) ...[
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'विकलांगता प्रतिशत: ${_disabilityPercentage.toInt()}%',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151),
-                        ),
-                      ),
-                      Slider(
-                        value: _disabilityPercentage,
-                        min: 0,
-                        max: 100,
-                        divisions: 20,
-                        activeColor: const Color(0xFF6C63FF),
-                        onChanged: (v) => _safeSetState(
-                            () => _disabilityPercentage = v),
-                      ),
-                    ],
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
                   ),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // STEP 2 — ADDRESS
-  // ============================================================
-  Widget _buildAddressStep() {
-    return Form(
-      key: _formKeyAddress,
-      child: _buildSectionCard(
-        title: 'पता विवरण',
-        subtitle: 'Address Details',
-        icon: Icons.location_on,
-        children: [
-          _buildTextField(_address1Ctrl, 'पता पंक्ति 1 *', 'Address Line 1',
-              icon: Icons.home, required: true),
-          _buildTextField(_address2Ctrl, 'पता पंक्ति 2', 'Address Line 2',
-              icon: Icons.home_outlined),
-          _buildTextField(_villageCtrl, 'गाँव/शहर *', 'Village / City',
-              icon: Icons.location_city, required: true),
-          _buildTextField(_districtCtrl, 'जिला *', 'District',
-              icon: Icons.map, required: true),
-          _buildTextField(_stateCtrl, 'राज्य *', 'State',
-              icon: Icons.location_on, required: true),
-          _buildTextField(_pincodeCtrl, 'पिनकोड *', 'Pincode',
-              icon: Icons.pin_drop,
-              required: true,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(6),
-              ]),
-        ],
-      ),
-    );
-  }
-
-  // ============================================================
-  // STEP 3 — BANK
-  // ============================================================
-  Widget _buildBankStep() {
-    return Form(
-      key: _formKeyBank,
-      child: Column(
-        children: [
-          _buildSectionCard(
-            title: 'बैंक विवरण',
-            subtitle: 'Bank Details',
-            icon: Icons.account_balance,
-            children: [
-              _buildTextField(
-                  _accountHolderCtrl, 'खाताधारक का नाम *', 'Account Holder Name',
-                  icon: Icons.person, required: true),
-              _buildTextField(_bankNameCtrl, 'बैंक का नाम *', 'Bank Name',
-                  icon: Icons.account_balance, required: true),
-              _buildTextField(
-                  _accountNumberCtrl, 'खाता संख्या *', 'Account Number',
-                  icon: Icons.numbers,
-                  required: true,
-                  keyboardType: TextInputType.number),
-              _buildTextField(_ifscCtrl, 'IFSC कोड *', 'IFSC Code',
-                  icon: Icons.code,
-                  required: true,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
-                    LengthLimitingTextInputFormatter(11),
-                  ]),
-              _buildTextField(_branchCtrl, 'शाखा का नाम', 'Branch Name',
-                  icon: Icons.location_on),
-              _buildDropdown(
-                label: 'खाता प्रकार',
-                labelEn: 'Account Type',
-                value: _accountType,
-                items: const [
-                  {'value': 'savings', 'label': 'बचत / Savings'},
-                  {'value': 'current', 'label': 'चालू / Current'},
-                ],
-                onChanged: (v) => _safeSetState(() => _accountType = v!),
+                child: Icon(icon, color: Colors.white, size: 18),
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _buildSectionCard(
-            title: 'अतिरिक्त टिप्पणी',
-            subtitle: 'Additional Remarks (Optional)',
-            icon: Icons.comment,
-            children: [
-              TextFormField(
-                controller: _remarksCtrl,
-                maxLines: 3,
+              const SizedBox(width: 12),
+              Text(
+                title,
                 style: const TextStyle(
-                  fontSize: 13.5,
-                  color: Color(0xFF111827),
-                ),
-                decoration: InputDecoration(
-                  hintText: 'कोई अतिरिक्त जानकारी...',
-                  hintStyle: TextStyle(color: Colors.grey.shade500),
-                  filled: true,
-                  fillColor: Colors.grey.shade50,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.all(14),
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          ...children,
         ],
       ),
     );
   }
 
-  // ============================================================
-  // STEP 4 — DOCUMENTS
-  // ============================================================
-  Widget _buildDocumentsStep() {
-    if (_pickedDocs.isEmpty) {
-      return _buildSectionCard(
-        title: 'दस्तावेज़ अपलोड',
-        subtitle: 'Upload Documents',
-        icon: Icons.upload_file,
-        children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Text(
-              'इस योजना के लिए कोई दस्तावेज़ आवश्यक नहीं है।\nThis scheme does not require any documents.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return _buildSectionCard(
-      title: 'दस्तावेज़ अपलोड',
-      subtitle: 'Upload Documents (PDF / JPG / PNG · Max 10 MB)',
-      icon: Icons.upload_file,
-      children: [
-        const SizedBox(height: 4),
-        ..._pickedDocs.values.map(_buildDocumentSlot),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.blue.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.blue.shade200),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.info_outline, size: 16, color: Colors.blue),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'सभी आवश्यक दस्तावेज़ अपलोड करें। इन्हें केवल इसी योजना के आवेदन में दिखाया जाएगा।',
-                  style: TextStyle(fontSize: 11.5, color: Colors.blue),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDocumentSlot(_PickedDoc doc) {
-    final hasFile = doc.bytes != null && doc.bytes!.isNotEmpty;
-    final isUploading = _uploadingDoc[doc.label] == true;
+  Widget _buildReadOnlyField({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    final displayValue = value.isEmpty ? 'Not specified' : value;
+    final isMissing = value.isEmpty;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: hasFile ? Colors.green.shade50 : Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
+        color: isMissing ? Colors.orange.shade50 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: hasFile ? Colors.green.shade300 : Colors.grey.shade300,
-          width: hasFile ? 1.5 : 1,
+          color: isMissing ? Colors.orange.shade200 : Colors.grey.shade200,
         ),
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: hasFile ? Colors.green.shade100 : Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              hasFile ? Icons.check_circle : Icons.upload_file,
-              color: hasFile
-                  ? Colors.green.shade700
-                  : Colors.grey.shade600,
-              size: 22,
-            ),
+          Icon(
+            icon,
+            size: 20,
+            color: isMissing ? Colors.orange : Colors.grey.shade600,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1504,76 +1354,31 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  doc.label,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF111827),
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                if (hasFile) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    doc.fileName ?? '',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade700,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 2),
+                Text(
+                  displayValue,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color:
+                        isMissing ? Colors.orange.shade800 : Colors.black87,
                   ),
-                  Text(
-                    "${(doc.bytes!.length / 1024).toStringAsFixed(1)} KB",
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.grey.shade600,
-                    ),
-                  ),
-                ] else if (doc.required) ...[
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Required',
-                    style: TextStyle(fontSize: 10.5, color: Colors.red),
-                  ),
-                ] else ...[
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Optional',
-                    style: TextStyle(fontSize: 10.5, color: Colors.grey),
-                  ),
-                ],
+                ),
               ],
             ),
           ),
-          if (isUploading)
-            const SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else if (hasFile)
-            IconButton(
-              icon: const Icon(Icons.close, size: 20, color: Colors.red),
-              onPressed: () => _removeDocument(doc.label),
-              tooltip: 'Remove',
-            )
-          else
-            ElevatedButton.icon(
-              onPressed: () => _pickDocument(doc.label),
-              icon: const Icon(Icons.upload, size: 16),
-              label: const Text(
-                "Upload",
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6C63FF),
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+          if (isMissing)
+            Icon(
+              Icons.warning_amber,
+              size: 18,
+              color: Colors.orange.shade400,
             ),
         ],
       ),
@@ -1584,116 +1389,88 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
   // BOTTOM BAR
   // ============================================================
   Widget _buildBottomBar() {
-    final isLastStep = _currentStep == 3;
-    final canSubmit = !_isSubmitting && _allRequiredDocsPicked();
-
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.15),
-            blurRadius: 15,
-            spreadRadius: 3,
+            blurRadius: 10,
+            spreadRadius: 2,
             offset: const Offset(0, -2),
           ),
         ],
       ),
       child: SafeArea(
-        top: false,
         child: Row(
           children: [
-            if (_currentStep > 0)
+            // Back button (shown on tabs 2 and 3)
+            if (_currentTabIndex > 0)
               Expanded(
-                child: SizedBox(
-                  height: 50,
-                  child: OutlinedButton.icon(
-                    onPressed: _isSubmitting ? null : _goBack,
-                    icon: const Icon(Icons.arrow_back, size: 18),
-                    label: const Text(
-                      'पीछे',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF6C63FF),
-                      side: const BorderSide(
-                          color: Color(0xFF6C63FF), width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    _tabController.animateTo(_currentTabIndex - 1);
+                  },
+                  icon: const Icon(Icons.arrow_back, size: 18),
+                  label: const Text("Back"),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF6C63FF),
+                    side: const BorderSide(color: Color(0xFF6C63FF)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
                   ),
                 ),
-              )
-            else
-              const Expanded(child: SizedBox()),
-            const SizedBox(width: 12),
+              ),
+            if (_currentTabIndex > 0) const SizedBox(width: 12),
+
+            // Next / Submit button
             Expanded(
-              flex: 2,
-              child: SizedBox(
-                height: 50,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isLastStep
-                          ? (canSubmit
-                              ? [
-                                  const Color(0xFF10B981),
-                                  const Color(0xFF059669)
-                                ]
-                              : [Colors.grey.shade400, Colors.grey.shade500])
-                          : [const Color(0xFF6C63FF), const Color(0xFFFF6588)],
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (isLastStep
-                                ? (canSubmit ? Colors.green : Colors.grey)
-                                : const Color(0xFF6C63FF))
-                            .withOpacity(0.3),
-                        blurRadius: 12,
-                        spreadRadius: 2,
+              flex: _currentTabIndex > 0 ? 1 : 1,
+              child: ElevatedButton.icon(
+                onPressed: _isSubmitting
+                    ? null
+                    : (_currentTabIndex < _tabLabels.length - 1
+                        ? () {
+                            _tabController.animateTo(_currentTabIndex + 1);
+                          }
+                        : _submitApplication),
+                icon: _isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Icon(
+                        _currentTabIndex < _tabLabels.length - 1
+                            ? Icons.arrow_forward
+                            : Icons.check_circle,
+                        size: 18,
                       ),
-                    ],
+                label: Text(
+                  _isSubmitting
+                      ? "Submitting..."
+                      : (_currentTabIndex < _tabLabels.length - 1
+                          ? "Next"
+                          : "Submit Application"),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
                   ),
-                  child: ElevatedButton.icon(
-                    onPressed: _isSubmitting
-                        ? null
-                        : (isLastStep
-                            ? _submitApplication
-                            : _goNext),
-                    icon: _isSubmitting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Icon(
-                            isLastStep ? Icons.send : Icons.arrow_forward,
-                            size: 18,
-                          ),
-                    label: Text(
-                      _isSubmitting
-                          ? 'जमा हो रहा है...'
-                          : (isLastStep ? 'आवेदन जमा करें' : 'आगे बढ़ें'),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _currentTabIndex < _tabLabels.length - 1
+                      ? const Color(0xFF6C63FF)
+                      : Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
@@ -1703,323 +1480,4 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
       ),
     );
   }
-
-  // ============================================================
-  // REUSABLE WIDGETS
-  // ============================================================
-  Widget _buildSectionCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required List<Widget> children,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            blurRadius: 12,
-            spreadRadius: 2,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF6C63FF).withOpacity(0.12),
-                  const Color(0xFFFF6588).withOpacity(0.04),
-                ],
-              ),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(18),
-                topRight: Radius.circular(18),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, size: 18, color: Colors.white),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          fontSize: 10.5,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: children,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTextField(
-    TextEditingController ctrl,
-    String labelHindi,
-    String labelEn, {
-    IconData? icon,
-    bool required = false,
-    TextInputType? keyboardType,
-    List<TextInputFormatter>? inputFormatters,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: ctrl,
-        keyboardType: keyboardType,
-        inputFormatters: inputFormatters,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF111827),
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          labelText: required ? '$labelHindi' : labelHindi,
-          labelStyle: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF6B7280),
-          ),
-          hintText: labelEn,
-          hintStyle: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade400,
-          ),
-          prefixIcon:
-              icon != null ? Icon(icon, size: 20, color: const Color(0xFF6C63FF)) : null,
-          filled: true,
-          fillColor: Colors.grey.shade50,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade200),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(
-              color: Color(0xFF6C63FF),
-              width: 1.5,
-            ),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 14,
-          ),
-        ),
-        validator: required
-            ? (v) => (v == null || v.trim().isEmpty)
-                ? 'यह फ़ील्ड आवश्यक है'
-                : null
-            : null,
-      ),
-    );
-  }
-
-  Widget _buildDateField(
-    TextEditingController ctrl,
-    String labelHindi,
-    String labelEn,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextFormField(
-        controller: ctrl,
-        readOnly: true,
-        onTap: _pickDob,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF111827),
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          labelText: labelHindi,
-          labelStyle: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF6B7280),
-          ),
-          hintText: labelEn,
-          hintStyle: TextStyle(
-            fontSize: 12,
-            color: Colors.grey.shade400,
-          ),
-          prefixIcon: const Icon(
-            Icons.calendar_today,
-            size: 20,
-            color: Color(0xFF6C63FF),
-          ),
-          suffixIcon: const Icon(
-            Icons.arrow_drop_down,
-            color: Color(0xFF6C63FF),
-          ),
-          filled: true,
-          fillColor: Colors.grey.shade50,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade200),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 14,
-          ),
-        ),
-        validator: (v) =>
-            (v == null || v.trim().isEmpty) ? 'तिथि आवश्यक है' : null,
-      ),
-    );
-  }
-
-  Widget _buildDropdown({
-    required String label,
-    required String labelEn,
-    required String value,
-    required List<Map<String, String>> items,
-    required Function(String?) onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: DropdownButtonFormField<String>(
-        initialValue: value,
-        isExpanded: true,
-        style: const TextStyle(
-          fontSize: 14,
-          color: Color(0xFF111827),
-          fontWeight: FontWeight.w500,
-        ),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(
-            fontSize: 13,
-            color: Color(0xFF6B7280),
-          ),
-          hintText: labelEn,
-          filled: true,
-          fillColor: Colors.grey.shade50,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade200),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 14,
-          ),
-        ),
-        items: items
-            .map((e) => DropdownMenuItem<String>(
-                  value: e['value'],
-                  child: Text(
-                    e['label'] ?? '',
-                    style: const TextStyle(fontSize: 13.5),
-                  ),
-                ))
-            .toList(),
-        onChanged: onChanged,
-      ),
-    );
-  }
-
-  Widget _buildSwitchTile({
-    required String title,
-    required String subtitle,
-    required bool value,
-    required Function(bool) onChanged,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: SwitchListTile(
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF111827),
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(
-            fontSize: 11.5,
-            color: Color(0xFF6B7280),
-          ),
-        ),
-        value: value,
-        onChanged: onChanged,
-        activeThumbColor: const Color(0xFF6C63FF),
-        activeTrackColor: const Color(0xFF6C63FF).withOpacity(0.4),
-        contentPadding: EdgeInsets.zero,
-      ),
-    );
-  }
-}
-
-// ============================================================
-// LOCAL MODEL — a picked document for one slot
-// ============================================================
-class _PickedDoc {
-  final String label;
-  final bool required;
-  final String? fileName;
-  final Uint8List? bytes;
-
-  _PickedDoc({
-    required this.label,
-    this.required = true,
-    this.fileName,
-    this.bytes,
-  });
 }

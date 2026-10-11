@@ -432,6 +432,164 @@ async def update_application_status(
 
 
 # ============================================================
+# ✅ NEW: GET PROFILE DATA FOR SCHEME APPLICATION
+# ============================================================
+@router.get("/profile-data")
+async def get_profile_data_for_scheme(
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """
+    Fetch user's complete profile data formatted for scheme application.
+
+    Returns:
+    - applicant_details: Personal info (name, father_name, dob, etc.)
+    - applicant_address: Full address
+    - bank_details: Bank account info
+    - profile_complete: Whether profile has all required data
+    - missing_fields: List of fields that need to be filled in profile
+    """
+    user_email = current_user.get("email")
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+
+    # Fetch profile
+    profile = await db.profile.find_one({"email": user_email})
+    if not profile:
+        raise HTTPException(
+            status_code=404,
+            detail="Profile not found. Please complete your profile first."
+        )
+
+    # Fetch auth for email/mobile
+    auth_user = await db.auth.find_one({"email": user_email})
+
+    # ============================================================
+    # BUILD APPLICANT DETAILS
+    # ============================================================
+    disability = profile.get("disability", {}) or {}
+    gov_ids = profile.get("government_ids", {}) or {}
+
+    applicant_details = {
+        "full_name": (
+            profile.get("full_name") or
+            (auth_user.get("name") if auth_user else "") or
+            ""
+        ),
+        "father_name": profile.get("father_name", ""),
+        "mother_name": profile.get("mother_name", ""),
+        "date_of_birth": profile.get("dob", ""),
+        "gender": profile.get("gender", "male"),
+        "category": profile.get("category", "General"),
+        "marital_status": profile.get("marital_status", "Unmarried"),
+        "aadhaar_number": gov_ids.get("aadhar_number", ""),
+        "mobile": (
+            (auth_user.get("mobile") if auth_user else "") or
+            profile.get("phone", "") or
+            ""
+        ),
+        "email": user_email,
+        "annual_income": profile.get("family_annual_income", 0) or 0,
+        "bpl_status": profile.get("bpl_status", False),
+        "disability_status": disability.get("is_disabled", False),
+        "disability_percentage": disability.get("disability_percentage", 0.0),
+        "scheme_name": None,   # Filled when applying
+        "scheme_id": None,     # Filled when applying
+        "application_type": "schemes",
+    }
+
+    # ============================================================
+    # BUILD APPLICANT ADDRESS
+    # ============================================================
+    current_address = profile.get("current_address", {}) or {}
+
+    # Handle both flat and nested address formats
+    address_line1 = (
+        current_address.get("house_number") or
+        current_address.get("address_line1") or
+        ""
+    )
+    address_line2 = (
+        current_address.get("landmark") or
+        current_address.get("address_line2") or
+        ""
+    )
+    village_city = (
+        current_address.get("village_name") or
+        current_address.get("city") or
+        current_address.get("village_city") or
+        ""
+    )
+    district = current_address.get("district", "") or ""
+    state = current_address.get("state", "") or ""
+    pincode = (
+        current_address.get("pincode") or
+        current_address.get("zipcode") or
+        ""
+    )
+    country = current_address.get("country", "India") or "India"
+
+    applicant_address = {
+        "address_line1": address_line1,
+        "address_line2": address_line2,
+        "village_city": village_city,
+        "district": district,
+        "state": state,
+        "pincode": pincode,
+        "country": country,
+    }
+
+    # ============================================================
+    # BUILD BANK DETAILS
+    # ============================================================
+    bank_details = profile.get("bank_details", {}) or {}
+
+    bank_info = {
+        "account_holder_name": bank_details.get("account_holder_name", "") or "",
+        "bank_name": bank_details.get("bank_name", "") or "",
+        "account_number": bank_details.get("account_number", "") or "",
+        "ifsc_code": bank_details.get("ifsc_code", "") or "",
+        "branch_name": bank_details.get("branch_name", "") or "",
+        "account_type": bank_details.get("account_type", "savings") or "savings",
+    }
+
+    # ============================================================
+    # CHECK PROFILE COMPLETENESS
+    # ============================================================
+    required_fields = {
+        "full_name": applicant_details["full_name"],
+        "father_name": applicant_details["father_name"],
+        "date_of_birth": applicant_details["date_of_birth"],
+        "mobile": applicant_details["mobile"],
+        "email": applicant_details["email"],
+        "aadhaar_number": applicant_details["aadhaar_number"],
+        "address_line1": applicant_address["address_line1"],
+        "village_city": applicant_address["village_city"],
+        "district": applicant_address["district"],
+        "state": applicant_address["state"],
+        "pincode": applicant_address["pincode"],
+        "bank_name": bank_info["bank_name"],
+        "account_number": bank_info["account_number"],
+        "ifsc_code": bank_info["ifsc_code"],
+    }
+
+    missing_fields = [
+        field for field, value in required_fields.items()
+        if not value or str(value).strip() == ""
+    ]
+
+    profile_complete = len(missing_fields) == 0
+
+    return {
+        "success": True,
+        "profile_complete": profile_complete,
+        "missing_fields": missing_fields,
+        "applicant_details": applicant_details,
+        "applicant_address": applicant_address,
+        "bank_details": bank_info,
+    }
+
+# ============================================================
 # ✅ DEBUG: Print ALL registered paths on import
 # ============================================================
 print("=" * 70)

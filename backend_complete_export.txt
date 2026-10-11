@@ -1,7 +1,7 @@
 ================================================================================
 ROJARGAR NEXT BACKEND - COMPLETE CODE EXPORT (SANITIZED)
 ================================================================================
-Generated: 2026-10-11 18:21:49
+Generated: 2026-10-11 20:38:51
 Source: E:\YOGESH\website\RojgarNext\backend\rojgarnext
 Total Files: 170
   - Python Files: 166
@@ -42638,8 +42638,8 @@ __all__ = ['router', 'SchemeService']
 
 ================================================================================
 [ 132/ 170] 🐍 PYTHON FILE: app\modules\schemes\routes.py
-📏 SIZE: 16,329 bytes
-🕐 MODIFIED: 2026-10-11 16:10:00
+📏 SIZE: 22,442 bytes
+🕐 MODIFIED: 2026-10-11 19:28:44
 
 ================================================================================
 
@@ -43077,6 +43077,164 @@ async def update_application_status(
 
 
 # ============================================================
+# ✅ NEW: GET PROFILE DATA FOR SCHEME APPLICATION
+# ============================================================
+@router.get("/profile-data")
+async def get_profile_data_for_scheme(
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    """
+    Fetch user's complete profile data formatted for scheme application.
+
+    Returns:
+    - applicant_details: Personal info (name, father_name, dob, etc.)
+    - applicant_address: Full address
+    - bank_details: Bank account info
+    - profile_complete: Whether profile has all required data
+    - missing_fields: List of fields that need to be filled in profile
+    """
+    user_email = current_user.get("email")
+    if not user_email:
+        raise HTTPException(status_code=400, detail="User email not found")
+
+    # Fetch profile
+    profile = await db.profile.find_one({"email": user_email})
+    if not profile:
+        raise HTTPException(
+            status_code=404,
+            detail="Profile not found. Please complete your profile first."
+        )
+
+    # Fetch auth for email/mobile
+    auth_user = await db.auth.find_one({"email": user_email})
+
+    # ============================================================
+    # BUILD APPLICANT DETAILS
+    # ============================================================
+    disability = profile.get("disability", {}) or {}
+    gov_ids = profile.get("government_ids", {}) or {}
+
+    applicant_details = {
+        "full_name": (
+            profile.get("full_name") or
+            (auth_user.get("name") if auth_user else "") or
+            ""
+        ),
+        "father_name": profile.get("father_name", ""),
+        "mother_name": profile.get("mother_name", ""),
+        "date_of_birth": profile.get("dob", ""),
+        "gender": profile.get("gender", "male"),
+        "category": profile.get("category", "General"),
+        "marital_status": profile.get("marital_status", "Unmarried"),
+        "aadhaar_number": gov_ids.get("aadhar_number", ""),
+        "mobile": (
+            (auth_user.get("mobile") if auth_user else "") or
+            profile.get("phone", "") or
+            ""
+        ),
+        "email": user_email,
+        "annual_income": profile.get("family_annual_income", 0) or 0,
+        "bpl_status": profile.get("bpl_status", False),
+        "disability_status": disability.get("is_disabled", False),
+        "disability_percentage": disability.get("disability_percentage", 0.0),
+        "scheme_name": None,   # Filled when applying
+        "scheme_id": None,     # Filled when applying
+        "application_type": "schemes",
+    }
+
+    # ============================================================
+    # BUILD APPLICANT ADDRESS
+    # ============================================================
+    current_address = profile.get("current_address", {}) or {}
+
+    # Handle both flat and nested address formats
+    address_line1 = (
+        current_address.get("house_number") or
+        current_address.get("address_line1") or
+        ""
+    )
+    address_line2 = (
+        current_address.get("landmark") or
+        current_address.get("address_line2") or
+        ""
+    )
+    village_city = (
+        current_address.get("village_name") or
+        current_address.get("city") or
+        current_address.get("village_city") or
+        ""
+    )
+    district = current_address.get("district", "") or ""
+    state = current_address.get("state", "") or ""
+    pincode = (
+        current_address.get("pincode") or
+        current_address.get("zipcode") or
+        ""
+    )
+    country = current_address.get("country", "India") or "India"
+
+    applicant_address = {
+        "address_line1": address_line1,
+        "address_line2": address_line2,
+        "village_city": village_city,
+        "district": district,
+        "state": state,
+        "pincode": pincode,
+        "country": country,
+    }
+
+    # ============================================================
+    # BUILD BANK DETAILS
+    # ============================================================
+    bank_details = profile.get("bank_details", {}) or {}
+
+    bank_info = {
+        "account_holder_name": bank_details.get("account_holder_name", "") or "",
+        "bank_name": bank_details.get("bank_name", "") or "",
+        "account_number": bank_details.get("account_number", "") or "",
+        "ifsc_code": bank_details.get("ifsc_code", "") or "",
+        "branch_name": bank_details.get("branch_name", "") or "",
+        "account_type": bank_details.get("account_type", "savings") or "savings",
+    }
+
+    # ============================================================
+    # CHECK PROFILE COMPLETENESS
+    # ============================================================
+    required_fields = {
+        "full_name": applicant_details["full_name"],
+        "father_name": applicant_details["father_name"],
+        "date_of_birth": applicant_details["date_of_birth"],
+        "mobile": applicant_details["mobile"],
+        "email": applicant_details["email"],
+        "aadhaar_number": applicant_details["aadhaar_number"],
+        "address_line1": applicant_address["address_line1"],
+        "village_city": applicant_address["village_city"],
+        "district": applicant_address["district"],
+        "state": applicant_address["state"],
+        "pincode": applicant_address["pincode"],
+        "bank_name": bank_info["bank_name"],
+        "account_number": bank_info["account_number"],
+        "ifsc_code": bank_info["ifsc_code"],
+    }
+
+    missing_fields = [
+        field for field, value in required_fields.items()
+        if not value or str(value).strip() == ""
+    ]
+
+    profile_complete = len(missing_fields) == 0
+
+    return {
+        "success": True,
+        "profile_complete": profile_complete,
+        "missing_fields": missing_fields,
+        "applicant_details": applicant_details,
+        "applicant_address": applicant_address,
+        "bank_details": bank_info,
+    }
+
+# ============================================================
 # ✅ DEBUG: Print ALL registered paths on import
 # ============================================================
 print("=" * 70)
@@ -43492,8 +43650,8 @@ class SchemeStatesResponse(BaseModel):
 
 ================================================================================
 [ 134/ 170] 🐍 PYTHON FILE: app\modules\schemes\service.py
-📏 SIZE: 42,092 bytes
-🕐 MODIFIED: 2026-10-11 16:09:22
+📏 SIZE: 47,115 bytes
+🕐 MODIFIED: 2026-10-11 19:31:58
 
 ================================================================================
 
@@ -43811,8 +43969,10 @@ class SchemeService:
             module_logger.error(f"Error getting states: {e}")
             return []
 
+    # app/modules/schemes/service.py
+
     # ============================================================
-    # ✅ CRITICAL: CREATE APPLICATION — FIXED
+    # ✅ UPDATED: CREATE APPLICATION — AUTO-FILL FROM PROFILE
     # ============================================================
     async def create_application(
         self,
@@ -43824,14 +43984,11 @@ class SchemeService:
         """
         Submit a scheme application.
 
-        ✅ CRITICAL FIX: Documents are now normalized with the
-        universal `_normalize_document_item()` helper, which accepts
-        EVERY possible field name from any frontend version.
+        ✅ AUTO-FILL: If applicant_details/address/bank_details are missing,
+        they are automatically fetched from the user's profile.
 
-        Saves to UNIFIED `applications` collection with:
-        - application_type = "schemes"
-        - Full applicant details
-        - Documents array (normalized)
+        ✅ CRITICAL FIX: Documents are normalized with the
+        universal `_normalize_document_item()` helper.
         """
         try:
             scheme_id = (data.get("scheme_id") or "").strip()
@@ -43840,9 +43997,7 @@ class SchemeService:
                     status_code=400, detail="scheme_id is required"
                 )
 
-            # ============================================================
-            # DEBUG: Show exactly what we're looking for
-            # ============================================================
+            # ---------- Lookup scheme ----------
             total_in_db = await self.schemes.count_documents({})
             module_logger.info("=" * 70)
             module_logger.info(f"🔍 SCHEME APPLICATION LOOKUP")
@@ -43851,7 +44006,6 @@ class SchemeService:
 
             if total_in_db == 0:
                 module_logger.error("❌ SCHEMES COLLECTION IS EMPTY!")
-                module_logger.error("   → Run: python seed_schemes.py")
                 raise HTTPException(
                     status_code=500,
                     detail=(
@@ -43860,15 +44014,11 @@ class SchemeService:
                     ),
                 )
 
-            # ============================================================
-            # 3-STAGE LOOKUP: exact → case-insensitive → ObjectId
-            # ============================================================
             scheme = await self.schemes.find_one(
                 {"scheme_id": scheme_id, "is_active": True}
             )
 
             if not scheme:
-                module_logger.info("   ⏩ Exact match failed → trying case-insensitive")
                 scheme = await self.schemes.find_one(
                     {
                         "scheme_id": {
@@ -43880,7 +44030,6 @@ class SchemeService:
                 )
 
             if not scheme:
-                module_logger.info("   ⏩ Case-insensitive failed → trying ObjectId")
                 try:
                     from bson import ObjectId
                     if ObjectId.is_valid(scheme_id):
@@ -43893,10 +44042,6 @@ class SchemeService:
             if not scheme:
                 all_ids = await self.schemes.distinct("scheme_id")
                 module_logger.error(f"❌ Scheme '{scheme_id}' NOT FOUND!")
-                module_logger.error(
-                    f"   Available scheme_ids ({len(all_ids)}): "
-                    f"{all_ids[:30]}"
-                )
                 raise HTTPException(
                     status_code=404,
                     detail=(
@@ -43922,7 +44067,7 @@ class SchemeService:
             if override_name:
                 resolved_scheme_name = override_name
 
-            # Duplicate check
+            # ---------- Duplicate check ----------
             existing = await self.applications.find_one(
                 {
                     "application_type": SCHEME_APPLICATION_TYPE,
@@ -43948,26 +44093,189 @@ class SchemeService:
                     "status": existing.get("status", "pending"),
                 }
 
+            # ============================================================
+            # ✅ AUTO-FILL FROM PROFILE
+            # ============================================================
             profile = await self.profile.find_one({"email": user_email})
+            auth_user = await self.auth.find_one({"email": user_email})
+
             user_name = (
                 profile.get("full_name")
                 if profile
                 else user_email.split("@")[0]
             )
-            user_mobile = profile.get("phone") if profile else None
+            user_mobile = auth_user.get("mobile") if auth_user else None
 
+            provided_details = data.get("applicant_details", {}) or {}
+            provided_address = data.get("applicant_address", {}) or {}
+            provided_bank = data.get("bank_details", {}) or {}
+
+            # --- Build complete applicant details ---
+            disability = (profile.get("disability", {}) or {}) if profile else {}
+            gov_ids = (profile.get("government_ids", {}) or {}) if profile else {}
+
+            applicant_details = {
+                "full_name": (
+                    provided_details.get("full_name") or
+                    (profile.get("full_name") if profile else "") or
+                    (auth_user.get("name") if auth_user else "")
+                ),
+                "father_name": (
+                    provided_details.get("father_name") or
+                    (profile.get("father_name") if profile else "")
+                ),
+                "mother_name": (
+                    provided_details.get("mother_name") or
+                    (profile.get("mother_name") if profile else "")
+                ),
+                "date_of_birth": (
+                    provided_details.get("date_of_birth") or
+                    (profile.get("dob") if profile else "")
+                ),
+                "gender": (
+                    provided_details.get("gender") or
+                    (profile.get("gender") if profile else "male")
+                ),
+                "category": (
+                    provided_details.get("category") or
+                    (profile.get("category") if profile else "General")
+                ),
+                "marital_status": (
+                    provided_details.get("marital_status") or
+                    (profile.get("marital_status") if profile else "Unmarried")
+                ),
+                "aadhaar_number": (
+                    provided_details.get("aadhaar_number") or
+                    gov_ids.get("aadhar_number", "")
+                ),
+                "mobile": (
+                    provided_details.get("mobile") or
+                    (auth_user.get("mobile") if auth_user else "") or
+                    (profile.get("phone") if profile else "")
+                ),
+                "email": (
+                    provided_details.get("email") or
+                    user_email
+                ),
+                "annual_income": (
+                    provided_details.get("annual_income") or
+                    (profile.get("family_annual_income", 0) if profile else 0)
+                ),
+                "bpl_status": (
+                    provided_details.get("bpl_status") or
+                    (profile.get("bpl_status", False) if profile else False)
+                ),
+                "disability_status": (
+                    provided_details.get("disability_status") or
+                    disability.get("is_disabled", False)
+                ),
+                "disability_percentage": (
+                    provided_details.get("disability_percentage") or
+                    disability.get("disability_percentage", 0.0)
+                ),
+                "scheme_name": resolved_scheme_name,
+                "scheme_id": scheme_id,
+                "application_type": SCHEME_APPLICATION_TYPE,
+            }
+
+            # --- Build complete address ---
+            current_address = (
+                (profile.get("current_address", {}) or {}) if profile else {}
+            )
+
+            applicant_address = {
+                "address_line1": (
+                    provided_address.get("address_line1") or
+                    current_address.get("house_number") or
+                    current_address.get("address_line1") or
+                    ""
+                ),
+                "address_line2": (
+                    provided_address.get("address_line2") or
+                    current_address.get("landmark") or
+                    current_address.get("address_line2") or
+                    ""
+                ),
+                "village_city": (
+                    provided_address.get("village_city") or
+                    current_address.get("village_name") or
+                    current_address.get("city") or
+                    ""
+                ),
+                "district": (
+                    provided_address.get("district") or
+                    current_address.get("district") or
+                    ""
+                ),
+                "state": (
+                    provided_address.get("state") or
+                    current_address.get("state") or
+                    ""
+                ),
+                "pincode": (
+                    provided_address.get("pincode") or
+                    current_address.get("pincode") or
+                    current_address.get("zipcode") or
+                    ""
+                ),
+                "country": (
+                    provided_address.get("country") or
+                    current_address.get("country") or
+                    "India"
+                ),
+            }
+
+            # --- Build complete bank details ---
+            profile_bank = (
+                (profile.get("bank_details", {}) or {}) if profile else {}
+            )
+
+            bank_details = {
+                "account_holder_name": (
+                    provided_bank.get("account_holder_name") or
+                    profile_bank.get("account_holder_name") or
+                    ""
+                ),
+                "bank_name": (
+                    provided_bank.get("bank_name") or
+                    profile_bank.get("bank_name") or
+                    ""
+                ),
+                "account_number": (
+                    provided_bank.get("account_number") or
+                    profile_bank.get("account_number") or
+                    ""
+                ),
+                "ifsc_code": (
+                    provided_bank.get("ifsc_code") or
+                    profile_bank.get("ifsc_code") or
+                    ""
+                ),
+                "branch_name": (
+                    provided_bank.get("branch_name") or
+                    profile_bank.get("branch_name") or
+                    ""
+                ),
+                "account_type": (
+                    provided_bank.get("account_type") or
+                    profile_bank.get("account_type") or
+                    "savings"
+                ),
+            }
+
+            # ============================================================
+            # NORMALIZE DOCUMENTS
+            # ============================================================
             application_id = str(uuid.uuid4())
             now = datetime.utcnow()
 
-            # ============================================================
-            # ✅ CRITICAL FIX: Normalize documents with universal helper
-            # ============================================================
             incoming_docs = data.get("documents") or []
             module_logger.info("=" * 70)
             module_logger.info(
                 f"📎 PROCESSING {len(incoming_docs)} INCOMING DOCUMENT(S)"
             )
-            module_logger.info(f"   Raw data: {incoming_docs}")
+            for i, d in enumerate(incoming_docs):
+                module_logger.info(f"   [{i}] {d}")
             module_logger.info("=" * 70)
 
             normalized_docs: List[Dict[str, Any]] = []
@@ -43976,17 +44284,19 @@ class SchemeService:
                 if normalized:
                     normalized_docs.append(normalized)
 
-            module_logger.info("=" * 70)
             module_logger.info(
                 f"📎 NORMALIZED {len(normalized_docs)} document(s) "
                 f"out of {len(incoming_docs)} incoming"
             )
             for i, doc in enumerate(normalized_docs):
                 module_logger.info(
-                    f"   [{i}] {doc['document_type']} → {doc['document_url'][:80]}"
+                    f"   [{i}] {doc['document_type']} → "
+                    f"{doc['document_url'][:80]}"
                 )
-            module_logger.info("=" * 70)
 
+            # ============================================================
+            # BUILD APPLICATION DOCUMENT
+            # ============================================================
             application_doc: Dict[str, Any] = {
                 "application_id": application_id,
                 "application_type": SCHEME_APPLICATION_TYPE,
@@ -44000,10 +44310,10 @@ class SchemeService:
                 "scheme_level": scheme.get("level", "central"),
                 "scheme_state": scheme.get("state"),
                 "scheme_category": scheme.get("category", "other"),
-                "applicant_details": data.get("applicant_details", {}) or {},
-                "applicant_address": data.get("applicant_address", {}) or {},
-                "bank_details": data.get("bank_details") or {},
-                "documents": normalized_docs,   # ✅ NORMALIZED
+                "applicant_details": applicant_details,
+                "applicant_address": applicant_address,
+                "bank_details": bank_details,
+                "documents": normalized_docs,
                 "additional_info": data.get("additional_info"),
                 "remarks": data.get("remarks"),
                 "status": "pending",
@@ -44016,18 +44326,12 @@ class SchemeService:
                 "applied_at": now,
             }
 
-            # ✅ CRITICAL: Log what we're about to insert
-            module_logger.info("=" * 70)
-            module_logger.info("💾 INSERTING SCHEME APPLICATION")
-            module_logger.info(f"   Application ID: {application_id}")
-            module_logger.info(f"   User: {user_email}")
-            module_logger.info(f"   Scheme: {resolved_scheme_name}")
-            module_logger.info(f"   Documents count: {len(normalized_docs)}")
-            module_logger.info("=" * 70)
-
+            module_logger.info(
+                f"💾 INSERTING SCHEME APPLICATION: {application_id}"
+            )
             await self.applications.insert_one(application_doc)
 
-            # ✅ VERIFY: Read back what was saved
+            # Verify
             saved = await self.applications.find_one(
                 {"application_id": application_id}
             )
@@ -44036,21 +44340,8 @@ class SchemeService:
                 module_logger.info(
                     f"✅ VERIFIED: {len(saved_docs)} document(s) saved to DB"
                 )
-                for i, d in enumerate(saved_docs):
-                    module_logger.info(
-                        f"   [{i}] {d.get('document_type')} → "
-                        f"{str(d.get('document_url'))[:80]}"
-                    )
-            else:
-                module_logger.error(
-                    f"❌ FAILED: Application {application_id} NOT FOUND after insert!"
-                )
 
-            module_logger.info(
-                f"✅ Scheme application created: {application_id} | "
-                f"type={SCHEME_APPLICATION_TYPE}"
-            )
-
+            # Send notification
             if background_tasks:
                 background_tasks.add_task(
                     self._send_application_notification,
@@ -44078,7 +44369,7 @@ class SchemeService:
                 "application_type": SCHEME_APPLICATION_TYPE,
                 "message": "Application submitted successfully",
                 "status": "pending",
-                "documents_saved": len(normalized_docs),  # ✅ Confirmation
+                "documents_saved": len(normalized_docs),
             }
         except HTTPException:
             raise

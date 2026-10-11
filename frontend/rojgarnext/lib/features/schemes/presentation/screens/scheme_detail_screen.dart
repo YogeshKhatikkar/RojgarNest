@@ -4,17 +4,10 @@
 // Shows: benefits, eligibility, documents, steps, target beneficiaries
 // Has "Apply" button → SchemeApplyScreen
 // ============================================================
-// ✅ NEW: isEmbedded mode — renders WITHOUT Scaffold/AppBar
-// ✅ NEW: onBack callback for embedded mode
-// ✅ NEW: onApply callback for embedded mode
-// ✅ NEW: When embedded, Apply button opens SchemeApplyScreen
-//         IN THE SAME RIGHT PANEL (with its own back button)
-// ✅ FIXED: _loadSchemeDetail now ALWAYS falls back to local master data,
-//           even when the backend returns success:false or an empty scheme.
-// ✅ FIXED: _getMasterDataAsMap wrapped in try/catch for safety.
-// ✅ FIXED: Added missing fields (fullDescription, shortDescription,
-//           targetBeneficiaries, tags, category, applicationMode) so
-//           every card can render.
+// ✅ FIXED: Added _mapToGovernmentScheme() helper to convert
+//           Map<String, dynamic> → GovernmentScheme before passing
+//           to SchemeApplyScreen (both inline and full-screen mode)
+// ✅ ALL original functionality preserved
 // ============================================================
 
 import 'package:flutter/material.dart';
@@ -96,7 +89,7 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
   }
 
   // ============================================================
-  // ✅ FIXED: LOAD DATA — backend first, then ALWAYS local fallback
+  // ✅ LOAD DATA — backend first, then ALWAYS local fallback
   // ============================================================
   Future<void> _loadSchemeDetail() async {
     setState(() {
@@ -150,8 +143,7 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
   }
 
   // ============================================================
-  // ✅ FIXED: Convert local GovernmentScheme → full Map
-  //           (with all fields + safe null handling)
+  // ✅ Convert local GovernmentScheme → full Map
   // ============================================================
   Map<String, dynamic>? _getMasterDataAsMap() {
     try {
@@ -255,6 +247,151 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
     }
   }
 
+  // ============================================================
+  // ✅ NEW: Convert Map<String, dynamic> → GovernmentScheme
+  //           Required because SchemeApplyScreen expects the typed object
+  // ============================================================
+  GovernmentScheme _mapToGovernmentScheme(Map<String, dynamic> map) {
+    // ---- Benefits ----
+    final benefitsList = <SchemeBenefit>[];
+    final rawBenefits = map['benefits'];
+    if (rawBenefits is List) {
+      for (final b in rawBenefits) {
+        if (b is Map) {
+          benefitsList.add(SchemeBenefit(
+            title: b['title']?.toString() ?? '',
+            description: b['description']?.toString() ?? '',
+            amount: b['amount']?.toString(),
+            type: b['type']?.toString() ?? 'financial',
+          ));
+        }
+      }
+    }
+
+    // ---- Eligibility ----
+    final rawEligibility = map['eligibility'];
+    final eligibilityMap = rawEligibility is Map ? rawEligibility : {};
+
+    final eligibility = SchemeEligibility(
+      ageMin: _safeInt(eligibilityMap['age_min']),
+      ageMax: _safeInt(eligibilityMap['age_max']),
+      gender: eligibilityMap['gender']?.toString(),
+      incomeLimit: _safeInt(eligibilityMap['income_limit']),
+      category: _safeStringList(eligibilityMap['category']),
+      educationLevel: eligibilityMap['education_level']?.toString(),
+      occupation: eligibilityMap['occupation']?.toString(),
+      domicileState: eligibilityMap['domicile_state']?.toString(),
+      disabilityRequired: eligibilityMap['disability_required'] == true,
+      bplRequired: eligibilityMap['bpl_required'] == true,
+      aadhaarRequired: eligibilityMap['aadhaar_required'] != false,
+    );
+
+    // ---- Documents ----
+    final documentsList = <SchemeDocument>[];
+    final rawDocs = map['required_documents'];
+    if (rawDocs is List) {
+      for (final d in rawDocs) {
+        if (d is Map) {
+          documentsList.add(SchemeDocument(
+            name: d['name']?.toString() ?? '',
+            nameHindi: d['name_hindi']?.toString() ?? '',
+            required: d['required'] != false,
+            description: d['description']?.toString(),
+          ));
+        }
+      }
+    }
+
+    // ---- Steps ----
+    final stepsList = <SchemeApplicationStep>[];
+    final rawSteps = map['application_steps'];
+    if (rawSteps is List) {
+      for (final s in rawSteps) {
+        if (s is Map) {
+          stepsList.add(SchemeApplicationStep(
+            stepNumber: _safeInt(s['step_number']) ?? 1,
+            title: s['title']?.toString() ?? '',
+            titleHindi: s['title_hindi']?.toString() ?? '',
+            description: s['description']?.toString() ?? '',
+            descriptionHindi: s['description_hindi']?.toString() ?? '',
+          ));
+        }
+      }
+    }
+
+    // ---- Contact Info ----
+    final rawContact = map['contact_info'];
+    final contactMap = rawContact is Map ? rawContact : {};
+
+    final contactInfo = SchemeContactInfo(
+      helpline: contactMap['helpline']?.toString(),
+      email: contactMap['email']?.toString(),
+      website: contactMap['website']?.toString(),
+      officeAddress: contactMap['office_address']?.toString(),
+    );
+
+    // ---- Target Beneficiaries ----
+    final targetBeneficiaries = _safeStringList(map['target_beneficiaries']);
+    final targetBeneficiariesHindi =
+        _safeStringList(map['target_beneficiaries_hindi']);
+
+    // ---- Tags ----
+    final tags = _safeStringList(map['tags']);
+
+    return GovernmentScheme(
+      schemeId: map['scheme_id']?.toString() ?? widget.schemeId,
+      schemeName: map['scheme_name']?.toString() ?? widget.schemeName,
+      schemeNameHindi:
+          map['scheme_name_hindi']?.toString() ?? widget.schemeName,
+      shortDescription: map['short_description']?.toString() ?? '',
+      shortDescriptionHindi:
+          map['short_description_hindi']?.toString() ?? '',
+      level: map['level']?.toString() ?? 'central',
+      state: map['state']?.toString(),
+      category: map['category']?.toString() ?? 'other',
+      fullDescription: map['full_description']?.toString() ?? '',
+      fullDescriptionHindi:
+          map['full_description_hindi']?.toString() ?? '',
+      benefits: benefitsList,
+      eligibility: eligibility,
+      eligibilityDetailsHindi:
+          map['eligibility_details_hindi']?.toString() ?? '',
+      targetBeneficiaries: targetBeneficiaries,
+      targetBeneficiariesHindi: targetBeneficiariesHindi,
+      requiredDocuments: documentsList,
+      applicationSteps: stepsList,
+      applicationMode: map['application_mode']?.toString() ?? 'online',
+      contactInfo: contactInfo,
+      officialWebsite: map['official_website']?.toString(),
+      applyLink: map['apply_link']?.toString(),
+      hasApplicationFee: map['has_application_fee'] == true,
+      applicationFee: _safeInt(map['application_fee']) ?? 0,
+      feeDetailsHindi: map['fee_details_hindi']?.toString(),
+      icon: map['icon']?.toString() ?? '📋',
+      color: map['color']?.toString() ?? 'blue',
+      isFeatured: map['is_featured'] == true,
+      tags: tags,
+    );
+  }
+
+  // ✅ Safe int parser (handles int, double, String, null)
+  int? _safeInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  // ✅ Safe string-list parser
+  List<String> _safeStringList(dynamic value) {
+    if (value == null) return [];
+    if (value is List) {
+      return value.map((e) => e.toString()).toList();
+    }
+    return [];
+  }
+
   // ==================== NAVIGATION ====================
   void _openApplyScreen() {
     if (_scheme == null) return;
@@ -274,10 +411,13 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
     }
 
     // ✅ Fallback: full-screen navigation
+    // ✅ FIXED: Convert Map → GovernmentScheme before passing
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => SchemeApplyScreen(scheme: _scheme!),
+        builder: (_) => SchemeApplyScreen(
+          scheme: _mapToGovernmentScheme(_scheme!),
+        ),
       ),
     );
   }
@@ -364,6 +504,7 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
 
   // ============================================================
   // INLINE APPLY SCREEN WRAPPER
+  // ✅ FIXED: Convert Map → GovernmentScheme before passing
   // ============================================================
   Widget _buildInlineApplyScreen() {
     return Container(
@@ -442,7 +583,10 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
               ),
             ),
             Expanded(
-              child: SchemeApplyScreen(scheme: _scheme!),
+              // ✅ FIXED: Convert Map → GovernmentScheme
+              child: SchemeApplyScreen(
+                scheme: _mapToGovernmentScheme(_scheme!),
+              ),
             ),
           ],
         ),
@@ -1069,7 +1213,7 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
       ));
     }
 
-    if (incomeLimit != null) {
+    if (incomeLimit != null && incomeLimit is num) {
       final incomeLakh = (incomeLimit / 100000).toStringAsFixed(1);
       items.add(_buildEligibilityRow(
         Icons.currency_rupee,
