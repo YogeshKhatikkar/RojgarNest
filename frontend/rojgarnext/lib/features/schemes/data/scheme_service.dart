@@ -3,6 +3,7 @@
 // ✅ Maps all fields correctly for UI
 // ✅ FIXED: applyForScheme now sends documents with BOTH `url` AND `document_url`
 // ✅ FIXED: uploadTempDocument returns URL from ALL possible response fields
+// ✅ FIXED: uploadTempDocument NEVER sends empty document_type (422 fix)
 // ✅ FIXED: NEVER calls logout on any error
 // ✅ FIXED: Verbose debug logging for every document sent/received
 
@@ -26,6 +27,63 @@ class SchemeService {
       return body;
     }
     return {};
+  }
+
+  // ============================================================
+  // ✅ LOCAL SLUG HELPER — used as last-resort safety net
+  // Guarantees a non-empty ASCII slug for the backend
+  // ============================================================
+  static String _safeSlug(String input) {
+    if (input.trim().isEmpty) return 'document';
+
+    final lower = input.toLowerCase().trim();
+
+    final hindiMap = <String, String>{
+      'आधार कार्ड': 'aadhaar_card',
+      'आधार': 'aadhaar_card',
+      'मूल निवास प्रमाण पत्र': 'domicile_certificate',
+      'मूल निवास': 'domicile_certificate',
+      'निवास प्रमाण पत्र': 'residence_certificate',
+      'निवास': 'residence_certificate',
+      'आय प्रमाण पत्र': 'income_certificate',
+      'आय': 'income_certificate',
+      'बैंक पासबुक': 'bank_passbook',
+      'बैंक': 'bank_passbook',
+      'राशन कार्ड': 'ration_card',
+      'राशन': 'ration_card',
+      'जन्म प्रमाण पत्र': 'birth_certificate',
+      'जन्म': 'birth_certificate',
+      'जाति प्रमाण पत्र': 'caste_certificate',
+      'जाति': 'caste_certificate',
+      'पासपोर्ट': 'passport',
+      'फोटो': 'photo',
+      'हस्ताक्षर': 'signature',
+      'अन्य': 'other',
+      'दस्तावेज': 'document',
+      'दस्तावेज़': 'document',
+      'प्रमाण पत्र': 'certificate',
+    };
+
+    if (hindiMap.containsKey(input.trim())) return hindiMap[input.trim()]!;
+
+    final sortedKeys = hindiMap.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+    for (final key in sortedKeys) {
+      if (lower.contains(key.toLowerCase())) return hindiMap[key]!;
+    }
+
+    String slug = input
+        .toLowerCase()
+        .trim()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+
+    if (slug.isEmpty) return 'document';
+    if (slug.length > 60) {
+      slug = slug.substring(0, 60).replaceAll(RegExp(r'_$'), '');
+    }
+    return slug;
   }
 
   // ============================================================
@@ -329,11 +387,15 @@ class SchemeService {
               .trim();
 
           // Try every possible type field name
-          final String docType = (doc['document_type'] ??
+          final String rawType = (doc['document_type'] ??
                   doc['type'] ??
-                  'document_${i + 1}')
+                  '')
               .toString()
               .trim();
+
+          // ✅ CRITICAL: NEVER send an empty document_type
+          final String docType =
+              rawType.isEmpty ? _safeSlug(docName) : rawType;
 
           final publicId = doc['public_id'] ?? doc['publicId'];
 
@@ -390,7 +452,9 @@ class SchemeService {
 
   // ============================================================
   // ✅✅✅ CRITICAL FIX: UPLOAD TEMP DOCUMENT
-  // Now extracts URL from ALL possible response field names
+  // ------------------------------------------------------------
+  // 1. NEVER sends empty document_type (previous cause of 422)
+  // 2. Extracts URL from ALL possible response field names
   // ============================================================
   static Future<Map<String, dynamic>> uploadTempDocument({
     required Uint8List fileBytes,
@@ -399,18 +463,32 @@ class SchemeService {
     required String documentName,
   }) async {
     try {
+      // ✅ CRITICAL FIX: Guarantee a non-empty document_type
+      String safeDocType = documentType.trim();
+      if (safeDocType.isEmpty) {
+        safeDocType = _safeSlug(documentName.isNotEmpty ? documentName : fileName);
+        debugPrint("🔧 documentType was empty → derived: '$safeDocType'");
+      }
+      // ✅ Absolute last-resort guard
+      if (safeDocType.isEmpty) {
+        safeDocType = 'document';
+      }
+
+      String safeDocName = documentName.trim();
+      if (safeDocName.isEmpty) safeDocName = fileName;
+
       debugPrint("=" * 70);
       debugPrint("📤 uploadTempDocument CALLED");
       debugPrint("   fileName: $fileName");
-      debugPrint("   documentType: $documentType");
-      debugPrint("   documentName: $documentName");
+      debugPrint("   documentType: $safeDocType");
+      debugPrint("   documentName: $safeDocName");
       debugPrint("   fileBytes: ${fileBytes.length} bytes");
       debugPrint("=" * 70);
 
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(fileBytes, filename: fileName),
-        'document_type': documentType,
-        'document_name': documentName,
+        'document_type': safeDocType,
+        'document_name': safeDocName,
       });
 
       final res = await _dio.post('$_base/upload-temp-document', data: formData);
@@ -479,8 +557,8 @@ class SchemeService {
         'url': url,
         'document_url': url,   // ✅ Alias
         'public_id': publicId,
-        'document_type': finalDocType ?? documentType,
-        'document_name': finalDocName ?? documentName,
+        'document_type': finalDocType ?? safeDocType,
+        'document_name': finalDocName ?? safeDocName,
         'filename': fileName,
       };
     } on DioException catch (e) {
@@ -533,8 +611,11 @@ class SchemeService {
         if (bytes == null || bytes.isEmpty) continue;
 
         final fileName = (f['file_name'] ?? 'document.pdf').toString();
-        final docType = (f['document_type'] ?? 'document').toString();
+        final rawType = (f['document_type'] ?? '').toString();
         final docName = (f['document_name'] ?? 'Document').toString();
+
+        // ✅ CRITICAL: never send an empty document_type
+        final docType = rawType.isEmpty ? _safeSlug(docName) : rawType;
 
         multipartFiles.add(
           MultipartFile.fromBytes(bytes, filename: fileName),
@@ -587,10 +668,17 @@ class SchemeService {
     required String fileName,
   }) async {
     try {
+      // ✅ CRITICAL: never send an empty document_type
+      String safeDocType = documentType.trim();
+      if (safeDocType.isEmpty) {
+        safeDocType = _safeSlug(documentName.isNotEmpty ? documentName : fileName);
+      }
+      if (safeDocType.isEmpty) safeDocType = 'document';
+
       debugPrint("=" * 70);
       debugPrint("📤 UPLOADING SCHEME DOCUMENT");
       debugPrint("   Application ID: $applicationId");
-      debugPrint("   Document Type: $documentType");
+      debugPrint("   Document Type: $safeDocType");
       debugPrint("   Document Name: $documentName");
       debugPrint("   File Name: $fileName");
       debugPrint("   File Size: ${fileBytes.length} bytes");
@@ -602,7 +690,7 @@ class SchemeService {
           fileBytes,
           filename: fileName,
         ),
-        'document_type': documentType,
+        'document_type': safeDocType,
         'document_name': documentName,
       });
 

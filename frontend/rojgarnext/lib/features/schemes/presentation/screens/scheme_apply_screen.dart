@@ -3,6 +3,8 @@
 // SCHEME APPLY SCREEN
 // Multi-step form to apply for a government scheme
 // ============================================================
+// ✅ CRITICAL FIX: _slugify() now handles Hindi/pure-Unicode names
+// ✅ CRITICAL FIX: document_type is NEVER empty (falls back to 'document')
 // ✅ CRITICAL FIX: Documents now sent with BOTH `url` AND `document_url`
 // ✅ CRITICAL FIX: Upload success verified — no silent failures
 // ✅ CRITICAL FIX: Full response logging for debugging
@@ -380,14 +382,105 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
   }
 
   // ============================================================
-  // ✅ SLUGIFY — Convert "Aadhaar Card" → "aadhaar_card"
+  // ✅✅✅ CRITICAL FIX: SLUGIFY
+  // ------------------------------------------------------------
+  // Previously this function stripped ALL non-ASCII characters,
+  // which meant a pure-Hindi name like 'आधार कार्ड' became ''.
+  // The backend then rejected the request with:
+  //   {"loc": ["body","document_type"], "msg":"Field required"}
+  //
+  // New behavior:
+  //   1. Try known Hindi → English mapping
+  //   2. Fall back to ASCII normalization
+  //   3. If still empty, use a safe counter-based fallback
   // ============================================================
-  String _slugify(String input) {
-    return input
+  String _slugify(String input, {String fallback = 'document'}) {
+    if (input.trim().isEmpty) return fallback;
+
+    final lower = input.toLowerCase().trim();
+
+    // ---- Hindi / Devanagari → English slug mapping ----
+    final hindiMap = <String, String>{
+      'आधार कार्ड': 'aadhaar_card',
+      'आधार': 'aadhaar_card',
+      'मूल निवास प्रमाण पत्र': 'domicile_certificate',
+      'मूल निवास': 'domicile_certificate',
+      'निवास प्रमाण पत्र': 'residence_certificate',
+      'निवास': 'residence_certificate',
+      'आय प्रमाण पत्र': 'income_certificate',
+      'आय': 'income_certificate',
+      'बैंक पासबुक': 'bank_passbook',
+      'बैंक पास बुक': 'bank_passbook',
+      'बैंक': 'bank_passbook',
+      'राशन कार्ड': 'ration_card',
+      'राशन': 'ration_card',
+      'जन्म प्रमाण पत्र': 'birth_certificate',
+      'जन्म': 'birth_certificate',
+      'जाति प्रमाण पत्र': 'caste_certificate',
+      'जाति': 'caste_certificate',
+      'पासपोर्ट': 'passport',
+      'फोटो': 'photo',
+      'फ़ोटो': 'photo',
+      'हस्ताक्षर': 'signature',
+      'अन्य': 'other',
+      'दस्तावेज': 'document',
+      'दस्तावेज़': 'document',
+      'प्रमाण पत्र': 'certificate',
+      'अंकतालिका': 'marksheet',
+      'मार्कशीट': 'marksheet',
+      'डिग्री': 'degree',
+      'स्नातक': 'graduate',
+      'अनुसूचित जाति': 'scheduled_caste',
+      'अनुसूचित जनजाति': 'scheduled_tribe',
+      'विकलांगता': 'disability',
+      'विकलांगता प्रमाण पत्र': 'disability_certificate',
+      'पेंशन': 'pension',
+      'बीपीएल': 'bpl_card',
+      'BPL कार्ड': 'bpl_card',
+      'मृत्यु प्रमाण पत्र': 'death_certificate',
+      'विवाह प्रमाण पत्र': 'marriage_certificate',
+      'शपथ पत्र': 'affidavit',
+      'चिकित्सा प्रमाण पत्र': 'medical_certificate',
+      'बीमा': 'insurance',
+      'भूमि': 'land',
+      'भूमि रिकॉर्ड': 'land_records',
+      'स्वास्थ्य कार्ड': 'health_card',
+      'आयुष्मान कार्ड': 'ayushman_card',
+    };
+
+    // Exact match first
+    if (hindiMap.containsKey(input.trim())) {
+      return hindiMap[input.trim()]!;
+    }
+
+    // Substring match (longest key first)
+    final sortedKeys = hindiMap.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+
+    for (final key in sortedKeys) {
+      if (lower.contains(key.toLowerCase())) {
+        return hindiMap[key]!;
+      }
+    }
+
+    // ---- ASCII normalization fallback ----
+    String slug = input
         .toLowerCase()
+        .trim()
         .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
         .replaceAll(RegExp(r'_+'), '_')
         .replaceAll(RegExp(r'^_|_$'), '');
+
+    if (slug.isEmpty) {
+      debugPrint("⚠️ _slugify('$input') produced empty slug — using fallback '$fallback'");
+      return fallback;
+    }
+
+    if (slug.length > 60) {
+      slug = slug.substring(0, 60).replaceAll(RegExp(r'_$'), '');
+    }
+
+    return slug;
   }
 
   // ============================================================
@@ -513,6 +606,9 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
       final tempSessionId =
           'temp_${DateTime.now().millisecondsSinceEpoch}';
 
+      // ✅ Counter to ensure unique fallback slugs for unnamed docs
+      int fallbackCounter = 0;
+
       for (final entry in _pickedDocs.entries) {
         final label = entry.key;
         final doc = entry.value;
@@ -525,11 +621,16 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
         _safeSetState(() => _uploadingDoc[label] = true);
 
         try {
-          final docType = _slugify(label);
+          fallbackCounter++;
+          final fallbackSlug = 'document_$fallbackCounter';
+          final docType = _slugify(label, fallback: fallbackSlug);
+
+          // ✅ EXTRA SAFETY: never allow an empty docType
+          final safeDocType = docType.trim().isEmpty ? fallbackSlug : docType;
 
           debugPrint("=" * 70);
           debugPrint("📤 Uploading '$label'");
-          debugPrint("   docType:    $docType");
+          debugPrint("   docType:    $safeDocType");
           debugPrint("   fileName:   ${doc.fileName}");
           debugPrint("   sizeBytes:  ${doc.bytes!.length}");
           debugPrint("=" * 70);
@@ -538,7 +639,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
           final uploadResult = await SchemeService.uploadTempDocument(
             fileBytes: doc.bytes!,
             fileName: doc.fileName ?? 'document.pdf',
-            documentType: docType,
+            documentType: safeDocType,
             documentName: label,
           );
 
@@ -562,7 +663,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen> {
 
           // ✅ CRITICAL FIX: Send BOTH `url` AND `document_url`
           documentEntries.add({
-            "document_type": docType,
+            "document_type": safeDocType,
             "document_name": label,
             "url": url,                       // ✅ Legacy field
             "document_url": url,              // ✅ New primary field
