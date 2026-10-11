@@ -7,6 +7,9 @@ Government Schemes Service
 ✅ Documents stored in applications.documents[] — read per-application
 ✅ submit_application() for final submission
 ✅ Handles typed SchemeApplyRequest payloads
+✅ FIXED: document_url/url both accepted
+✅ FIXED: case-insensitive scheme_id lookup
+✅ FIXED: detailed logging for empty results
 """
 
 from fastapi import HTTPException, BackgroundTasks
@@ -83,6 +86,11 @@ class SchemeService:
                 if isinstance(s.get("updated_at"), datetime):
                     s["updated_at"] = s["updated_at"].isoformat()
 
+            module_logger.info(
+                f"📋 list_schemes → returned {len(schemes)} of {total} "
+                f"(query={query})"
+            )
+
             return {
                 "success": True,
                 "schemes": schemes,
@@ -96,11 +104,33 @@ class SchemeService:
 
     async def get_scheme_detail(self, scheme_id: str) -> Dict[str, Any]:
         try:
+            # Try exact match first
             scheme = await self.schemes.find_one(
                 {"scheme_id": scheme_id, "is_active": True}
             )
+            # Fallback: case-insensitive regex match
             if not scheme:
+                scheme = await self.schemes.find_one(
+                    {
+                        "scheme_id": {"$regex": f"^{scheme_id}$", "$options": "i"},
+                        "is_active": True,
+                    }
+                )
+            # Fallback: try matching by _id if it looks like an ObjectId
+            if not scheme:
+                try:
+                    from bson import ObjectId
+                    if ObjectId.is_valid(scheme_id):
+                        scheme = await self.schemes.find_one(
+                            {"_id": ObjectId(scheme_id), "is_active": True}
+                        )
+                except Exception:
+                    pass
+
+            if not scheme:
+                module_logger.warning(f"Scheme not found: {scheme_id}")
                 raise HTTPException(status_code=404, detail="Scheme not found")
+
             scheme["_id"] = str(scheme["_id"])
             if isinstance(scheme.get("created_at"), datetime):
                 scheme["created_at"] = scheme["created_at"].isoformat()
@@ -159,14 +189,13 @@ class SchemeService:
                     "state": {"$ne": None},
                 },
             )
-            return sorted(states)
+            return sorted([s for s in states if s])
         except Exception as e:
             module_logger.error(f"Error getting states: {e}")
             return []
 
-    # ============================================================
-    # CREATE APPLICATION
-    # ============================================================
+# app/modules/schemes/service.py — UPDATED create_application() METHOD
+
     async def create_application(
         self,
         data: Dict[str, Any],
@@ -181,13 +210,82 @@ class SchemeService:
                     status_code=400, detail="scheme_id is required"
                 )
 
+            # ============================================================
+            # ✅ DEBUG: Show exactly what we're looking for
+            # ============================================================
+            total_in_db = await self.schemes.count_documents({})
+            module_logger.info("=" * 70)
+            module_logger.info(f"🔍 SCHEME APPLICATION LOOKUP")
+            module_logger.info(f"   Requested scheme_id: '{scheme_id}'")
+            module_logger.info(f"   Total schemes in DB:  {total_in_db}")
+
+            # ✅ If collection is empty → clear error message
+            if total_in_db == 0:
+                module_logger.error("❌ SCHEMES COLLECTION IS EMPTY!")
+                module_logger.error("   → Run: python seed_schemes.py")
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        "Schemes collection is empty. "
+                        "Please run: python seed_schemes.py"
+                    ),
+                )
+
+            # ============================================================
+            # ✅ 3-STAGE LOOKUP: exact → case-insensitive → ObjectId
+            # ============================================================
+            # Stage 1: exact match
             scheme = await self.schemes.find_one(
                 {"scheme_id": scheme_id, "is_active": True}
             )
+
+            # Stage 2: case-insensitive match
             if not scheme:
-                raise HTTPException(
-                    status_code=404, detail="Scheme not found"
+                module_logger.info("   ⏩ Exact match failed → trying case-insensitive")
+                scheme = await self.schemes.find_one(
+                    {
+                        "scheme_id": {
+                            "$regex": f"^{scheme_id}$",
+                            "$options": "i",
+                        },
+                        "is_active": True,
+                    }
                 )
+
+            # Stage 3: ObjectId match
+            if not scheme:
+                module_logger.info("   ⏩ Case-insensitive failed → trying ObjectId")
+                try:
+                    from bson import ObjectId
+                    if ObjectId.is_valid(scheme_id):
+                        scheme = await self.schemes.find_one(
+                            {"_id": ObjectId(scheme_id), "is_active": True}
+                        )
+                except Exception:
+                    pass
+
+            # ============================================================
+            # ✅ If still not found → show all available scheme_ids
+            # ============================================================
+            if not scheme:
+                all_ids = await self.schemes.distinct("scheme_id")
+                module_logger.error(f"❌ Scheme '{scheme_id}' NOT FOUND!")
+                module_logger.error(
+                    f"   Available scheme_ids ({len(all_ids)}): "
+                    f"{all_ids[:30]}"
+                )
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        f"Scheme '{scheme_id}' not found. "
+                        f"Available: {all_ids[:10]}"
+                    ),
+                )
+
+            module_logger.info(
+                f"✅ Found scheme: {scheme.get('scheme_name')}"
+            )
+            module_logger.info("=" * 70)
 
             scheme_name_hindi = (
                 scheme.get("scheme_name_hindi") or ""
@@ -238,25 +336,32 @@ class SchemeService:
             application_id = str(uuid.uuid4())
             now = datetime.utcnow()
 
-            # Normalize documents
+            # ============================================================
+            # ✅ NORMALIZE DOCUMENTS — accept BOTH `url` and `document_url`
+            # ============================================================
             incoming_docs = data.get("documents") or []
             normalized_docs: List[Dict[str, Any]] = []
             for d in incoming_docs:
                 if not isinstance(d, dict):
                     continue
                 doc_url = (
-                    d.get("document_url") or d.get("url") or ""
-                ).strip()
+                    d.get("document_url")
+                    or d.get("url")
+                    or d.get("documentUrl")
+                    or ""
+                )
+                doc_url = str(doc_url).strip() if doc_url else ""
                 if not doc_url:
                     continue
                 normalized_docs.append(
                     {
                         "document_type": (
-                            d.get("document_type") or ""
+                            d.get("document_type") or d.get("type") or ""
                         ).strip(),
                         "document_name": (
                             d.get("document_name")
                             or d.get("label")
+                            or d.get("name")
                             or ""
                         ).strip(),
                         "document_url": doc_url,
@@ -265,6 +370,11 @@ class SchemeService:
                         "verified": False,
                     }
                 )
+
+            module_logger.info(
+                f"📎 Normalized {len(normalized_docs)} documents "
+                f"(from {len(incoming_docs)} incoming)"
+            )
 
             application_doc: Dict[str, Any] = {
                 "application_id": application_id,
@@ -560,7 +670,11 @@ class SchemeService:
                     for d in docs:
                         if not isinstance(d, dict):
                             continue
-                        url = (d.get("document_url") or "").strip()
+                        url = (
+                            d.get("document_url")
+                            or d.get("url")
+                            or ""
+                        ).strip()
                         if not url or url.lower() in (
                             "null",
                             "undefined",

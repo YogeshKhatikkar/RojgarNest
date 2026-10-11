@@ -10,6 +10,7 @@ Government Schemes API Routes
 ✅ /application/{id}/submit endpoint for final submission
 ✅ Admin endpoints for listing and status updates
 ✅ All applications go to `applications` collection
+✅ FIXED: now prints ALL registered paths on import (debug aid)
 """
 
 from fastapi import (
@@ -435,4 +436,19 @@ async def update_application_status(
     )
 
 
+# ============================================================
+# ✅ DEBUG: Print ALL registered paths on import
+# ============================================================
+print("=" * 70)
 print("✅ Schemes Routes Loaded Successfully (TYPED SCHEMAS + SUBMIT)")
+print("=" * 70)
+print("📋 Routes registered on this router:")
+for r in router.routes:
+    methods = ",".join(r.methods) if hasattr(r, "methods") else "?"
+    print(f"   [{methods:12s}] {r.path}")
+print("=" * 70)
+print("➡️  Final paths (after main.py adds prefix '/api/v1/schemes'):")
+for r in router.routes:
+    methods = ",".join(r.methods) if hasattr(r, "methods") else "?"
+    print(f"   [{methods:12s}] /api/v1/schemes{r.path}")
+print("=" * 70)

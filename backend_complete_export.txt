@@ -1,7 +1,7 @@
 ================================================================================
 ROJARGAR NEXT BACKEND - COMPLETE CODE EXPORT (SANITIZED)
 ================================================================================
-Generated: 2026-10-11 07:14:29
+Generated: 2026-10-11 10:59:27
 Source: E:\YOGESH\website\RojgarNext\backend\rojgarnext
 Total Files: 170
   - Python Files: 166
@@ -269,8 +269,8 @@ models/
 
 ================================================================================
 [   2/ 170] 🔐 ENV FILE (SANITIZED - Dummy Values Only): .env
-📏 SIZE: 23,211 bytes
-🕐 MODIFIED: 2026-09-29 18:16:41
+📏 SIZE: 23,426 bytes
+🕐 MODIFIED: 2026-10-11 10:33:59
 
 ⚠️  NOTE: This .env file has been sanitized. All original values replaced with dummy placeholders.
 
@@ -287,6 +287,12 @@ models/
 # All original values have been replaced with dummy/placeholder values.
 # Add your actual credentials in the original .env file.
 # ============================================================
+
+# ============================================================
+# 🪟 WINDOWS UNICODE FIX — Must be first!
+# ============================================================
+PYTHONIOENCODING=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
+PYTHONUTF8=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
 
 # ============================================================
 # 🗄️ DATABASE CONFIGURATION
@@ -13373,15 +13379,16 @@ print("=" * 60)
 
 ================================================================================
 [  64/ 170] 🐍 PYTHON FILE: app\main.py
-📏 SIZE: 18,193 bytes
-🕐 MODIFIED: 2026-10-10 19:16:05
+📏 SIZE: 21,102 bytes
+🕐 MODIFIED: 2026-10-11 10:22:45
 
 ================================================================================
 
-# app/main.py - COMPLETE FIXED VERSION
-# ✅ FIXED: Added schemes router registration
+# app/main.py - COMPLETE FIXED VERSION WITH SCHEMES ROUTER
+# ✅ FIXED: schemes router is now imported AND registered
 # ✅ FIXED: All error handlers return proper dict details
 # ✅ FIXED: No data loss on error responses
+# ✅ FIXED: Startup banner shows all registered routes for debugging
 
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -13398,6 +13405,8 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 import os
+import sys
+import subprocess
 
 # ================= DATABASE & CORE =================
 from app.db.connection import connect_db, close_db, get_db
@@ -13449,7 +13458,7 @@ async def verify_token(
     return credentials.credentials
 
 
-# ================= LIFESPAN =================
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("=" * 60)
@@ -13476,6 +13485,61 @@ async def lifespan(app: FastAPI):
             logger.info("✅ Redis Connected")
         except Exception as e:
             logger.warning(f"⚠️ Redis connection failed: {e}")
+
+    # ============================================================
+    # ✅ AUTO-SEED SCHEMES IF COLLECTION IS EMPTY
+    # ============================================================
+    try:
+        db = get_db()
+        if db is not None:
+            scheme_count = await db.schemes.count_documents({})
+            logger.info(f"📊 Schemes collection has {scheme_count} documents")
+
+            if scheme_count == 0:
+                logger.warning(
+                    "⚠️ Schemes collection is EMPTY — auto-seeding..."
+                )
+
+                # Determine backend root directory (where seed_schemes.py lives)
+                backend_root = os.path.dirname(
+                    os.path.dirname(os.path.abspath(__file__))
+                )
+                seed_script = os.path.join(backend_root, "seed_schemes.py")
+
+                if os.path.exists(seed_script):
+                    logger.info(f"   Running: {seed_script}")
+                    result = subprocess.run(
+                        [sys.executable, seed_script],
+                        capture_output=True,
+                        text=True,
+                        cwd=backend_root,
+                        timeout=120,
+                    )
+                    if result.returncode == 0:
+                        new_count = await db.schemes.count_documents({})
+                        logger.info(
+                            f"✅ Auto-seed completed. "
+                            f"Schemes in DB now: {new_count}"
+                        )
+                    else:
+                        logger.error(
+                            f"❌ Auto-seed failed (exit {result.returncode})"
+                        )
+                        logger.error(f"   STDOUT: {result.stdout[-500:]}")
+                        logger.error(f"   STDERR: {result.stderr[-500:]}")
+                else:
+                    logger.error(
+                        f"❌ seed_schemes.py NOT FOUND at {seed_script}"
+                    )
+                    logger.error(
+                        "   → Manually run: python seed_schemes.py"
+                    )
+            else:
+                logger.info(
+                    f"✅ Schemes collection OK ({scheme_count} schemes)"
+                )
+    except Exception as e:
+        logger.error(f"❌ Scheme auto-seed check failed: {e}")
 
     # ================= START SCHEDULERS =================
     scheduler = None
@@ -13523,6 +13587,17 @@ async def lifespan(app: FastAPI):
     print("   - No automatic job fetching will run")
     print("   - Jobs can only be added manually by admins")
     print(f"📚 API Docs: http://localhost:8000/docs")
+    print("=" * 60)
+
+    # ✅ PRINT ALL REGISTERED SCHEMES ROUTES FOR DEBUGGING
+    print("=" * 60)
+    print("🔍 SCHEMES ROUTES REGISTERED IN THIS APP INSTANCE:")
+    print("=" * 60)
+    for r in app.routes:
+        p = getattr(r, "path", "")
+        if "/schemes" in p:
+            methods = ",".join(r.methods) if hasattr(r, "methods") else "?"
+            print(f"   [{methods:12s}] {p}")
     print("=" * 60)
 
     yield
@@ -42563,8 +42638,8 @@ __all__ = ['router', 'SchemeService']
 
 ================================================================================
 [ 132/ 170] 🐍 PYTHON FILE: app\modules\schemes\routes.py
-📏 SIZE: 15,600 bytes
-🕐 MODIFIED: 2026-10-10 21:13:46
+📏 SIZE: 16,328 bytes
+🕐 MODIFIED: 2026-10-11 09:32:22
 
 ================================================================================
 
@@ -42580,6 +42655,7 @@ Government Schemes API Routes
 ✅ /application/{id}/submit endpoint for final submission
 ✅ Admin endpoints for listing and status updates
 ✅ All applications go to `applications` collection
+✅ FIXED: now prints ALL registered paths on import (debug aid)
 """
 
 from fastapi import (
@@ -43005,13 +43081,28 @@ async def update_application_status(
     )
 
 
+# ============================================================
+# ✅ DEBUG: Print ALL registered paths on import
+# ============================================================
+print("=" * 70)
 print("✅ Schemes Routes Loaded Successfully (TYPED SCHEMAS + SUBMIT)")
+print("=" * 70)
+print("📋 Routes registered on this router:")
+for r in router.routes:
+    methods = ",".join(r.methods) if hasattr(r, "methods") else "?"
+    print(f"   [{methods:12s}] {r.path}")
+print("=" * 70)
+print("➡️  Final paths (after main.py adds prefix '/api/v1/schemes'):")
+for r in router.routes:
+    methods = ",".join(r.methods) if hasattr(r, "methods") else "?"
+    print(f"   [{methods:12s}] /api/v1/schemes{r.path}")
+print("=" * 70)
 
 
 ================================================================================
 [ 133/ 170] 🐍 PYTHON FILE: app\modules\schemes\schemas.py
-📏 SIZE: 12,106 bytes
-🕐 MODIFIED: 2026-10-10 21:06:00
+📏 SIZE: 11,965 bytes
+🕐 MODIFIED: 2026-10-11 09:46:38
 
 ================================================================================
 
@@ -43023,6 +43114,7 @@ Government Schemes Pydantic Schemas
 ✅ Matches routes.py + service.py + frontend contract
 ✅ Supports all application fields (personal, address, bank, documents)
 ✅ Supports submit flow + admin actions + notifications
+✅ FIXED: documents accept BOTH `url` and `document_url`
 """
 
 from pydantic import BaseModel, Field, EmailStr, validator
@@ -43087,16 +43179,20 @@ class ApplicantDetails(BaseModel):
     scheme_id: Optional[str] = None
     application_type: Optional[ApplicationTypeLiteral] = "schemes"
 
-    @validator("aadhaar_number")
+    @validator("aadhaar_number", pre=True, always=True)
     def validate_aadhaar(cls, v):
-        if v and len(v) not in (0, 12):
+        if v is None or v == "":
+            return ""
+        v = str(v)
+        if len(v) not in (0, 12):
             raise ValueError("Aadhaar number must be 12 digits")
-        if v and not v.isdigit():
+        if not v.isdigit():
             raise ValueError("Aadhaar number must contain only digits")
         return v
 
-    @validator("mobile")
+    @validator("mobile", pre=True, always=True)
     def validate_mobile(cls, v):
+        v = str(v)
         if not v.isdigit():
             raise ValueError("Mobile number must contain only digits")
         return v
@@ -43106,9 +43202,6 @@ class ApplicantDetails(BaseModel):
 # APPLICANT ADDRESS
 # ============================================================
 class ApplicantAddress(BaseModel):
-    """
-    Address details from scheme_apply_screen.dart (Step 2).
-    """
     address_line1: str = Field(..., min_length=1, max_length=300)
     address_line2: Optional[str] = Field(default="", max_length=300)
     village_city: str = Field(..., min_length=1, max_length=200)
@@ -43128,9 +43221,6 @@ class ApplicantAddress(BaseModel):
 # BANK DETAILS
 # ============================================================
 class BankDetails(BaseModel):
-    """
-    Bank details from scheme_apply_screen.dart (Step 3).
-    """
     account_holder_name: str = Field(..., min_length=1, max_length=200)
     bank_name: str = Field(..., min_length=1, max_length=200)
     account_number: str = Field(..., min_length=6, max_length=30)
@@ -43155,35 +43245,46 @@ class BankDetails(BaseModel):
 
 
 # ============================================================
-# DOCUMENT (normalized)
+# DOCUMENT (normalized) — ✅ accepts BOTH `url` and `document_url`
 # ============================================================
 class SchemeDocumentItem(BaseModel):
     """
     A single uploaded document.
-    Used both in the apply payload (as input) and in DB responses.
+    Accepts BOTH `url` and `document_url` as input.
+    Always outputs `document_url` in the model.
     """
     document_type: Optional[str] = Field(default="", max_length=100)
     document_name: Optional[str] = Field(default="", max_length=200)
-    document_url: Optional[str] = Field(default="", max_length=1000)
+    document_url: Optional[str] = Field(default="", max_length=2000)
     public_id: Optional[str] = None
     uploaded_at: Optional[datetime] = None
     verified: Optional[bool] = False
 
-    # Allow legacy / alias fields
+    # Allow legacy / alias input fields (they will NOT appear in output)
     url: Optional[str] = None
     label: Optional[str] = None
 
-    @validator("document_url", always=True)
-    def resolve_url(cls, v, values):
-        if not v:
-            v = values.get("url") or ""
-        return v
+    class Config:
+        extra = "allow"
 
-    @validator("document_name", always=True)
-    def resolve_name(cls, v, values):
-        if not v:
-            v = values.get("label") or ""
-        return v
+    @validator("document_url", always=True, pre=True)
+    def resolve_document_url(cls, v, values):
+        # Prefer explicit document_url, fall back to url
+        if v and str(v).strip():
+            return str(v).strip()
+        url = values.get("url")
+        if url and str(url).strip():
+            return str(url).strip()
+        return ""
+
+    @validator("document_name", always=True, pre=True)
+    def resolve_document_name(cls, v, values):
+        if v and str(v).strip():
+            return str(v).strip()
+        label = values.get("label")
+        if label and str(label).strip():
+            return str(label).strip()
+        return ""
 
 
 # ============================================================
@@ -43192,10 +43293,6 @@ class SchemeDocumentItem(BaseModel):
 class SchemeApplyRequest(BaseModel):
     """
     Request body for POST /api/v1/schemes/apply
-
-    Matches create_application() in service.py.
-    All sections are optional to remain backward-compatible with
-    the frontend, but recommended.
     """
     scheme_id: str = Field(..., min_length=1, max_length=100)
     scheme_name: Optional[str] = Field(default=None, max_length=300)
@@ -43205,6 +43302,9 @@ class SchemeApplyRequest(BaseModel):
     documents: Optional[List[SchemeDocumentItem]] = Field(default_factory=list)
     additional_info: Optional[Dict[str, Any]] = Field(default=None)
     remarks: Optional[str] = Field(default="")
+
+    class Config:
+        extra = "allow"
 
 
 class SchemeApplyResponse(BaseModel):
@@ -43219,9 +43319,6 @@ class SchemeApplyResponse(BaseModel):
 # SUBMIT REQUEST / RESPONSE
 # ============================================================
 class SchemeSubmitRequest(BaseModel):
-    """
-    Request body for POST /api/v1/schemes/application/{id}/submit
-    """
     remarks: Optional[str] = Field(default="")
     additional_info: Optional[Dict[str, Any]] = Field(default=None)
 
@@ -43235,23 +43332,18 @@ class SchemeSubmitResponse(BaseModel):
 
 
 # ============================================================
-# FULL APPLICATION RESPONSE (used in lists + detail)
+# FULL APPLICATION RESPONSE
 # ============================================================
 class SchemeApplicationResponse(BaseModel):
-    """
-    Full application document returned from the DB.
-    """
     _id: Optional[str] = None
     application_id: str
     application_type: Optional[str] = "schemes"
 
-    # User info
     user_email: Optional[str] = None
     user_id: Optional[str] = None
     user_name: Optional[str] = None
     user_mobile: Optional[str] = None
 
-    # Scheme info
     scheme_id: str
     scheme_name: Optional[str] = None
     scheme_name_hindi: Optional[str] = None
@@ -43259,7 +43351,6 @@ class SchemeApplicationResponse(BaseModel):
     scheme_state: Optional[str] = None
     scheme_category: Optional[str] = None
 
-    # Form sections
     applicant_details: Optional[Dict[str, Any]] = Field(default_factory=dict)
     applicant_address: Optional[Dict[str, Any]] = Field(default_factory=dict)
     bank_details: Optional[Dict[str, Any]] = Field(default_factory=dict)
@@ -43267,13 +43358,11 @@ class SchemeApplicationResponse(BaseModel):
     additional_info: Optional[Dict[str, Any]] = None
     remarks: Optional[str] = None
 
-    # Status / payment
     status: Optional[ApplicationStatusLiteral] = "pending"
     payment_verification_status: Optional[PaymentStatusLiteral] = "not_submitted"
     payment_amount: Optional[float] = 0
     payment_method: Optional[str] = None
 
-    # Audit
     created_at: Optional[Any] = None
     updated_at: Optional[Any] = None
     applied_at: Optional[Any] = None
@@ -43290,18 +43379,12 @@ class SchemeApplicationResponse(BaseModel):
 
 
 class ApplicationResponse(BaseModel):
-    """
-    Response for GET /my-applications
-    """
     success: bool = True
     applications: List[Dict[str, Any]] = Field(default_factory=list)
     total: Optional[int] = 0
 
 
 class ApplicationDetailResponse(BaseModel):
-    """
-    Response for GET /application/{id}
-    """
     success: bool = True
     application: Optional[Dict[str, Any]] = None
     scheme: Optional[Dict[str, Any]] = None
@@ -43316,9 +43399,6 @@ class DocumentUploadResponse(BaseModel):
     document: Optional[SchemeDocumentItem] = None
 
 
-# ============================================================
-# TEMP DOCUMENT UPLOAD RESPONSE
-# ============================================================
 class TempDocumentUploadResponse(BaseModel):
     success: bool = True
     message: str = "Document uploaded successfully"
@@ -43326,7 +43406,7 @@ class TempDocumentUploadResponse(BaseModel):
 
 
 # ============================================================
-# ADMIN: UPDATE STATUS REQUEST
+# ADMIN
 # ============================================================
 class AdminUpdateStatusRequest(BaseModel):
     status: ApplicationStatusLiteral
@@ -43374,8 +43454,8 @@ class SchemeStatesResponse(BaseModel):
 
 ================================================================================
 [ 134/ 170] 🐍 PYTHON FILE: app\modules\schemes\service.py
-📏 SIZE: 31,780 bytes
-🕐 MODIFIED: 2026-10-10 21:07:39
+📏 SIZE: 36,794 bytes
+🕐 MODIFIED: 2026-10-11 10:19:41
 
 ================================================================================
 
@@ -43388,6 +43468,9 @@ Government Schemes Service
 ✅ Documents stored in applications.documents[] — read per-application
 ✅ submit_application() for final submission
 ✅ Handles typed SchemeApplyRequest payloads
+✅ FIXED: document_url/url both accepted
+✅ FIXED: case-insensitive scheme_id lookup
+✅ FIXED: detailed logging for empty results
 """
 
 from fastapi import HTTPException, BackgroundTasks
@@ -43464,6 +43547,11 @@ class SchemeService:
                 if isinstance(s.get("updated_at"), datetime):
                     s["updated_at"] = s["updated_at"].isoformat()
 
+            module_logger.info(
+                f"📋 list_schemes → returned {len(schemes)} of {total} "
+                f"(query={query})"
+            )
+
             return {
                 "success": True,
                 "schemes": schemes,
@@ -43477,11 +43565,33 @@ class SchemeService:
 
     async def get_scheme_detail(self, scheme_id: str) -> Dict[str, Any]:
         try:
+            # Try exact match first
             scheme = await self.schemes.find_one(
                 {"scheme_id": scheme_id, "is_active": True}
             )
+            # Fallback: case-insensitive regex match
             if not scheme:
+                scheme = await self.schemes.find_one(
+                    {
+                        "scheme_id": {"$regex": f"^{scheme_id}$", "$options": "i"},
+                        "is_active": True,
+                    }
+                )
+            # Fallback: try matching by _id if it looks like an ObjectId
+            if not scheme:
+                try:
+                    from bson import ObjectId
+                    if ObjectId.is_valid(scheme_id):
+                        scheme = await self.schemes.find_one(
+                            {"_id": ObjectId(scheme_id), "is_active": True}
+                        )
+                except Exception:
+                    pass
+
+            if not scheme:
+                module_logger.warning(f"Scheme not found: {scheme_id}")
                 raise HTTPException(status_code=404, detail="Scheme not found")
+
             scheme["_id"] = str(scheme["_id"])
             if isinstance(scheme.get("created_at"), datetime):
                 scheme["created_at"] = scheme["created_at"].isoformat()
@@ -43540,14 +43650,13 @@ class SchemeService:
                     "state": {"$ne": None},
                 },
             )
-            return sorted(states)
+            return sorted([s for s in states if s])
         except Exception as e:
             module_logger.error(f"Error getting states: {e}")
             return []
 
-    # ============================================================
-    # CREATE APPLICATION
-    # ============================================================
+# app/modules/schemes/service.py — UPDATED create_application() METHOD
+
     async def create_application(
         self,
         data: Dict[str, Any],
@@ -43562,13 +43671,82 @@ class SchemeService:
                     status_code=400, detail="scheme_id is required"
                 )
 
+            # ============================================================
+            # ✅ DEBUG: Show exactly what we're looking for
+            # ============================================================
+            total_in_db = await self.schemes.count_documents({})
+            module_logger.info("=" * 70)
+            module_logger.info(f"🔍 SCHEME APPLICATION LOOKUP")
+            module_logger.info(f"   Requested scheme_id: '{scheme_id}'")
+            module_logger.info(f"   Total schemes in DB:  {total_in_db}")
+
+            # ✅ If collection is empty → clear error message
+            if total_in_db == 0:
+                module_logger.error("❌ SCHEMES COLLECTION IS EMPTY!")
+                module_logger.error("   → Run: python seed_schemes.py")
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        "Schemes collection is empty. "
+                        "Please run: python seed_schemes.py"
+                    ),
+                )
+
+            # ============================================================
+            # ✅ 3-STAGE LOOKUP: exact → case-insensitive → ObjectId
+            # ============================================================
+            # Stage 1: exact match
             scheme = await self.schemes.find_one(
                 {"scheme_id": scheme_id, "is_active": True}
             )
+
+            # Stage 2: case-insensitive match
             if not scheme:
-                raise HTTPException(
-                    status_code=404, detail="Scheme not found"
+                module_logger.info("   ⏩ Exact match failed → trying case-insensitive")
+                scheme = await self.schemes.find_one(
+                    {
+                        "scheme_id": {
+                            "$regex": f"^{scheme_id}$",
+                            "$options": "i",
+                        },
+                        "is_active": True,
+                    }
                 )
+
+            # Stage 3: ObjectId match
+            if not scheme:
+                module_logger.info("   ⏩ Case-insensitive failed → trying ObjectId")
+                try:
+                    from bson import ObjectId
+                    if ObjectId.is_valid(scheme_id):
+                        scheme = await self.schemes.find_one(
+                            {"_id": ObjectId(scheme_id), "is_active": True}
+                        )
+                except Exception:
+                    pass
+
+            # ============================================================
+            # ✅ If still not found → show all available scheme_ids
+            # ============================================================
+            if not scheme:
+                all_ids = await self.schemes.distinct("scheme_id")
+                module_logger.error(f"❌ Scheme '{scheme_id}' NOT FOUND!")
+                module_logger.error(
+                    f"   Available scheme_ids ({len(all_ids)}): "
+                    f"{all_ids[:30]}"
+                )
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        f"Scheme '{scheme_id}' not found. "
+                        f"Available: {all_ids[:10]}"
+                    ),
+                )
+
+            module_logger.info(
+                f"✅ Found scheme: {scheme.get('scheme_name')}"
+            )
+            module_logger.info("=" * 70)
 
             scheme_name_hindi = (
                 scheme.get("scheme_name_hindi") or ""
@@ -43619,25 +43797,32 @@ class SchemeService:
             application_id = str(uuid.uuid4())
             now = datetime.utcnow()
 
-            # Normalize documents
+            # ============================================================
+            # ✅ NORMALIZE DOCUMENTS — accept BOTH `url` and `document_url`
+            # ============================================================
             incoming_docs = data.get("documents") or []
             normalized_docs: List[Dict[str, Any]] = []
             for d in incoming_docs:
                 if not isinstance(d, dict):
                     continue
                 doc_url = (
-                    d.get("document_url") or d.get("url") or ""
-                ).strip()
+                    d.get("document_url")
+                    or d.get("url")
+                    or d.get("documentUrl")
+                    or ""
+                )
+                doc_url = str(doc_url).strip() if doc_url else ""
                 if not doc_url:
                     continue
                 normalized_docs.append(
                     {
                         "document_type": (
-                            d.get("document_type") or ""
+                            d.get("document_type") or d.get("type") or ""
                         ).strip(),
                         "document_name": (
                             d.get("document_name")
                             or d.get("label")
+                            or d.get("name")
                             or ""
                         ).strip(),
                         "document_url": doc_url,
@@ -43646,6 +43831,11 @@ class SchemeService:
                         "verified": False,
                     }
                 )
+
+            module_logger.info(
+                f"📎 Normalized {len(normalized_docs)} documents "
+                f"(from {len(incoming_docs)} incoming)"
+            )
 
             application_doc: Dict[str, Any] = {
                 "application_id": application_id,
@@ -43941,7 +44131,11 @@ class SchemeService:
                     for d in docs:
                         if not isinstance(d, dict):
                             continue
-                        url = (d.get("document_url") or "").strip()
+                        url = (
+                            d.get("document_url")
+                            or d.get("url")
+                            or ""
+                        ).strip()
                         if not url or url.lower() in (
                             "null",
                             "undefined",
@@ -55181,8 +55375,8 @@ print("✅ Voice module loaded")
 
 ================================================================================
 [ 161/ 170] 🐍 PYTHON FILE: debug_schemes.py
-📏 SIZE: 2,791 bytes
-🕐 MODIFIED: 2026-10-10 21:27:17
+📏 SIZE: 2,793 bytes
+🕐 MODIFIED: 2026-10-11 09:33:23
 
 ================================================================================
 
@@ -55261,6 +55455,7 @@ else:
 print("\n" + "=" * 70)
 print("DONE")
 print("=" * 70)
+
 
 
 ================================================================================
@@ -57120,8 +57315,8 @@ if __name__ == "__main__":
 
 ================================================================================
 [ 170/ 170] 🐍 PYTHON FILE: seed_schemes.py
-📏 SIZE: 24,322 bytes
-🕐 MODIFIED: 2026-10-10 19:57:52
+📏 SIZE: 66,729 bytes
+🕐 MODIFIED: 2026-10-11 10:36:02
 
 ================================================================================
 
@@ -57130,21 +57325,54 @@ if __name__ == "__main__":
 One-time seeder for the `schemes` collection.
 Run:  python seed_schemes.py
 Idempotent — safe to run multiple times (uses upsert).
+
+✅ FIXED: Forces UTF-8 encoding before any other import (Windows-safe).
+✅ FIXED: Seeds all 13 schemes (matches Flutter's local master data).
+✅ FIXED: Explicit DB None check + verification loop.
 """
 
+# ============================================================
+# 🪟 WINDOWS UTF-8 FIX — MUST BE FIRST (before any import!)
+# ============================================================
+import sys
+import io
+import os
+
+# Force stdout/stderr to UTF-8 on Windows
+if sys.platform == "win32":
+    os.environ["PYTHONIOENCODING"] = "utf-8"
+    os.environ["PYTHONUTF8"] = "1"
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        sys.stdout = io.TextIOWrapper(
+            sys.stdout.buffer, encoding="utf-8", errors="replace"
+        )
+        sys.stderr = io.TextIOWrapper(
+            sys.stderr.buffer, encoding="utf-8", errors="replace"
+        )
+
+# ============================================================
+# Now safe to import everything else
+# ============================================================
 import asyncio
 import logging
 from datetime import datetime
 
-from app.db.connection import get_db
+from app.db.connection import connect_db, get_db, close_db
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(message)s",
+    stream=sys.stdout,
+)
 logger = logging.getLogger("seed_schemes")
 
 
 SCHEMES = [
     # ============================================================
-    # CENTRAL SCHEMES
+    # CENTRAL SCHEMES (8)
     # ============================================================
     {
         "scheme_id": "pm_kisan",
@@ -57162,8 +57390,7 @@ SCHEMES = [
         ),
         "full_description_hindi": (
             "प्रधानमंत्री किसान सम्मान निधि (PM-KISAN) एक केंद्रीय क्षेत्र की योजना है "
-            "जो देश के सभी भूमिधारक किसान परिवारों को आय सहायता प्रदान करती है। "
-            "₹2000 की तीन समान किस्तों में प्रति वर्ष ₹6000 जारी की जाती है।"
+            "जो देश के सभी भूमिधारक किसान परिवारों को आय सहायता प्रदान करती है।"
         ),
         "benefits": [
             {"title": "Direct Income Support",
@@ -57248,8 +57475,7 @@ SCHEMES = [
         ),
         "full_description_hindi": (
             "आयुष्मान भारत प्रधानमंत्री जन आरोग्य योजना (PM-JAY) दुनिया की सबसे बड़ी "
-            "स्वास्थ्य बीमा योजना है जो प्रति परिवार प्रति वर्ष ₹5 लाख का स्वास्थ्य कवर "
-            "प्रदान करती है।"
+            "स्वास्थ्य बीमा योजना है जो प्रति परिवार प्रति वर्ष ₹5 लाख का कवर प्रदान करती है।"
         ),
         "benefits": [
             {"title": "Health Coverage", "description": "₹5 lakh per family per year",
@@ -57325,8 +57551,7 @@ SCHEMES = [
         "category": "housing",
         "full_description": (
             "Pradhan Mantri Awas Yojana (PMAY) aims to provide affordable housing "
-            "to the urban and rural poor. The scheme provides central assistance "
-            "to eligible beneficiaries for construction of houses."
+            "to the urban and rural poor."
         ),
         "full_description_hindi": (
             "प्रधानमंत्री आवास योजना (PMAY) का उद्देश्य शहरी और ग्रामीण गरीबों को "
@@ -57394,8 +57619,376 @@ SCHEMES = [
         "search_keywords": ["pmay", "awas", "housing", "home"],
     },
 
+    {
+        "scheme_id": "pm_mudra",
+        "scheme_name": "Pradhan Mantri MUDRA Yojana",
+        "scheme_name_hindi": "प्रधानमंत्री मुद्रा योजना",
+        "short_description": "Loans up to ₹10 lakh for small businesses",
+        "short_description_hindi": "छोटे व्यवसायों के लिए ₹10 लाख तक का ऋण",
+        "level": "central",
+        "state": None,
+        "category": "entrepreneurship",
+        "full_description": (
+            "Pradhan Mantri MUDRA Yojana (PMMY) provides loans up to ₹10 lakh "
+            "to non-corporate, non-farm small/micro enterprises."
+        ),
+        "full_description_hindi": (
+            "प्रधानमंत्री मुद्रा योजना (PMMY) गैर-कॉर्पोरेट, गैर-कृषि लघु/सूक्ष्म "
+            "उद्यमों को ₹10 लाख तक का ऋण प्रदान करती है।"
+        ),
+        "benefits": [
+            {"title": "Shishu Loan", "description": "Up to ₹50,000 for startups",
+             "amount": "₹50,000", "type": "financial"},
+            {"title": "Kishore Loan", "description": "₹50,001 to ₹5 lakh for growing businesses",
+             "amount": "₹50,001 - ₹5,00,000", "type": "financial"},
+            {"title": "Tarun Loan", "description": "₹5 lakh to ₹10 lakh for established businesses",
+             "amount": "₹5,00,001 - ₹10,00,000", "type": "financial"},
+        ],
+        "eligibility": {
+            "age_min": 18, "age_max": 65, "gender": None,
+            "income_limit": None, "category": None,
+            "education_level": None, "occupation": "Entrepreneur/Small Business",
+            "domicile_state": None, "disability_required": False,
+            "bpl_required": False, "aadhaar_required": True,
+        },
+        "eligibility_details_hindi": (
+            "• भारतीय नागरिक होना चाहिए\n"
+            "• आयु 18-65 वर्ष के बीच\n"
+            "• गैर-कृषि लघु/सूक्ष्म उद्यम\n"
+            "• कोई डिफॉल्टर नहीं होना चाहिए"
+        ),
+        "target_beneficiaries": ["Small business owners", "Micro entrepreneurs", "Startup founders"],
+        "target_beneficiaries_hindi": ["छोटे व्यवसाय मालिक", "सूक्ष्म उद्यमी", "स्टार्टअप संस्थापक"],
+        "required_documents": [
+            {"name": "Aadhaar Card", "name_hindi": "आधार कार्ड", "required": True, "description": None},
+            {"name": "PAN Card", "name_hindi": "पैन कार्ड", "required": True, "description": None},
+            {"name": "Business Plan", "name_hindi": "व्यवसाय योजना", "required": True, "description": None},
+            {"name": "Bank Statement", "name_hindi": "बैंक विवरण", "required": True, "description": None},
+        ],
+        "application_steps": [
+            {"step_number": 1, "title": "Visit Bank/NBFC",
+             "title_hindi": "बैंक/NBFC पर जाएं",
+             "description": "Visit any bank branch or NBFC that offers MUDRA loans",
+             "description_hindi": "किसी भी बैंक शाखा या NBFC पर जाएं जो मुद्रा ऋण प्रदान करता है"},
+            {"step_number": 2, "title": "Fill Application Form",
+             "title_hindi": "आवेदन पत्र भरें",
+             "description": "Fill the MUDRA loan application form with business details",
+             "description_hindi": "व्यवसाय विवरण के साथ मुद्रा ऋण आवेदन पत्र भरें"},
+            {"step_number": 3, "title": "Submit Documents",
+             "title_hindi": "दस्तावेज जमा करें",
+             "description": "Submit all required documents including business plan",
+             "description_hindi": "व्यवसाय योजना सहित सभी आवश्यक दस्तावेज जमा करें"},
+        ],
+        "application_mode": "offline",
+        "contact_info": {
+            "helpline": "1800-180-1111",
+            "email": "mudra@sidbi.in",
+            "website": "https://www.mudra.org.in",
+            "office_address": None,
+        },
+        "official_website": "https://www.mudra.org.in",
+        "apply_link": "https://www.mudra.org.in/Offerings",
+        "has_application_fee": False,
+        "application_fee": 0,
+        "fee_details_hindi": None,
+        "icon": "🚀",
+        "color": "purple",
+        "is_featured": True,
+        "priority": 85,
+        "tags": ["loan", "business", "entrepreneur", "व्यवसाय"],
+        "search_keywords": ["mudra", "loan", "business"],
+    },
+
+    {
+        "scheme_id": "sukanya_samriddhi",
+        "scheme_name": "Sukanya Samriddhi Yojana",
+        "scheme_name_hindi": "सुकन्या समृद्धि योजना",
+        "short_description": "Small savings scheme for girl child education and marriage",
+        "short_description_hindi": "बालिका शिक्षा और विवाह के लिए लघु बचत योजना",
+        "level": "central",
+        "state": None,
+        "category": "women_child",
+        "full_description": (
+            "Sukanya Samriddhi Yojana is a small deposit scheme for the girl "
+            "child launched as a part of the Beti Bachao Beti Padhao campaign."
+        ),
+        "full_description_hindi": (
+            "सुकन्या समृद्धि योजना बेटी बचाओ बेटी पढ़ाओ अभियान के एक भाग के रूप में "
+            "शुरू की गई बालिका के लिए एक लघु जमा योजना है।"
+        ),
+        "benefits": [
+            {"title": "High Interest Rate",
+             "description": "Currently 8.2% per annum (highest among small savings)",
+             "amount": "8.2% p.a.", "type": "financial"},
+            {"title": "Tax Benefits",
+             "description": "Tax deduction under Section 80C",
+             "amount": None, "type": "financial"},
+            {"title": "Maturity",
+             "description": "Account matures after 21 years or on marriage after 18",
+             "amount": None, "type": "financial"},
+        ],
+        "eligibility": {
+            "age_min": 0, "age_max": 10, "gender": "female",
+            "income_limit": None, "category": None,
+            "education_level": None, "occupation": None,
+            "domicile_state": None, "disability_required": False,
+            "bpl_required": False, "aadhaar_required": True,
+        },
+        "eligibility_details_hindi": (
+            "• बालिका की आयु 10 वर्ष से कम होनी चाहिए\n"
+            "• अधिकतम 2 बालिकाओं के लिए खाता खोला जा सकता है\n"
+            "• बालिका की ओर से माता-पिता या अभिभावक खाता खोल सकते हैं"
+        ),
+        "target_beneficiaries": ["Girl children below 10 years", "Parents of girl children"],
+        "target_beneficiaries_hindi": ["10 वर्ष से कम आयु की बालिकाएं", "बालिकाओं के माता-पिता"],
+        "required_documents": [
+            {"name": "Birth Certificate of Girl Child", "name_hindi": "बालिका का जन्म प्रमाण पत्र",
+             "required": True, "description": None},
+            {"name": "Aadhaar Card of Parent/Guardian", "name_hindi": "माता-पिता/अभिभावक का आधार कार्ड",
+             "required": True, "description": None},
+            {"name": "Address Proof", "name_hindi": "पता प्रमाण", "required": True, "description": None},
+            {"name": "Photograph", "name_hindi": "फोटो", "required": True, "description": None},
+        ],
+        "application_steps": [
+            {"step_number": 1, "title": "Visit Post Office/Bank",
+             "title_hindi": "डाकघर/बैंक पर जाएं",
+             "description": "Visit any authorized post office or bank branch",
+             "description_hindi": "किसी भी अधिकृत डाकघर या बैंक शाखा पर जाएं"},
+            {"step_number": 2, "title": "Fill Account Opening Form",
+             "title_hindi": "खाता खोलने का फॉर्म भरें",
+             "description": "Fill the Sukanya Samriddhi account opening form",
+             "description_hindi": "सुकन्या समृद्धि खाता खोलने का फॉर्म भरें"},
+            {"step_number": 3, "title": "Deposit Initial Amount",
+             "title_hindi": "प्रारंभिक राशि जमा करें",
+             "description": "Minimum ₹250 to open the account",
+             "description_hindi": "खाता खोलने के लिए न्यूनतम ₹250"},
+        ],
+        "application_mode": "offline",
+        "contact_info": {
+            "helpline": "1800-11-1555",
+            "email": None,
+            "website": "https://www.indiapost.gov.in",
+            "office_address": None,
+        },
+        "official_website": "https://www.indiapost.gov.in/Financial/Pages/Content/Post-Office-Saving-Schemes.aspx",
+        "apply_link": None,
+        "has_application_fee": False,
+        "application_fee": 0,
+        "fee_details_hindi": None,
+        "icon": "👧",
+        "color": "pink",
+        "is_featured": True,
+        "priority": 85,
+        "tags": ["girl child", "savings", "education", "बालिका"],
+        "search_keywords": ["sukanya", "girl child", "savings"],
+    },
+
+    {
+        "scheme_id": "pmjjby",
+        "scheme_name": "PM Jeevan Jyoti Bima Yojana",
+        "scheme_name_hindi": "प्रधानमंत्री जीवन ज्योति बीमा योजना",
+        "short_description": "Life insurance cover of ₹2 lakh at ₹436/year",
+        "short_description_hindi": "₹436/वर्ष पर ₹2 लाख का जीवन बीमा कवर",
+        "level": "central",
+        "state": None,
+        "category": "insurance",
+        "full_description": (
+            "Pradhan Mantri Jeevan Jyoti Bima Yojana (PMJJBY) offers a renewable "
+            "one-year life cover of ₹2 lakh to all savings bank account holders."
+        ),
+        "full_description_hindi": (
+            "प्रधानमंत्री जीवन ज्योति बीमा योजना (PMJJBY) सभी बचत बैंक खाताधारकों को "
+            "₹2 लाख का एक वर्षीय जीवन कवर प्रदान करती है।"
+        ),
+        "benefits": [
+            {"title": "Life Cover",
+             "description": "₹2 lakh in case of death due to any reason",
+             "amount": "₹2,00,000", "type": "financial"},
+            {"title": "Low Premium",
+             "description": "Only ₹436 per year",
+             "amount": "₹436/year", "type": "financial"},
+        ],
+        "eligibility": {
+            "age_min": 18, "age_max": 50, "gender": None,
+            "income_limit": None, "category": None,
+            "education_level": None, "occupation": None,
+            "domicile_state": None, "disability_required": False,
+            "bpl_required": False, "aadhaar_required": True,
+        },
+        "eligibility_details_hindi": (
+            "• आयु 18-50 वर्ष\n"
+            "• बचत बैंक खाता होना चाहिए\n"
+            "• आधार कार्ड आवश्यक\n"
+            "• बैंक खाते से ऑटो-डेबिट सुविधा"
+        ),
+        "target_beneficiaries": ["Bank account holders", "Working professionals", "Self-employed individuals"],
+        "target_beneficiaries_hindi": ["बैंक खाताधारक", "कामकाजी पेशेवर", "स्वरोजगार"],
+        "required_documents": [
+            {"name": "Aadhaar Card", "name_hindi": "आधार कार्ड", "required": True, "description": None},
+            {"name": "Bank Account", "name_hindi": "बैंक खाता", "required": True, "description": None},
+            {"name": "Nominee Details", "name_hindi": "नामांकित व्यक्ति विवरण", "required": True, "description": None},
+        ],
+        "application_steps": [
+            {"step_number": 1, "title": "Visit Your Bank",
+             "title_hindi": "अपने बैंक पर जाएं",
+             "description": "Go to your bank branch and request PMJJBY enrollment",
+             "description_hindi": "अपनी बैंक शाखा पर जाएं और PMJJBY नामांकन का अनुरोध करें"},
+            {"step_number": 2, "title": "Fill Enrollment Form",
+             "title_hindi": "नामांकन फॉर्म भरें",
+             "description": "Fill the PMJJBY enrollment form with nominee details",
+             "description_hindi": "नामांकित व्यक्ति विवरण के साथ PMJJBY नामांकन फॉर्म भरें"},
+            {"step_number": 3, "title": "Auto-Debit Setup",
+             "title_hindi": "ऑटो-डेबिट सेटअप",
+             "description": "Enable auto-debit for annual premium",
+             "description_hindi": "वार्षिक प्रीमियम के लिए ऑटो-डेबिट सक्षम करें"},
+        ],
+        "application_mode": "offline",
+        "contact_info": {
+            "helpline": "1800-180-1111",
+            "email": None,
+            "website": "https://jansuraksha.gov.in",
+            "office_address": None,
+        },
+        "official_website": "https://jansuraksha.gov.in/PMJJBY.aspx",
+        "apply_link": None,
+        "has_application_fee": True,
+        "application_fee": 436,
+        "fee_details_hindi": "वार्षिक प्रीमियम: ₹436",
+        "icon": "🛡️",
+        "color": "indigo",
+        "is_featured": False,
+        "priority": 80,
+        "tags": ["insurance", "life insurance", "बीमा"],
+        "search_keywords": ["jeevan jyoti", "insurance", "life"],
+    },
+
+    {
+        "scheme_id": "pmsby",
+        "scheme_name": "PM Suraksha Bima Yojana",
+        "scheme_name_hindi": "प्रधानमंत्री सुरक्षा बीमा योजना",
+        "short_description": "Accident insurance cover of ₹2 lakh at ₹20/year",
+        "short_description_hindi": "₹20/वर्ष पर ₹2 लाख का दुर्घटना बीमा कवर",
+        "level": "central",
+        "state": None,
+        "category": "insurance",
+        "full_description": (
+            "PMSBY offers accidental death and disability cover of ₹2 lakh "
+            "at a premium of just ₹20 per year."
+        ),
+        "full_description_hindi": (
+            "PMSBY केवल ₹20 प्रति वर्ष के प्रीमियम पर ₹2 लाख का दुर्घटना बीमा कवर प्रदान करती है।"
+        ),
+        "benefits": [
+            {"title": "Accident Cover", "description": "₹2 lakh for accidental death",
+             "amount": "₹2,00,000", "type": "financial"},
+            {"title": "Disability Cover", "description": "Up to ₹2 lakh for disability",
+             "amount": "₹2,00,000", "type": "financial"},
+        ],
+        "eligibility": {
+            "age_min": 18, "age_max": 70, "gender": None,
+            "income_limit": None, "category": None,
+            "education_level": None, "occupation": None,
+            "domicile_state": None, "disability_required": False,
+            "bpl_required": False, "aadhaar_required": True,
+        },
+        "eligibility_details_hindi": "• आयु 18-70 वर्ष\n• बचत बैंक खाता होना चाहिए",
+        "target_beneficiaries": ["Bank account holders", "All adults"],
+        "target_beneficiaries_hindi": ["बैंक खाताधारक", "सभी वयस्क"],
+        "required_documents": [
+            {"name": "Aadhaar Card", "name_hindi": "आधार कार्ड", "required": True, "description": None},
+            {"name": "Bank Account", "name_hindi": "बैंक खाता", "required": True, "description": None},
+        ],
+        "application_steps": [
+            {"step_number": 1, "title": "Visit Your Bank",
+             "title_hindi": "अपने बैंक पर जाएं",
+             "description": "Request PMSBY enrollment",
+             "description_hindi": "PMSBY नामांकन का अनुरोध करें"},
+        ],
+        "application_mode": "offline",
+        "contact_info": {
+            "helpline": "1800-180-1111",
+            "email": None,
+            "website": "https://jansuraksha.gov.in",
+            "office_address": None,
+        },
+        "official_website": "https://jansuraksha.gov.in/PMSBY.aspx",
+        "apply_link": None,
+        "has_application_fee": True,
+        "application_fee": 20,
+        "fee_details_hindi": "वार्षिक प्रीमियम: ₹20",
+        "icon": "🛡️",
+        "color": "cyan",
+        "is_featured": False,
+        "priority": 80,
+        "tags": ["accident", "insurance", "बीमा"],
+        "search_keywords": ["suraksha bima", "accident", "insurance"],
+    },
+
+    {
+        "scheme_id": "atal_pension",
+        "scheme_name": "Atal Pension Yojana",
+        "scheme_name_hindi": "अटल पेंशन योजना",
+        "short_description": "Guaranteed pension of ₹1,000-₹5,000/month after 60",
+        "short_description_hindi": "60 के बाद ₹1,000-₹5,000/माह की गारंटीड पेंशन",
+        "level": "central",
+        "state": None,
+        "category": "pension",
+        "full_description": (
+            "APY provides guaranteed minimum pension of ₹1,000 to ₹5,000 "
+            "per month after age 60."
+        ),
+        "full_description_hindi": (
+            "APY 60 वर्ष की आयु के बाद ₹1,000 से ₹5,000 प्रति माह की गारंटीड "
+            "पेंशन प्रदान करती है।"
+        ),
+        "benefits": [
+            {"title": "Guaranteed Pension", "description": "₹1,000 to ₹5,000 per month",
+             "amount": "₹1,000-₹5,000/month", "type": "financial"},
+            {"title": "Government Co-contribution",
+             "description": "50% of contribution or ₹1,000/year", "amount": None, "type": "financial"},
+        ],
+        "eligibility": {
+            "age_min": 18, "age_max": 40, "gender": None,
+            "income_limit": None, "category": None,
+            "education_level": None, "occupation": None,
+            "domicile_state": None, "disability_required": False,
+            "bpl_required": False, "aadhaar_required": True,
+        },
+        "eligibility_details_hindi": "• आयु 18-40 वर्ष\n• बचत बैंक खाता होना चाहिए",
+        "target_beneficiaries": ["Unorganized sector workers", "Self-employed", "All adults 18-40"],
+        "target_beneficiaries_hindi": ["असंगठित क्षेत्र के श्रमिक", "स्वरोजगार", "18-40 वर्ष के सभी वयस्क"],
+        "required_documents": [
+            {"name": "Aadhaar Card", "name_hindi": "आधार कार्ड", "required": True, "description": None},
+            {"name": "Bank Account", "name_hindi": "बैंक खाता", "required": True, "description": None},
+        ],
+        "application_steps": [
+            {"step_number": 1, "title": "Visit Your Bank",
+             "title_hindi": "अपने बैंक पर जाएं",
+             "description": "Request APY enrollment",
+             "description_hindi": "APY नामांकन का अनुरोध करें"},
+        ],
+        "application_mode": "offline",
+        "contact_info": {
+            "helpline": "1800-110-069",
+            "email": None,
+            "website": "https://www.npscra.nsdl.co.in",
+            "office_address": None,
+        },
+        "official_website": "https://www.npscra.nsdl.co.in/scheme-details.php",
+        "apply_link": None,
+        "has_application_fee": False,
+        "application_fee": 0,
+        "fee_details_hindi": None,
+        "icon": "👴",
+        "color": "amber",
+        "is_featured": False,
+        "priority": 75,
+        "tags": ["pension", "retirement", "पेंशन"],
+        "search_keywords": ["atal pension", "pension", "retirement"],
+    },
+
     # ============================================================
-    # STATE SCHEMES
+    # STATE SCHEMES (5) — MP, MH, UP, RJ, TN
     # ============================================================
     {
         "scheme_id": "mp_ladli_behna",
@@ -57470,19 +58063,338 @@ SCHEMES = [
         "icon": "👩",
         "color": "pink",
         "is_featured": True,
-        "priority": 85,
+        "priority": 100,
         "tags": ["women", "mp", "महिला", "मध्य प्रदेश"],
         "search_keywords": ["ladli behna", "mp", "women", "ladli"],
+    },
+
+    {
+        "scheme_id": "mh_ladki_bahin",
+        "scheme_name": "Mukhyamantri Majhi Ladki Bahin Yojana",
+        "scheme_name_hindi": "मुख्यमंत्री माझी लाडकी बहीण योजना",
+        "short_description": "Financial assistance of ₹1,500/month to women",
+        "short_description_hindi": "महिलाओं को ₹1,500/माह की वित्तीय सहायता",
+        "level": "state",
+        "state": "Maharashtra",
+        "category": "women_child",
+        "full_description": (
+            "Mukhyamantri Majhi Ladki Bahin Yojana provides ₹1,500 per month "
+            "to eligible women aged 21-65 years in Maharashtra."
+        ),
+        "full_description_hindi": (
+            "मुख्यमंत्री माझी लाडकी बहीण योजना महाराष्ट्र में 21-65 वर्ष की पात्र "
+            "महिलाओं को ₹1,500 प्रति माह प्रदान करती है।"
+        ),
+        "benefits": [
+            {"title": "Monthly Assistance",
+             "description": "₹1,500 per month directly to bank account",
+             "amount": "₹1,500/month", "type": "financial"},
+        ],
+        "eligibility": {
+            "age_min": 21, "age_max": 65, "gender": "female",
+            "income_limit": 250000, "category": None,
+            "education_level": None, "occupation": None,
+            "domicile_state": "Maharashtra", "disability_required": False,
+            "bpl_required": False, "aadhaar_required": True,
+        },
+        "eligibility_details_hindi": (
+            "• महाराष्ट्र की मूल निवासी महिला\n"
+            "• आयु 21-65 वर्ष\n"
+            "• परिवार की वार्षिक आय ₹2.5 लाख से कम\n"
+            "• आधार कार्ड और बैंक खाता आवश्यक"
+        ),
+        "target_beneficiaries": ["Women aged 21-65", "Maharashtra residents"],
+        "target_beneficiaries_hindi": ["21-65 वर्ष की महिलाएं", "महाराष्ट्र निवासी"],
+        "required_documents": [
+            {"name": "Aadhaar Card", "name_hindi": "आधार कार्ड", "required": True, "description": None},
+            {"name": "Domicile Certificate", "name_hindi": "मूल निवास प्रमाण पत्र", "required": True, "description": None},
+            {"name": "Income Certificate", "name_hindi": "आय प्रमाण पत्र", "required": True, "description": None},
+            {"name": "Bank Passbook", "name_hindi": "बैंक पासबुक", "required": True, "description": None},
+            {"name": "Ration Card", "name_hindi": "राशन कार्ड", "required": True, "description": None},
+        ],
+        "application_steps": [
+            {"step_number": 1, "title": "Visit Official Portal",
+             "title_hindi": "आधिकारिक पोर्टल पर जाएं",
+             "description": "Go to ladakibahin.maharashtra.gov.in",
+             "description_hindi": "ladakibahin.maharashtra.gov.in पर जाएं"},
+            {"step_number": 2, "title": "Fill Application",
+             "title_hindi": "आवेदन भरें",
+             "description": "Complete the online application form",
+             "description_hindi": "ऑनलाइन आवेदन पत्र पूरा करें"},
+            {"step_number": 3, "title": "Submit Documents",
+             "title_hindi": "दस्तावेज जमा करें",
+             "description": "Upload required documents and submit",
+             "description_hindi": "आवश्यक दस्तावेज अपलोड करें और जमा करें"},
+        ],
+        "application_mode": "online",
+        "contact_info": {
+            "helpline": "181",
+            "email": None,
+            "website": "https://ladakibahin.maharashtra.gov.in",
+            "office_address": None,
+        },
+        "official_website": "https://ladakibahin.maharashtra.gov.in",
+        "apply_link": None,
+        "has_application_fee": False,
+        "application_fee": 0,
+        "fee_details_hindi": None,
+        "icon": "👩",
+        "color": "pink",
+        "is_featured": True,
+        "priority": 100,
+        "tags": ["women", "maharashtra", "महिला", "महाराष्ट्र"],
+        "search_keywords": ["ladki bahin", "women", "maharashtra"],
+    },
+
+    {
+        "scheme_id": "up_kanya_sumangala",
+        "scheme_name": "Mukhyamantri Kanya Sumangala Yojana",
+        "scheme_name_hindi": "मुख्यमंत्री कन्या सुमंगला योजना",
+        "short_description": "Financial assistance up to ₹25,000 for girl child",
+        "short_description_hindi": "बालिका के लिए ₹25,000 तक की वित्तीय सहायता",
+        "level": "state",
+        "state": "Uttar Pradesh",
+        "category": "women_child",
+        "full_description": (
+            "Mukhyamantri Kanya Sumangala Yojana provides ₹25,000 in 6 stages "
+            "to girl children from birth to graduation in Uttar Pradesh."
+        ),
+        "full_description_hindi": (
+            "मुख्यमंत्री कन्या सुमंगला योजना उत्तर प्रदेश में जन्म से स्नातक तक "
+            "बालिकाओं को 6 चरणों में ₹25,000 प्रदान करती है।"
+        ),
+        "benefits": [
+            {"title": "Total Assistance", "description": "₹25,000 in 6 stages",
+             "amount": "₹25,000", "type": "financial"},
+            {"title": "Stage-wise Benefits",
+             "description": "₹5,000 at birth, ₹2,000 at each stage", "amount": None, "type": "financial"},
+        ],
+        "eligibility": {
+            "age_min": 0, "age_max": 22, "gender": "female",
+            "income_limit": 300000, "category": None,
+            "education_level": None, "occupation": None,
+            "domicile_state": "Uttar Pradesh", "disability_required": False,
+            "bpl_required": False, "aadhaar_required": True,
+        },
+        "eligibility_details_hindi": (
+            "• उत्तर प्रदेश की मूल निवासी बालिका\n"
+            "• परिवार की वार्षिक आय ₹3 लाख से कम\n"
+            "• अधिकतम 2 बालिकाओं के लिए लाभ\n"
+            "• जन्म से स्नातक तक"
+        ),
+        "target_beneficiaries": ["Girl children", "UP residents"],
+        "target_beneficiaries_hindi": ["बालिकाएं", "उत्तर प्रदेश निवासी"],
+        "required_documents": [
+            {"name": "Birth Certificate", "name_hindi": "जन्म प्रमाण पत्र", "required": True, "description": None},
+            {"name": "Aadhaar Card", "name_hindi": "आधार कार्ड", "required": True, "description": None},
+            {"name": "Income Certificate", "name_hindi": "आय प्रमाण पत्र", "required": True, "description": None},
+            {"name": "Domicile Certificate", "name_hindi": "मूल निवास प्रमाण पत्र", "required": True, "description": None},
+            {"name": "Bank Passbook", "name_hindi": "बैंक पासबुक", "required": True, "description": None},
+        ],
+        "application_steps": [
+            {"step_number": 1, "title": "Visit Official Portal",
+             "title_hindi": "आधिकारिक पोर्टल पर जाएं",
+             "description": "Go to mksy.up.gov.in",
+             "description_hindi": "mksy.up.gov.in पर जाएं"},
+            {"step_number": 2, "title": "Fill Application",
+             "title_hindi": "आवेदन भरें",
+             "description": "Complete the online application form",
+             "description_hindi": "ऑनलाइन आवेदन पत्र पूरा करें"},
+            {"step_number": 3, "title": "Submit Documents",
+             "title_hindi": "दस्तावेज जमा करें",
+             "description": "Upload required documents and submit",
+             "description_hindi": "आवश्यक दस्तावेज अपलोड करें और जमा करें"},
+        ],
+        "application_mode": "online",
+        "contact_info": {
+            "helpline": "1800-180-5333",
+            "email": None,
+            "website": "https://mksy.up.gov.in",
+            "office_address": None,
+        },
+        "official_website": "https://mksy.up.gov.in",
+        "apply_link": None,
+        "has_application_fee": False,
+        "application_fee": 0,
+        "fee_details_hindi": None,
+        "icon": "👧",
+        "color": "pink",
+        "is_featured": True,
+        "priority": 95,
+        "tags": ["girl child", "up", "बालिका", "उत्तर प्रदेश"],
+        "search_keywords": ["kanya sumangala", "girl child", "up"],
+    },
+
+    {
+        "scheme_id": "rj_chiranjeevi",
+        "scheme_name": "Mukhyamantri Chiranjeevi Yojana",
+        "scheme_name_hindi": "मुख्यमंत्री चिरंजीवी योजना",
+        "short_description": "Health insurance cover of ₹25 lakh per family",
+        "short_description_hindi": "प्रति परिवार ₹25 लाख का स्वास्थ्य बीमा",
+        "level": "state",
+        "state": "Rajasthan",
+        "category": "health",
+        "full_description": (
+            "Mukhyamantri Chiranjeevi Yojana provides health insurance cover "
+            "of ₹25 lakh per family per year to all residents of Rajasthan."
+        ),
+        "full_description_hindi": (
+            "मुख्यमंत्री चिरंजीवी योजना राजस्थान के सभी निवासियों को प्रति परिवार "
+            "प्रति वर्ष ₹25 लाख का स्वास्थ्य बीमा कवर प्रदान करती है।"
+        ),
+        "benefits": [
+            {"title": "Health Cover", "description": "₹25 lakh per family per year",
+             "amount": "₹25,00,000", "type": "financial"},
+            {"title": "Cashless Treatment",
+             "description": "At government and empanelled private hospitals",
+             "amount": None, "type": "service"},
+        ],
+        "eligibility": {
+            "age_min": None, "age_max": None, "gender": None,
+            "income_limit": None, "category": None,
+            "education_level": None, "occupation": None,
+            "domicile_state": "Rajasthan", "disability_required": False,
+            "bpl_required": False, "aadhaar_required": True,
+        },
+        "eligibility_details_hindi": (
+            "• राजस्थान का मूल निवासी\n"
+            "• आयु की कोई सीमा नहीं\n"
+            "• जन आधार कार्ड आवश्यक\n"
+            "• परिवार के सभी सदस्य पात्र"
+        ),
+        "target_beneficiaries": ["Rajasthan residents", "All age groups"],
+        "target_beneficiaries_hindi": ["राजस्थान निवासी", "सभी आयु वर्ग"],
+        "required_documents": [
+            {"name": "Jan Aadhaar Card", "name_hindi": "जन आधार कार्ड", "required": True, "description": None},
+            {"name": "Aadhaar Card", "name_hindi": "आधार कार्ड", "required": True, "description": None},
+            {"name": "Domicile Certificate", "name_hindi": "मूल निवास प्रमाण पत्र", "required": True, "description": None},
+        ],
+        "application_steps": [
+            {"step_number": 1, "title": "Visit Official Portal",
+             "title_hindi": "आधिकारिक पोर्टल पर जाएं",
+             "description": "Go to health.rajasthan.gov.in",
+             "description_hindi": "health.rajasthan.gov.in पर जाएं"},
+            {"step_number": 2, "title": "Register with Jan Aadhaar",
+             "title_hindi": "जन आधार से पंजीकरण करें",
+             "description": "Register using your Jan Aadhaar number",
+             "description_hindi": "अपने जन आधार नंबर का उपयोग करके पंजीकरण करें"},
+            {"step_number": 3, "title": "Get Insurance Card",
+             "title_hindi": "बीमा कार्ड प्राप्त करें",
+             "description": "Download your Chiranjeevi card",
+             "description_hindi": "अपना चिरंजीवी कार्ड डाउनलोड करें"},
+        ],
+        "application_mode": "online",
+        "contact_info": {
+            "helpline": "1800-180-6127",
+            "email": None,
+            "website": "https://health.rajasthan.gov.in",
+            "office_address": None,
+        },
+        "official_website": "https://health.rajasthan.gov.in",
+        "apply_link": None,
+        "has_application_fee": False,
+        "application_fee": 0,
+        "fee_details_hindi": None,
+        "icon": "🏥",
+        "color": "teal",
+        "is_featured": True,
+        "priority": 95,
+        "tags": ["health", "rajasthan", "स्वास्थ्य", "राजस्थान"],
+        "search_keywords": ["chiranjeevi", "health", "rajasthan"],
+    },
+
+    {
+        "scheme_id": "tn_kalaignar_magalir",
+        "scheme_name": "Kalaignar Magalir Urimai Thogai",
+        "scheme_name_hindi": "कलैग्नार मगलिर उरिमै थोगै",
+        "short_description": "Monthly assistance of ₹1,000 to women heads of families",
+        "short_description_hindi": "परिवार की महिला मुखियाओं को ₹1,000/माह की सहायता",
+        "level": "state",
+        "state": "Tamil Nadu",
+        "category": "women_child",
+        "full_description": (
+            "Kalaignar Magalir Urimai Thogai provides ₹1,000 per month to "
+            "eligible women heads of families in Tamil Nadu."
+        ),
+        "full_description_hindi": (
+            "कलैग्नार मगलिर उरिमै थोगै तमिलनाडु में पात्र महिला परिवार मुखियाओं को "
+            "₹1,000 प्रति माह प्रदान करती है।"
+        ),
+        "benefits": [
+            {"title": "Monthly Assistance", "description": "₹1,000 per month",
+             "amount": "₹1,000/month", "type": "financial"},
+        ],
+        "eligibility": {
+            "age_min": 21, "age_max": None, "gender": "female",
+            "income_limit": 250000, "category": None,
+            "education_level": None, "occupation": None,
+            "domicile_state": "Tamil Nadu", "disability_required": False,
+            "bpl_required": False, "aadhaar_required": True,
+        },
+        "eligibility_details_hindi": (
+            "• तमिलनाडु की मूल निवासी महिला\n"
+            "• आयु 21 वर्ष से अधिक\n"
+            "• परिवार की वार्षिक आय ₹2.5 लाख से कम\n"
+            "• परिवार की मुखिया महिला हो"
+        ),
+        "target_beneficiaries": ["Women heads of families", "Tamil Nadu residents"],
+        "target_beneficiaries_hindi": ["परिवार की महिला मुखिया", "तमिलनाडु निवासी"],
+        "required_documents": [
+            {"name": "Aadhaar Card", "name_hindi": "आधार कार्ड", "required": True, "description": None},
+            {"name": "Ration Card", "name_hindi": "राशन कार्ड", "required": True, "description": None},
+            {"name": "Income Certificate", "name_hindi": "आय प्रमाण पत्र", "required": True, "description": None},
+            {"name": "Bank Passbook", "name_hindi": "बैंक पासबुक", "required": True, "description": None},
+        ],
+        "application_steps": [
+            {"step_number": 1, "title": "Visit e-Sevai Center",
+             "title_hindi": "ई-सेवा केंद्र पर जाएं",
+             "description": "Visit nearest e-Sevai center or apply online",
+             "description_hindi": "निकटतम ई-सेवा केंद्र पर जाएं या ऑनलाइन आवेदन करें"},
+            {"step_number": 2, "title": "Fill Application",
+             "title_hindi": "आवेदन भरें",
+             "description": "Complete the application form",
+             "description_hindi": "आवेदन पत्र पूरा करें"},
+            {"step_number": 3, "title": "Submit Documents",
+             "title_hindi": "दस्तावेज जमा करें",
+             "description": "Submit required documents",
+             "description_hindi": "आवश्यक दस्तावेज जमा करें"},
+        ],
+        "application_mode": "both",
+        "contact_info": {
+            "helpline": "1100",
+            "email": None,
+            "website": "https://kmut.tn.gov.in",
+            "office_address": None,
+        },
+        "official_website": "https://kmut.tn.gov.in",
+        "apply_link": None,
+        "has_application_fee": False,
+        "application_fee": 0,
+        "fee_details_hindi": None,
+        "icon": "👩",
+        "color": "pink",
+        "is_featured": True,
+        "priority": 95,
+        "tags": ["women", "tamil nadu", "महिला", "तमिलनाडु"],
+        "search_keywords": ["kalaignar", "women", "tamil nadu"],
     },
 ]
 
 
 async def seed():
+    """Seed all schemes into the schemes collection."""
     logger.info("=" * 60)
-    logger.info("🌱 SEEDING SCHEMES COLLECTION")
+    logger.info("SEEDING SCHEMES COLLECTION")
     logger.info("=" * 60)
 
-    db = await get_db()
+    # ✅ connect_db() is async
+    await connect_db()
+    db = get_db()
+
+    if db is None:
+        logger.error("Database connection is None. Aborting.")
+        return {"inserted": 0, "updated": 0, "total": 0, "error": "db is None"}
+
     schemes_col = db["schemes"]
     apps_col = db["applications"]
 
@@ -57495,7 +58407,7 @@ async def seed():
         await schemes_col.create_index("is_featured")
         await schemes_col.create_index("is_active")
         await schemes_col.create_index("priority")
-        logger.info("✅ schemes indexes created")
+        logger.info("schemes indexes created")
 
         await apps_col.create_index([
             ("application_type", 1), ("user_email", 1)
@@ -57505,7 +58417,7 @@ async def seed():
             ("scheme_id", 1),
             ("user_email", 1),
         ])
-        logger.info("✅ applications indexes created")
+        logger.info("applications indexes created")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")
 
@@ -57515,7 +58427,6 @@ async def seed():
 
     for s in SCHEMES:
         s["is_active"] = True
-        s["created_at"] = datetime.utcnow()
         s["updated_at"] = datetime.utcnow()
 
         result = await schemes_col.update_one(
@@ -57529,29 +58440,38 @@ async def seed():
 
         if result.upserted_id:
             inserted += 1
-            logger.info(f"  ➕ Inserted: {s['scheme_id']}")
+            logger.info(f"  [INSERT] {s['scheme_id']}")
         else:
             updated += 1
-            logger.info(f"  ♻️  Updated: {s['scheme_id']}")
+            logger.info(f"  [UPDATE] {s['scheme_id']}")
 
     total = await schemes_col.count_documents({})
 
     logger.info("=" * 60)
-    logger.info(f"✅ SEEDING COMPLETE")
+    logger.info("SEEDING COMPLETE")
     logger.info(f"   Inserted: {inserted}")
     logger.info(f"   Updated:  {updated}")
     logger.info(f"   Total in DB: {total}")
     logger.info("=" * 60)
 
     # ---------- Verify ----------
-    pk = await schemes_col.find_one({"scheme_id": "pm_kisan"})
-    if pk:
-        logger.info(f"✅ Verified: pm_kisan exists (name={pk.get('scheme_name')})")
-    else:
-        logger.error("❌ VERIFY FAILED: pm_kisan NOT FOUND!")
+    for check_id in ["pm_kisan", "ayushman_bharat", "mp_ladli_behna"]:
+        found = await schemes_col.find_one({"scheme_id": check_id})
+        if found:
+            logger.info(
+                f"[VERIFIED] {check_id} exists "
+                f"(name={found.get('scheme_name')})"
+            )
+        else:
+            logger.error(f"[VERIFY FAILED] {check_id} NOT FOUND!")
 
     return {"inserted": inserted, "updated": updated, "total": total}
 
 
 if __name__ == "__main__":
-    asyncio.run(seed())
+    result = asyncio.run(seed())
+    print()
+    print("=" * 60)
+    print(f"FINAL RESULT: {result}")
+    print("=" * 60)
+

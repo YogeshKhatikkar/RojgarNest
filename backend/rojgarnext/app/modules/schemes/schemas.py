@@ -6,6 +6,7 @@ Government Schemes Pydantic Schemas
 ✅ Matches routes.py + service.py + frontend contract
 ✅ Supports all application fields (personal, address, bank, documents)
 ✅ Supports submit flow + admin actions + notifications
+✅ FIXED: documents accept BOTH `url` and `document_url`
 """
 
 from pydantic import BaseModel, Field, EmailStr, validator
@@ -70,16 +71,20 @@ class ApplicantDetails(BaseModel):
     scheme_id: Optional[str] = None
     application_type: Optional[ApplicationTypeLiteral] = "schemes"
 
-    @validator("aadhaar_number")
+    @validator("aadhaar_number", pre=True, always=True)
     def validate_aadhaar(cls, v):
-        if v and len(v) not in (0, 12):
+        if v is None or v == "":
+            return ""
+        v = str(v)
+        if len(v) not in (0, 12):
             raise ValueError("Aadhaar number must be 12 digits")
-        if v and not v.isdigit():
+        if not v.isdigit():
             raise ValueError("Aadhaar number must contain only digits")
         return v
 
-    @validator("mobile")
+    @validator("mobile", pre=True, always=True)
     def validate_mobile(cls, v):
+        v = str(v)
         if not v.isdigit():
             raise ValueError("Mobile number must contain only digits")
         return v
@@ -89,9 +94,6 @@ class ApplicantDetails(BaseModel):
 # APPLICANT ADDRESS
 # ============================================================
 class ApplicantAddress(BaseModel):
-    """
-    Address details from scheme_apply_screen.dart (Step 2).
-    """
     address_line1: str = Field(..., min_length=1, max_length=300)
     address_line2: Optional[str] = Field(default="", max_length=300)
     village_city: str = Field(..., min_length=1, max_length=200)
@@ -111,9 +113,6 @@ class ApplicantAddress(BaseModel):
 # BANK DETAILS
 # ============================================================
 class BankDetails(BaseModel):
-    """
-    Bank details from scheme_apply_screen.dart (Step 3).
-    """
     account_holder_name: str = Field(..., min_length=1, max_length=200)
     bank_name: str = Field(..., min_length=1, max_length=200)
     account_number: str = Field(..., min_length=6, max_length=30)
@@ -138,35 +137,46 @@ class BankDetails(BaseModel):
 
 
 # ============================================================
-# DOCUMENT (normalized)
+# DOCUMENT (normalized) — ✅ accepts BOTH `url` and `document_url`
 # ============================================================
 class SchemeDocumentItem(BaseModel):
     """
     A single uploaded document.
-    Used both in the apply payload (as input) and in DB responses.
+    Accepts BOTH `url` and `document_url` as input.
+    Always outputs `document_url` in the model.
     """
     document_type: Optional[str] = Field(default="", max_length=100)
     document_name: Optional[str] = Field(default="", max_length=200)
-    document_url: Optional[str] = Field(default="", max_length=1000)
+    document_url: Optional[str] = Field(default="", max_length=2000)
     public_id: Optional[str] = None
     uploaded_at: Optional[datetime] = None
     verified: Optional[bool] = False
 
-    # Allow legacy / alias fields
+    # Allow legacy / alias input fields (they will NOT appear in output)
     url: Optional[str] = None
     label: Optional[str] = None
 
-    @validator("document_url", always=True)
-    def resolve_url(cls, v, values):
-        if not v:
-            v = values.get("url") or ""
-        return v
+    class Config:
+        extra = "allow"
 
-    @validator("document_name", always=True)
-    def resolve_name(cls, v, values):
-        if not v:
-            v = values.get("label") or ""
-        return v
+    @validator("document_url", always=True, pre=True)
+    def resolve_document_url(cls, v, values):
+        # Prefer explicit document_url, fall back to url
+        if v and str(v).strip():
+            return str(v).strip()
+        url = values.get("url")
+        if url and str(url).strip():
+            return str(url).strip()
+        return ""
+
+    @validator("document_name", always=True, pre=True)
+    def resolve_document_name(cls, v, values):
+        if v and str(v).strip():
+            return str(v).strip()
+        label = values.get("label")
+        if label and str(label).strip():
+            return str(label).strip()
+        return ""
 
 
 # ============================================================
@@ -175,10 +185,6 @@ class SchemeDocumentItem(BaseModel):
 class SchemeApplyRequest(BaseModel):
     """
     Request body for POST /api/v1/schemes/apply
-
-    Matches create_application() in service.py.
-    All sections are optional to remain backward-compatible with
-    the frontend, but recommended.
     """
     scheme_id: str = Field(..., min_length=1, max_length=100)
     scheme_name: Optional[str] = Field(default=None, max_length=300)
@@ -188,6 +194,9 @@ class SchemeApplyRequest(BaseModel):
     documents: Optional[List[SchemeDocumentItem]] = Field(default_factory=list)
     additional_info: Optional[Dict[str, Any]] = Field(default=None)
     remarks: Optional[str] = Field(default="")
+
+    class Config:
+        extra = "allow"
 
 
 class SchemeApplyResponse(BaseModel):
@@ -202,9 +211,6 @@ class SchemeApplyResponse(BaseModel):
 # SUBMIT REQUEST / RESPONSE
 # ============================================================
 class SchemeSubmitRequest(BaseModel):
-    """
-    Request body for POST /api/v1/schemes/application/{id}/submit
-    """
     remarks: Optional[str] = Field(default="")
     additional_info: Optional[Dict[str, Any]] = Field(default=None)
 
@@ -218,23 +224,18 @@ class SchemeSubmitResponse(BaseModel):
 
 
 # ============================================================
-# FULL APPLICATION RESPONSE (used in lists + detail)
+# FULL APPLICATION RESPONSE
 # ============================================================
 class SchemeApplicationResponse(BaseModel):
-    """
-    Full application document returned from the DB.
-    """
     _id: Optional[str] = None
     application_id: str
     application_type: Optional[str] = "schemes"
 
-    # User info
     user_email: Optional[str] = None
     user_id: Optional[str] = None
     user_name: Optional[str] = None
     user_mobile: Optional[str] = None
 
-    # Scheme info
     scheme_id: str
     scheme_name: Optional[str] = None
     scheme_name_hindi: Optional[str] = None
@@ -242,7 +243,6 @@ class SchemeApplicationResponse(BaseModel):
     scheme_state: Optional[str] = None
     scheme_category: Optional[str] = None
 
-    # Form sections
     applicant_details: Optional[Dict[str, Any]] = Field(default_factory=dict)
     applicant_address: Optional[Dict[str, Any]] = Field(default_factory=dict)
     bank_details: Optional[Dict[str, Any]] = Field(default_factory=dict)
@@ -250,13 +250,11 @@ class SchemeApplicationResponse(BaseModel):
     additional_info: Optional[Dict[str, Any]] = None
     remarks: Optional[str] = None
 
-    # Status / payment
     status: Optional[ApplicationStatusLiteral] = "pending"
     payment_verification_status: Optional[PaymentStatusLiteral] = "not_submitted"
     payment_amount: Optional[float] = 0
     payment_method: Optional[str] = None
 
-    # Audit
     created_at: Optional[Any] = None
     updated_at: Optional[Any] = None
     applied_at: Optional[Any] = None
@@ -273,18 +271,12 @@ class SchemeApplicationResponse(BaseModel):
 
 
 class ApplicationResponse(BaseModel):
-    """
-    Response for GET /my-applications
-    """
     success: bool = True
     applications: List[Dict[str, Any]] = Field(default_factory=list)
     total: Optional[int] = 0
 
 
 class ApplicationDetailResponse(BaseModel):
-    """
-    Response for GET /application/{id}
-    """
     success: bool = True
     application: Optional[Dict[str, Any]] = None
     scheme: Optional[Dict[str, Any]] = None
@@ -299,9 +291,6 @@ class DocumentUploadResponse(BaseModel):
     document: Optional[SchemeDocumentItem] = None
 
 
-# ============================================================
-# TEMP DOCUMENT UPLOAD RESPONSE
-# ============================================================
 class TempDocumentUploadResponse(BaseModel):
     success: bool = True
     message: str = "Document uploaded successfully"
@@ -309,7 +298,7 @@ class TempDocumentUploadResponse(BaseModel):
 
 
 # ============================================================
-# ADMIN: UPDATE STATUS REQUEST
+# ADMIN
 # ============================================================
 class AdminUpdateStatusRequest(BaseModel):
     status: ApplicationStatusLiteral

@@ -1,7 +1,8 @@
-# app/main.py - COMPLETE FIXED VERSION
-# ✅ FIXED: Added schemes router registration
+# app/main.py - COMPLETE FIXED VERSION WITH SCHEMES ROUTER
+# ✅ FIXED: schemes router is now imported AND registered
 # ✅ FIXED: All error handlers return proper dict details
 # ✅ FIXED: No data loss on error responses
+# ✅ FIXED: Startup banner shows all registered routes for debugging
 
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,8 @@ import time
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 import os
+import sys
+import subprocess
 
 # ================= DATABASE & CORE =================
 from app.db.connection import connect_db, close_db, get_db
@@ -69,7 +72,7 @@ async def verify_token(
     return credentials.credentials
 
 
-# ================= LIFESPAN =================
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("=" * 60)
@@ -96,6 +99,61 @@ async def lifespan(app: FastAPI):
             logger.info("✅ Redis Connected")
         except Exception as e:
             logger.warning(f"⚠️ Redis connection failed: {e}")
+
+    # ============================================================
+    # ✅ AUTO-SEED SCHEMES IF COLLECTION IS EMPTY
+    # ============================================================
+    try:
+        db = get_db()
+        if db is not None:
+            scheme_count = await db.schemes.count_documents({})
+            logger.info(f"📊 Schemes collection has {scheme_count} documents")
+
+            if scheme_count == 0:
+                logger.warning(
+                    "⚠️ Schemes collection is EMPTY — auto-seeding..."
+                )
+
+                # Determine backend root directory (where seed_schemes.py lives)
+                backend_root = os.path.dirname(
+                    os.path.dirname(os.path.abspath(__file__))
+                )
+                seed_script = os.path.join(backend_root, "seed_schemes.py")
+
+                if os.path.exists(seed_script):
+                    logger.info(f"   Running: {seed_script}")
+                    result = subprocess.run(
+                        [sys.executable, seed_script],
+                        capture_output=True,
+                        text=True,
+                        cwd=backend_root,
+                        timeout=120,
+                    )
+                    if result.returncode == 0:
+                        new_count = await db.schemes.count_documents({})
+                        logger.info(
+                            f"✅ Auto-seed completed. "
+                            f"Schemes in DB now: {new_count}"
+                        )
+                    else:
+                        logger.error(
+                            f"❌ Auto-seed failed (exit {result.returncode})"
+                        )
+                        logger.error(f"   STDOUT: {result.stdout[-500:]}")
+                        logger.error(f"   STDERR: {result.stderr[-500:]}")
+                else:
+                    logger.error(
+                        f"❌ seed_schemes.py NOT FOUND at {seed_script}"
+                    )
+                    logger.error(
+                        "   → Manually run: python seed_schemes.py"
+                    )
+            else:
+                logger.info(
+                    f"✅ Schemes collection OK ({scheme_count} schemes)"
+                )
+    except Exception as e:
+        logger.error(f"❌ Scheme auto-seed check failed: {e}")
 
     # ================= START SCHEDULERS =================
     scheduler = None
@@ -143,6 +201,17 @@ async def lifespan(app: FastAPI):
     print("   - No automatic job fetching will run")
     print("   - Jobs can only be added manually by admins")
     print(f"📚 API Docs: http://localhost:8000/docs")
+    print("=" * 60)
+
+    # ✅ PRINT ALL REGISTERED SCHEMES ROUTES FOR DEBUGGING
+    print("=" * 60)
+    print("🔍 SCHEMES ROUTES REGISTERED IN THIS APP INSTANCE:")
+    print("=" * 60)
+    for r in app.routes:
+        p = getattr(r, "path", "")
+        if "/schemes" in p:
+            methods = ",".join(r.methods) if hasattr(r, "methods") else "?"
+            print(f"   [{methods:12s}] {p}")
     print("=" * 60)
 
     yield

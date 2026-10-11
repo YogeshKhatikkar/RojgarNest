@@ -1,9 +1,9 @@
 // lib/features/schemes/data/scheme_service.dart
 // ✅ COMPLETE FIXED - Always returns schemes from local master data as fallback
 // ✅ Maps all fields correctly for UI
-// ✅ ADDED: uploadSchemeDocument() for per-application document upload
+// ✅ FIXED: uploadSchemeDocument now sends ALL required fields
 
-import 'dart:typed_data'; // ✅ ADDED
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:rojgarnext/core/network/dio_client.dart';
@@ -277,7 +277,7 @@ class SchemeService {
   }
 
   // ============================================================
-  // ✅ APPLY FOR SCHEME — FIXED signature (no schemeNameOverride / documents)
+  // ✅ APPLY FOR SCHEME
   // ============================================================
   static Future<Map<String, dynamic>> applyForScheme({
     required String schemeId,
@@ -301,7 +301,9 @@ class SchemeService {
   }
 
   // ============================================================
-  // ✅ NEW: UPLOAD SCHEME DOCUMENT (linked to a specific application)
+  // ✅ FIXED: UPLOAD SCHEME DOCUMENT
+  // ✅ Now sends document_type AND document_name as required fields
+  // ✅ Works on WEB and MOBILE
   // ============================================================
   static Future<Map<String, dynamic>> uploadSchemeDocument({
     required String applicationId,
@@ -311,18 +313,44 @@ class SchemeService {
     required String fileName,
   }) async {
     try {
+      debugPrint("=" * 70);
+      debugPrint("📤 UPLOADING SCHEME DOCUMENT");
+      debugPrint("   Application ID: $applicationId");
+      debugPrint("   Document Type: $documentType");
+      debugPrint("   Document Name: $documentName");
+      debugPrint("   File Name: $fileName");
+      debugPrint("   File Size: ${fileBytes.length} bytes");
+      debugPrint("   Endpoint: $_base/application/$applicationId/upload-document");
+      debugPrint("=" * 70);
+
+      // ✅ CRITICAL FIX: Build FormData with ALL required fields
       final formData = FormData.fromMap({
-        'file': MultipartFile.fromBytes(fileBytes, filename: fileName),
-        'document_type': documentType,
-        'document_name': documentName,
+        'file': MultipartFile.fromBytes(
+          fileBytes,
+          filename: fileName,
+        ),
+        'document_type': documentType,  // ✅ REQUIRED by backend
+        'document_name': documentName,  // ✅ Also sent
       });
+
+      // ✅ Debug: Log what we're sending
+      debugPrint("📦 FormData fields:");
+      debugPrint("   document_type: $documentType");
+      debugPrint("   document_name: $documentName");
+      debugPrint("   file filename: $fileName");
+
       final res = await _dio.post(
         '$_base/application/$applicationId/upload-document',
         data: formData,
-        options: Options(headers: {"Content-Type": "multipart/form-data"}),
+        options: Options(
+          headers: {"Content-Type": "multipart/form-data"},
+        ),
       );
+
+      debugPrint("📥 Upload response: ${res.statusCode} | ${res.data}");
       return _unwrap(res.data);
     } on DioException catch (e) {
+      debugPrint("❌ Upload failed: ${e.response?.data}");
       throw DioClient.extractErrorMessage(e);
     }
   }
