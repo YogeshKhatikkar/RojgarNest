@@ -18,7 +18,7 @@ from datetime import datetime
 from typing import List, Dict, Tuple
 
 # ================= CONFIGURATION =================
-BACKEND_ROOT = Path(__file__).parent / "backend" / "rojgarnext"
+BACKEND_ROOT = Path(__file__).parent / "backend" / "rojgarnest"
 
 if not BACKEND_ROOT.exists():
     if Path.cwd().name == "rojgarnext" and (Path.cwd() / "app").exists():

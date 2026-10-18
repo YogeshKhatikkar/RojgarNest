@@ -13,7 +13,7 @@ from typing import List, Tuple, Set
 
 # ==================== CONFIGURATION ====================
 # Frontend path - Update this to your actual frontend location
-FRONTEND_PATH = r"E:\yogesh\website\rojgarnext\frontend"
+FRONTEND_PATH = r"E:\yogesh\website\rojgarnest\frontend"
 
 # Output file
 OUTPUT_FILE = "frontend_export.txt"

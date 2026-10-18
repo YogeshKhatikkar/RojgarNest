@@ -102,3 +102,8 @@ secrets/
 *.pem
 service-account-key.json
 google-drive-creds.json"backend/rojgarnext/.env" 
+
+# Local Python virtual environments
+.venv/
+**/.venv/
+
