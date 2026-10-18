@@ -1,7 +1,7 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-10-18 09:19:02
+Generated: 2026-10-18 19:30:26
 Source: E:\yogesh\website\rojgarnest\frontend
 Total Files: 151
 Total Size: 3.9 MB
@@ -104266,7 +104266,7 @@ class _TabData {
 ================================================================================
 [ 140/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/user_applications_screen.dart
 📏 SIZE: 115.1 KB
-🕐 MODIFIED: 2026-10-18 08:35:43
+🕐 MODIFIED: 2026-10-18 13:00:38
 ================================================================================
 
 // lib/features/user/presentation/screens/user_applications_screen.dart
@@ -107554,7 +107554,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 ================================================================================
 [ 141/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/user_dashboard.dart
 📏 SIZE: 78.6 KB
-🕐 MODIFIED: 2026-10-18 08:39:04
+🕐 MODIFIED: 2026-10-18 13:01:42
 ================================================================================
 
 // lib/features/user/presentation/screens/user_dashboard.dart
@@ -109923,7 +109923,6 @@ class _QuickAction {
     required this.color,
     required this.onTap,
   });
-}
 
 ================================================================================
 [ 142/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/user_documents_screen.dart
@@ -114015,5 +114014,5 @@ flutter:
 🎉 EXPORT COMPLETED!
 ================================================================================
 Total Files: 151
-Generated: 2026-10-18 09:19:04
+Generated: 2026-10-18 19:30:31
 ================================================================================

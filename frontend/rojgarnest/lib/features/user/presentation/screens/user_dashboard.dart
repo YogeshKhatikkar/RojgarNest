@@ -1,31 +1,29 @@
 // lib/features/user/presentation/screens/user_dashboard.dart
-// ✅ COMPLETE UPDATED VERSION
+// ✅ COMPLETE FIXED VERSION — NO MERGE CONFLICTS
+// ✅ ALL imports use package:rojgarnest (not rojgarnext)
 // ✅ Parent menu tap ONLY expands sidebar — never changes right-side content
 // ✅ Right-side content changes ONLY when a submenu is tapped
 // ✅ NULLABLE submenus — no auto-select
 // ✅ Placeholder shown when parent expanded but no submenu chosen
-// ✅ FIXED: ApplicationDetailScreen now shows in right panel when "View Application" clicked
-// ✅ NEW: Schemes menu added — Browse Schemes + Scheme Applications
-// ✅ NEW: SchemeDetailScreen now shows in right panel (embedded)
-// ✅ NEW: SchemeListScreen now shows in right panel (embedded)
-// ✅ NEW: UserSchemeApplicationsScreen now shows in right panel (embedded)
-// ✅ FIXED: Removed all Git merge conflict markers
-// ✅ FIXED: Removed duplicate imports with wrong package name (rojgarnext → rojgarnest)
-// ✅ All original functionality preserved — NO lines skipped
+// ✅ ApplicationDetailScreen shows in right panel
+// ✅ SchemeDetailScreen / SchemeListScreen / UserSchemeApplicationsScreen embedded
+// ✅ All original functionality preserved
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:rojgarnest/core/storage/secure_storage.dart';
 import 'package:rojgarnest/core/services/profile_state_service.dart';
 import 'package:rojgarnest/core/utils/app_snackbar.dart';
+
 import 'package:rojgarnest/features/user/presentation/widgets/user_sidebar.dart';
 import 'package:rojgarnest/features/user/presentation/utils/menu_types.dart';
 import 'package:rojgarnest/features/notification/widgets/notification_bell.dart';
 import 'package:rojgarnest/features/common/widgets/location_display.dart';
 import 'package:rojgarnest/features/user/data/user_service.dart';
 
-// ==================== SCREENS ====================
+// ==================== USER PROFILE SCREENS ====================
 import 'package:rojgarnest/features/user/presentation/screens/basic_details_screen.dart';
 import 'package:rojgarnest/features/user/presentation/screens/education_screen.dart';
 import 'package:rojgarnest/features/user/presentation/screens/experience_screen.dart';
@@ -33,30 +31,32 @@ import 'package:rojgarnest/features/user/presentation/screens/advanced_details_s
 import 'package:rojgarnest/features/user/presentation/screens/user_documents_screen.dart';
 import 'package:rojgarnest/features/user/presentation/screens/user_applications_screen.dart';
 import 'package:rojgarnest/features/user/presentation/screens/user_support_screen.dart';
+
+// ==================== JOBS SCREENS ====================
 import 'package:rojgarnest/features/jobs/presentation/screens/job_list_screen.dart';
 import 'package:rojgarnest/features/jobs/presentation/screens/job_detail_screen.dart';
 import 'package:rojgarnest/features/jobs/presentation/screens/saved_jobs_screen.dart';
 
-// ✅ Service screens
+// ==================== SERVICES SCREENS ====================
 import 'package:rojgarnest/features/services/presentation/screens/apply_service_screen.dart';
 import 'package:rojgarnest/features/services/presentation/screens/user_service_applications_screen.dart';
 
-// ✅ Resume screens (FIXED: was 'rojgarnext')
+// ==================== RESUME SCREENS ====================
 import 'package:rojgarnest/features/resume/presentation/screens/build_resume_screen.dart';
 import 'package:rojgarnest/features/resume/presentation/screens/resume_screen.dart';
 import 'package:rojgarnest/features/resume/AI/presentation/screens/ats_score_screen.dart';
 import 'package:rojgarnest/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart';
 
-// ✅ AI screens (FIXED: was 'rojgarnext')
+// ==================== AI SCREENS ====================
 import 'package:rojgarnest/features/user/AI/user_ai_screen.dart';
 import 'package:rojgarnest/features/user/AI/user_career_roadmap_screen.dart';
 
-// ✅ AUTH SCREENS IMPORT
+// ==================== AUTH SETTINGS SCREENS ====================
 import 'package:rojgarnest/features/auth/presentation/screens/change_password_screen.dart';
 import 'package:rojgarnest/features/auth/presentation/screens/mpin_setup_page.dart';
 import 'package:rojgarnest/features/auth/presentation/screens/fingerprint_setup_page.dart';
 
-// ✅ Schemes screens (FIXED: removed duplicate 'rojgarnext' imports)
+// ==================== SCHEMES SCREENS ====================
 import 'package:rojgarnest/features/schemes/presentation/screens/scheme_list_screen.dart';
 import 'package:rojgarnest/features/schemes/presentation/screens/scheme_detail_screen.dart';
 import 'package:rojgarnest/features/schemes/presentation/screens/user_scheme_applications_screen.dart';
@@ -117,10 +117,6 @@ class DashboardStats {
 
 // ============================================================
 // USER DASHBOARD
-// ✅ NULLABLE submenus — no auto-select
-// ✅ FIXED: ApplicationDetailScreen shows in right panel
-// ✅ NEW: Schemes submenu state + handlers
-// ✅ NEW: Scheme detail view in right panel
 // ============================================================
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -146,7 +142,7 @@ class _UserDashboardState extends State<UserDashboard> {
   Map<String, dynamic>? _selectedJob;
   Map<String, dynamic>? _selectedApplication;
 
-  // ==================== SCHEME VIEW STATE (NEW) ====================
+  // ==================== SCHEME VIEW STATE ====================
   String? _selectedSchemeId;
   String? _selectedSchemeName;
   Map<String, dynamic>? _selectedSchemeData;
@@ -530,11 +526,8 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Handle application selection from UserApplicationsScreen
   void _onApplicationSelected(Map<String, dynamic> application) {
     debugPrint("📋 Application selected: ${application['_id']}");
-    debugPrint("   Job Title: ${application['job_title']}");
-    debugPrint("   Status: ${application['status']}");
     setState(() {
       _selectedApplication = application;
       _selectedJob = null;
@@ -552,7 +545,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ SCHEME SELECTION HANDLERS (NEW)
+  // ✅ SCHEME SELECTION HANDLERS
   // ============================================================
   void _onSchemeSelectedFromList(Map<String, dynamic> schemeData) {
     debugPrint("📋 Scheme selected from list: ${schemeData['scheme_id']}");
@@ -637,7 +630,6 @@ class _UserDashboardState extends State<UserDashboard> {
     );
   }
 
-  // ✅ NEW: Go to Browse Schemes
   void _goToBrowseSchemes() {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -651,7 +643,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ NEW: Go to Scheme Applications
   void _goToSchemeApplications() {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -719,7 +710,6 @@ class _UserDashboardState extends State<UserDashboard> {
         );
 
       case null:
-        // ✅ Defensive fallback — settings screen only renders after submenu tap
         return _buildSelectSubmenuPlaceholder(
           title: "Settings",
           icon: Icons.settings_rounded,
@@ -729,10 +719,9 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ GET SCHEMES SCREEN (UPDATED — Embedded mode)
+  // ✅ GET SCHEMES SCREEN (Embedded mode)
   // ============================================================
   Widget _getSchemesScreen() {
-    // ✅ If scheme detail view is active, show detail screen
     if (_showSchemeDetailView && _selectedSchemeId != null) {
       return SchemeDetailScreen(
         schemeId: _selectedSchemeId!,
@@ -742,7 +731,6 @@ class _UserDashboardState extends State<UserDashboard> {
       );
     }
 
-    // ✅ Otherwise, show list or applications based on submenu
     switch (selectedSchemesSubMenu) {
       case SchemesSubMenu.browseSchemes:
         return SchemeListScreen(
@@ -850,9 +838,6 @@ class _UserDashboardState extends State<UserDashboard> {
 
   // ============================================================
   // ✅ GET CONTENT
-  // ✅ Uses NULLABLE checks — placeholder if submenu not selected
-  // ✅ FIXED: ApplicationDetailScreen shows when application selected
-  // ✅ NEW: Schemes case with embedded detail view
   // ============================================================
   Widget _getContent() {
     switch (selectedMenu) {
@@ -863,16 +848,13 @@ class _UserDashboardState extends State<UserDashboard> {
       // JOBS
       // ============================================================
       case UserMenuType.jobs:
-        // ✅ CRITICAL FIX: If application selected → show ApplicationDetailScreen
+        // ✅ If application selected → show ApplicationDetailScreen
         if (_selectedApplication != null &&
             selectedJobSubMenu == JobSubMenu.jobApplications) {
-          debugPrint(
-              "📋 Showing ApplicationDetailScreen for: ${_selectedApplication!['job_title']}");
           return ApplicationDetailScreen(
             application: _selectedApplication!,
             onBack: _closeApplicationDetail,
             onViewJob: (job) {
-              // Navigate to job detail when "View Full Job Details" clicked
               setState(() {
                 _selectedJob = job;
                 _selectedApplication = null;
@@ -958,7 +940,7 @@ class _UserDashboardState extends State<UserDashboard> {
         }
 
       // ============================================================
-      // SCHEMES ✅ UPDATED — Now shows detail view embedded
+      // SCHEMES
       // ============================================================
       case UserMenuType.schemes:
         return _getSchemesScreen();
@@ -1767,7 +1749,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ QUICK ACTIONS GRID (UPDATED — Added Schemes)
+  // ✅ QUICK ACTIONS GRID
   // ============================================================
   Widget _buildQuickActionsGrid() {
     final actions = [
@@ -1825,7 +1807,6 @@ class _UserDashboardState extends State<UserDashboard> {
           });
         },
       ),
-      // ✅ NEW: Schemes Quick Action
       _QuickAction(
         title: 'Schemes',
         icon: Icons.account_balance,
@@ -1971,19 +1952,15 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ CHECK IF BACK BUTTON NEEDED (UPDATED — Includes schemes)
+  // ✅ CHECK IF BACK BUTTON NEEDED
   // ============================================================
   bool _shouldShowBackButton() {
-    // Job detail view
     if (_selectedJob != null) return true;
-    // Application detail view
     if (_selectedApplication != null) return true;
-    // Scheme detail view
     if (_showSchemeDetailView && _selectedSchemeId != null) return true;
     return false;
   }
 
-  // ✅ Handle back button action
   void _handleBackButton() {
     setState(() {
       if (_selectedApplication != null) {
@@ -2125,7 +2102,8 @@ class _UserDashboardState extends State<UserDashboard> {
                               const LocationDisplay(),
                               NotificationBell(
                                 onJobAlertClicked: _goToBrowseJobs,
-                                onApplicationStatusClicked: _goToJobApplications,
+                                onApplicationStatusClicked:
+                                    _goToJobApplications,
                               ),
                             ],
                           ),
@@ -2164,12 +2142,10 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   String _getAppBarTitle() {
-    // ✅ If scheme detail is open
     if (_showSchemeDetailView && _selectedSchemeId != null) {
       return _selectedSchemeName ?? "योजना विवरण";
     }
 
-    // ✅ If application detail is open
     if (_selectedApplication != null &&
         selectedMenu == UserMenuType.jobs &&
         selectedJobSubMenu == JobSubMenu.jobApplications) {
@@ -2177,7 +2153,6 @@ class _UserDashboardState extends State<UserDashboard> {
           "Application Details";
     }
 
-    // ✅ If job is selected
     if (_selectedJob != null && selectedMenu == UserMenuType.jobs) {
       return _selectedJob!['post_name']?.toString() ?? "Job Details";
     }
@@ -2273,8 +2248,7 @@ class _UserDashboardState extends State<UserDashboard> {
 }
 
 // ============================================================
-// ✅ Resume launcher widget — wraps resume screens and
-//    triggers dashboard refresh after generation.
+// ✅ Resume launcher widget
 // ============================================================
 class _ResumeLauncher extends StatefulWidget {
   final Widget child;
@@ -2293,7 +2267,6 @@ class _ResumeLauncherState extends State<_ResumeLauncher> {
   @override
   void initState() {
     super.initState();
-    // Silently refresh on open (in case user already had a resume)
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         await widget.onGenerated();
