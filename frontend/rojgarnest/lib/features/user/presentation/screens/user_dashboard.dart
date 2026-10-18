@@ -9,6 +9,8 @@
 // ✅ NEW: SchemeDetailScreen now shows in right panel (embedded)
 // ✅ NEW: SchemeListScreen now shows in right panel (embedded)
 // ✅ NEW: UserSchemeApplicationsScreen now shows in right panel (embedded)
+// ✅ FIXED: Removed all Git merge conflict markers
+// ✅ FIXED: Removed duplicate imports with wrong package name (rojgarnext → rojgarnest)
 // ✅ All original functionality preserved — NO lines skipped
 
 import 'dart:convert';
@@ -39,41 +41,25 @@ import 'package:rojgarnest/features/jobs/presentation/screens/saved_jobs_screen.
 import 'package:rojgarnest/features/services/presentation/screens/apply_service_screen.dart';
 import 'package:rojgarnest/features/services/presentation/screens/user_service_applications_screen.dart';
 
-// ✅ Resume screens
-<<<<<<< HEAD:frontend/rojgarnest/lib/features/user/presentation/screens/user_dashboard.dart
+// ✅ Resume screens (FIXED: was 'rojgarnext')
 import 'package:rojgarnest/features/resume/presentation/screens/build_resume_screen.dart';
 import 'package:rojgarnest/features/resume/presentation/screens/resume_screen.dart';
 import 'package:rojgarnest/features/resume/AI/presentation/screens/ats_score_screen.dart';
 import 'package:rojgarnest/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart';
 
-// ✅ AI screens
+// ✅ AI screens (FIXED: was 'rojgarnext')
 import 'package:rojgarnest/features/user/AI/user_ai_screen.dart';
 import 'package:rojgarnest/features/user/AI/user_career_roadmap_screen.dart';
-=======
-import 'package:rojgarnext/features/resume/presentation/screens/build_resume_screen.dart';
-import 'package:rojgarnext/features/resume/presentation/screens/resume_screen.dart';
-import 'package:rojgarnext/features/resume/AI/presentation/screens/ats_score_screen.dart';
-import 'package:rojgarnext/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart';
-
-// ✅ AI screens
-import 'package:rojgarnext/features/user/AI/user_ai_screen.dart';
-import 'package:rojgarnext/features/user/AI/user_career_roadmap_screen.dart';
->>>>>>> ea68e649c0ead809db26b81b58774bdde4282156:frontend/rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
 
 // ✅ AUTH SCREENS IMPORT
 import 'package:rojgarnest/features/auth/presentation/screens/change_password_screen.dart';
 import 'package:rojgarnest/features/auth/presentation/screens/mpin_setup_page.dart';
 import 'package:rojgarnest/features/auth/presentation/screens/fingerprint_setup_page.dart';
 
-// ✅ Schemes screens
+// ✅ Schemes screens (FIXED: removed duplicate 'rojgarnext' imports)
 import 'package:rojgarnest/features/schemes/presentation/screens/scheme_list_screen.dart';
 import 'package:rojgarnest/features/schemes/presentation/screens/scheme_detail_screen.dart';
 import 'package:rojgarnest/features/schemes/presentation/screens/user_scheme_applications_screen.dart';
-
-// ✅ Schemes screens
-import 'package:rojgarnext/features/schemes/presentation/screens/scheme_list_screen.dart';
-import 'package:rojgarnext/features/schemes/presentation/screens/scheme_detail_screen.dart';
-import 'package:rojgarnext/features/schemes/presentation/screens/user_scheme_applications_screen.dart';
 
 // ============================================================
 // DASHBOARD STATS MODEL

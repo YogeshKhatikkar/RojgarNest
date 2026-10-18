@@ -1,7 +1,7 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-10-17 22:19:28
+Generated: 2026-10-18 09:19:02
 Source: E:\yogesh\website\rojgarnest\frontend
 Total Files: 151
 Total Size: 3.9 MB
@@ -281,7 +281,7 @@ File Types:
 ================================================================================
 [   1/ 151] 📄 rojgarnest/Dockerfile
 📏 SIZE: 1.1 KB
-🕐 MODIFIED: 2026-10-12 20:55:48
+🕐 MODIFIED: 2026-10-18 08:35:42
 ================================================================================
 
 # ============================================================
@@ -325,7 +325,7 @@ CMD ["nginx", "-g", "daemon off;"]
 ================================================================================
 [   2/ 151] 📝 rojgarnest/README.md
 📏 SIZE: 649 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:42
 ================================================================================
 
 # rojgarnext
@@ -350,7 +350,7 @@ samples, guidance on mobile development, and a full API reference.
 ================================================================================
 [   3/ 151] ⚙️ rojgarnest/analysis_options.yaml
 📏 SIZE: 559 B
-🕐 MODIFIED: 2026-09-14 19:30:24
+🕐 MODIFIED: 2026-10-18 08:35:42
 ================================================================================
 
 analyzer:
@@ -380,7 +380,7 @@ linter:
 ================================================================================
 [   4/ 151] 🎯 rojgarnest/lib/core/config/api_config.dart
 📏 SIZE: 2.2 KB
-🕐 MODIFIED: 2026-10-12 20:55:46
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/config/api_config.dart
@@ -465,7 +465,7 @@ class ApiConfig {
 ================================================================================
 [   5/ 151] 🎯 rojgarnest/lib/core/master_date/education.dart
 📏 SIZE: 40.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/master_data/education.dart
@@ -2015,7 +2015,7 @@ class EducationMasterData {
 ================================================================================
 [   6/ 151] 🎯 rojgarnest/lib/core/master_date/job_colors.dart
 📏 SIZE: 9.5 KB
-🕐 MODIFIED: 2026-09-27 18:53:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/master_date/job_colors.dart
@@ -2357,7 +2357,7 @@ class JobColorMasterData {
 ================================================================================
 [   7/ 151] 🎯 rojgarnest/lib/core/master_date/locations.dart
 📏 SIZE: 2.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/location/locations.dart
@@ -2457,7 +2457,7 @@ class LocationData {
 ================================================================================
 [   8/ 151] 🎯 rojgarnest/lib/core/master_date/schemes_data.dart
 📏 SIZE: 67.9 KB
-🕐 MODIFIED: 2026-10-10 07:22:43
+🕐 MODIFIED: 2026-10-18 08:40:04
 ================================================================================
 
 // lib/core/master_date/schemes_data.dart
@@ -3737,7 +3737,7 @@ class SchemesMasterData {
 ================================================================================
 [   9/ 151] 🎯 rojgarnest/lib/core/network/dio_client.dart
 📏 SIZE: 7.9 KB
-🕐 MODIFIED: 2026-10-14 21:40:23
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/network/dio_client.dart
@@ -3987,7 +3987,7 @@ void initDioClient() {
 ================================================================================
 [  10/ 151] 🎯 rojgarnest/lib/core/routes/app_routes.dart
 📏 SIZE: 3.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:46
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/routes/app_routes.dart
@@ -4090,7 +4090,7 @@ class AppRoutes {
 ================================================================================
 [  11/ 151] 🎯 rojgarnest/lib/core/services/cloudinary_service.dart
 📏 SIZE: 7.0 KB
-🕐 MODIFIED: 2026-10-12 20:55:46
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/services/cloudinary_service.dart
@@ -4324,7 +4324,7 @@ class CloudinaryService {
 ================================================================================
 [  12/ 151] 🎯 rojgarnest/lib/core/services/geocoding_service.dart
 📏 SIZE: 806 B
-🕐 MODIFIED: 2026-10-12 20:55:46
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/services/geocoding_service.dart
@@ -4361,7 +4361,7 @@ class GeocodingService {
 ================================================================================
 [  13/ 151] 🎯 rojgarnest/lib/core/services/location_service.dart
 📏 SIZE: 5.3 KB
-🕐 MODIFIED: 2026-10-12 20:55:46
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/services/location_service.dart
@@ -4541,7 +4541,7 @@ class LocationService {
 ================================================================================
 [  14/ 151] 🎯 rojgarnest/lib/core/services/permission_service.dart
 📏 SIZE: 3.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/services/permission_service.dart
@@ -4672,7 +4672,7 @@ class PermissionService {
 ================================================================================
 [  15/ 151] 🎯 rojgarnest/lib/core/services/profile_state_service.dart
 📏 SIZE: 13.0 KB
-🕐 MODIFIED: 2026-10-12 20:55:46
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/services/profile_state_service.dart
@@ -5050,7 +5050,7 @@ class ProfileStateService {
 ================================================================================
 [  16/ 151] 🎯 rojgarnest/lib/core/services/real_location_service.dart
 📏 SIZE: 7.3 KB
-🕐 MODIFIED: 2026-10-12 20:55:46
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/services/real_location_service.dart
@@ -5292,7 +5292,7 @@ class RealLocationService {
 ================================================================================
 [  17/ 151] 🎯 rojgarnest/lib/core/services/unified_location_service.dart
 📏 SIZE: 1.1 KB
-🕐 MODIFIED: 2026-10-12 20:55:46
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/services/unified_location_service.dart
@@ -5330,7 +5330,7 @@ class UnifiedLocationService {
 ================================================================================
 [  18/ 151] 🎯 rojgarnest/lib/core/services/universal_location_service.dart
 📏 SIZE: 9.3 KB
-🕐 MODIFIED: 2026-10-12 20:55:46
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/services/universal_location_service.dart
@@ -5615,7 +5615,7 @@ Please try:
 ================================================================================
 [  19/ 151] 🎯 rojgarnest/lib/core/services/web_location_service.dart
 📏 SIZE: 3.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:46
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/services/web_location_service.dart
@@ -5735,7 +5735,7 @@ class WebLocationService {
 ================================================================================
 [  20/ 151] 🎯 rojgarnest/lib/core/storage/secure_storage.dart
 📏 SIZE: 7.2 KB
-🕐 MODIFIED: 2026-10-14 21:40:28
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/storage/secure_storage.dart
@@ -5946,7 +5946,7 @@ class SecureStorage {
 ================================================================================
 [  21/ 151] 🎯 rojgarnest/lib/core/utils/app_snackbar.dart
 📏 SIZE: 2.4 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/utils/app_snackbar.dart
@@ -6032,7 +6032,7 @@ void showGlobalSnackBar(String message, {bool isError = false}) {
 ================================================================================
 [  22/ 151] 🎯 rojgarnest/lib/core/utils/auth_guard.dart
 📏 SIZE: 798 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 import 'package:flutter/material.dart';
@@ -6072,7 +6072,7 @@ class AuthGuard extends StatelessWidget {
 ================================================================================
 [  23/ 151] 🎯 rojgarnest/lib/core/utils/constants.dart
 📏 SIZE: 967 B
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/utils/constants.dart
@@ -6108,7 +6108,7 @@ class AppConstants {
 ================================================================================
 [  24/ 151] 🎯 rojgarnest/lib/core/utils/coordinate_parser.dart
 📏 SIZE: 5.3 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/utils/coordinate_parser.dart
@@ -6290,7 +6290,7 @@ class CoordinateParser {
 ================================================================================
 [  25/ 151] 🎯 rojgarnest/lib/core/utils/distance_calculator.dart
 📏 SIZE: 1.8 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/utils/distance_calculator.dart
@@ -6372,7 +6372,7 @@ class DistanceCalculator {
 ================================================================================
 [  26/ 151] 🎯 rojgarnest/lib/core/utils/js_stub.dart
 📏 SIZE: 1.1 KB
-🕐 MODIFIED: 2026-09-10 12:53:05
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/utils/js_stub.dart
@@ -6418,7 +6418,7 @@ typedef JSAny = dynamic;
 ================================================================================
 [  27/ 151] 🎯 rojgarnest/lib/core/utils/logger.dart
 📏 SIZE: 999 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/utils/logger.dart
@@ -6466,7 +6466,7 @@ class Logger {
 ================================================================================
 [  28/ 151] 🎯 rojgarnest/lib/core/utils/platform_utils.dart
 📏 SIZE: 2.8 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/utils/platform_utils.dart
@@ -6573,7 +6573,7 @@ class PlatformUtils {
 ================================================================================
 [  29/ 151] 🎯 rojgarnest/lib/core/utils/safe_async.dart
 📏 SIZE: 2 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 
@@ -6582,7 +6582,7 @@ class PlatformUtils {
 ================================================================================
 [  30/ 151] 🎯 rojgarnest/lib/core/utils/stub_device_info.dart
 📏 SIZE: 608 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/utils/stub_device_info.dart
@@ -6612,7 +6612,7 @@ class IosDeviceInfo {
 ================================================================================
 [  31/ 151] 🎯 rojgarnest/lib/core/utils/stub_local_auth.dart
 📏 SIZE: 816 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/utils/stub_local_auth.dart
@@ -6650,7 +6650,7 @@ class BiometricType {
 ================================================================================
 [  32/ 151] 🎯 rojgarnest/lib/core/utils/widgets.dart
 📏 SIZE: 1.0 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 import 'package:flutter/material.dart';
@@ -6695,7 +6695,7 @@ class ModernButton extends StatelessWidget {
 ================================================================================
 [  33/ 151] 🎯 rojgarnest/lib/core/widgets/base_page.dart
 📏 SIZE: 970 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/widgets/base_page.dart - CORRECTED
@@ -6741,7 +6741,7 @@ class BasePage extends StatelessWidget {
 ================================================================================
 [  34/ 151] 🎯 rojgarnest/lib/core/widgets/file_viewer_screen.dart
 📏 SIZE: 43.9 KB
-🕐 MODIFIED: 2026-09-14 19:30:24
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/widgets/file_viewer_screen.dart
@@ -8113,7 +8113,7 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
 ================================================================================
 [  35/ 151] 🎯 rojgarnest/lib/core/widgets/location_dropdowns.dart
 📏 SIZE: 9.2 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/widgets/location_dropdowns.dart
@@ -8415,7 +8415,7 @@ class _LocationDropdownsState extends State<LocationDropdowns> {
 ================================================================================
 [  36/ 151] 🎯 rojgarnest/lib/core/widgets/modern_button.dart
 📏 SIZE: 2.4 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/widgets/modern_button.dart
@@ -8506,7 +8506,7 @@ class ModernButton extends StatelessWidget {
 ================================================================================
 [  37/ 151] 🎯 rojgarnest/lib/core/widgets/platform_aware.dart
 📏 SIZE: 2.2 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/widgets/platform_aware.dart
@@ -8591,7 +8591,7 @@ class PlatformAware {
 ================================================================================
 [  38/ 151] 🎯 rojgarnest/lib/core/widgets/platform_file_picker.dart
 📏 SIZE: 3.3 KB
-🕐 MODIFIED: 2026-09-24 23:53:51
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/widgets/platform_file_picker.dart
@@ -8712,7 +8712,7 @@ class PlatformFileResult {
 ================================================================================
 [  39/ 151] 🎯 rojgarnest/lib/core/widgets/platform_webview.dart
 📏 SIZE: 3.0 KB
-🕐 MODIFIED: 2026-09-10 12:54:26
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/widgets/platform_webview.dart
@@ -8819,7 +8819,7 @@ class _PlatformWebViewState extends State<PlatformWebView> {
 ================================================================================
 [  40/ 151] 🎯 rojgarnest/lib/core/widgets/responsive_widget.dart
 📏 SIZE: 2.5 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/widgets/responsive_widget.dart
@@ -8916,7 +8916,7 @@ class ResponsiveWidget extends StatelessWidget {
 ================================================================================
 [  41/ 151] 🎯 rojgarnest/lib/core/widgets/web_pdf_viewer_stub.dart
 📏 SIZE: 3.1 KB
-🕐 MODIFIED: 2026-09-14 19:30:24
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/widgets/web_pdf_viewer_stub.dart
@@ -9017,7 +9017,7 @@ void openPdfInNewTab(String url) {
 ================================================================================
 [  42/ 151] 🎯 rojgarnest/lib/core/widgets/web_pdf_viewer_web.dart
 📏 SIZE: 10.1 KB
-🕐 MODIFIED: 2026-09-14 19:30:24
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/core/widgets/web_pdf_viewer_web.dart
@@ -9361,7 +9361,7 @@ void openPdfInNewTab(String url) {
 ================================================================================
 [  43/ 151] 🎯 rojgarnest/lib/features/admin/AI/admin_ai_dashboard.dart
 📏 SIZE: 10.7 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/admin/AI/admin_ai_dashboard.dart - Remove unused _selectedTab
@@ -9726,7 +9726,7 @@ class _AdminAIDashboardState extends State<AdminAIDashboard> {
 ================================================================================
 [  44/ 151] 🎯 rojgarnest/lib/features/admin/data/admin_service.dart
 📏 SIZE: 6.3 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/admin/data/admin_service.dart
@@ -9970,7 +9970,7 @@ class AdminService {
 ================================================================================
 [  45/ 151] 🎯 rojgarnest/lib/features/admin/presentation/models/admin_menu.dart
 📏 SIZE: 717 B
-🕐 MODIFIED: 2026-09-26 15:24:25
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/admin/presentation/models/admin_menu.dart
@@ -10007,7 +10007,7 @@ enum SettingsSubMenu {
 ================================================================================
 [  46/ 151] 🎯 rojgarnest/lib/features/admin/presentation/screens/admin_dashboard.dart
 📏 SIZE: 37.9 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/admin/presentation/screens/admin_dashboard.dart
@@ -11141,7 +11141,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 ================================================================================
 [  47/ 151] 🎯 rojgarnest/lib/features/admin/presentation/widgets/admin_sidebar.dart
 📏 SIZE: 10.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/admin/presentation/widgets/admin_sidebar.dart
@@ -11467,7 +11467,7 @@ class AdminSidebar extends StatelessWidget {
 ================================================================================
 [  48/ 151] 🎯 rojgarnest/lib/features/auth/presentation/controllers/auth_controller.dart
 📏 SIZE: 33.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/auth/presentation/controllers/auth_controller.dart
@@ -12570,7 +12570,7 @@ class AuthController extends ChangeNotifier {
 ================================================================================
 [  49/ 151] 🎯 rojgarnest/lib/features/auth/presentation/screens/change_password_screen.dart
 📏 SIZE: 50.3 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/auth/presentation/screens/change_password_screen.dart
@@ -14086,7 +14086,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 ================================================================================
 [  50/ 151] 🎯 rojgarnest/lib/features/auth/presentation/screens/fingerprint_setup_page.dart
 📏 SIZE: 40.7 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/auth/presentation/screens/fingerprint_setup_page.dart
@@ -15304,7 +15304,7 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
 ================================================================================
 [  51/ 151] 🎯 rojgarnest/lib/features/auth/presentation/screens/mpin_setup_page.dart
 📏 SIZE: 43.0 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/auth/presentation/screens/mpin_setup_page.dart
@@ -16622,7 +16622,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
 ================================================================================
 [  52/ 151] 🎯 rojgarnest/lib/features/auth/presentation/screens/register_login_page.dart
 📏 SIZE: 57.8 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/auth/presentation/screens/register_login_page.dart
@@ -18235,7 +18235,7 @@ class _ModernButton extends StatelessWidget {
 ================================================================================
 [  53/ 151] 🎯 rojgarnest/lib/features/auth/presentation/screens/verify_otp_page.dart
 📏 SIZE: 22.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/auth/presentation/screens/verify_otp_page.dart
@@ -18957,7 +18957,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 ================================================================================
 [  54/ 151] 🎯 rojgarnest/lib/features/auth/services/auth_service.dart
 📏 SIZE: 18.3 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/auth/services/auth_service.dart
@@ -19506,7 +19506,7 @@ class AuthService {
 ================================================================================
 [  55/ 151] 🎯 rojgarnest/lib/features/common/widgets/internet_checker.dart
 📏 SIZE: 4.2 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/common/widgets/internet_checker.dart
@@ -19657,7 +19657,7 @@ class _InternetCheckerState extends State<InternetChecker> {
 ================================================================================
 [  56/ 151] 🎯 rojgarnest/lib/features/common/widgets/location_display.dart
 📏 SIZE: 3.9 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/common/widgets/location_display.dart
@@ -19784,7 +19784,7 @@ class _LocationDisplayState extends State<LocationDisplay> {
 ================================================================================
 [  57/ 151] 🎯 rojgarnest/lib/features/customadmin/data/customadmin_service.dart
 📏 SIZE: 9.6 KB
-🕐 MODIFIED: 2026-10-15 19:12:29
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/customadmin/data/customadmin_service.dart
@@ -20122,7 +20122,7 @@ class CustomAdminService {
 ================================================================================
 [  58/ 151] 🎯 rojgarnest/lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
 📏 SIZE: 40.3 KB
-🕐 MODIFIED: 2026-10-15 18:39:24
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
@@ -21331,7 +21331,7 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
 ================================================================================
 [  59/ 151] 🎯 rojgarnest/lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
 📏 SIZE: 22.8 KB
-🕐 MODIFIED: 2026-10-15 15:59:19
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
@@ -21964,7 +21964,7 @@ class _CustomAdminSidebarState extends State<CustomAdminSidebar> {
 ================================================================================
 [  60/ 151] 🎯 rojgarnest/lib/features/home/home_screen.dart
 📏 SIZE: 59.5 KB
-🕐 MODIFIED: 2026-10-14 07:25:26
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/home/home_screen.dart
@@ -23684,7 +23684,7 @@ class _HomeScreenState extends State<HomeScreen>
 ================================================================================
 [  61/ 151] 🎯 rojgarnest/lib/features/jobs/AI/job_ai_service.dart
 📏 SIZE: 1.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/jobs/AI/job_ai_service.dart
@@ -23747,7 +23747,7 @@ class JobAIService {
 ================================================================================
 [  62/ 151] 🎯 rojgarnest/lib/features/jobs/AI/job_match_score_widget.dart
 📏 SIZE: 5.1 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/jobs/AI/job_match_score_widget.dart
@@ -23933,7 +23933,7 @@ class _JobMatchScoreWidgetState extends State<JobMatchScoreWidget> {
 ================================================================================
 [  63/ 151] 🎯 rojgarnest/lib/features/jobs/presentation/screens/add_job_screen.dart
 📏 SIZE: 260.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/jobs/presentation/screens/add_job_screen.dart
@@ -31124,7 +31124,7 @@ class _AddJobScreenState extends State<AddJobScreen>
 ================================================================================
 [  64/ 151] 🎯 rojgarnest/lib/features/jobs/presentation/screens/applications_screen.dart
 📏 SIZE: 161.0 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/jobs/presentation/screens/applications_screen.dart
@@ -35467,7 +35467,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 ================================================================================
 [  65/ 151] 🎯 rojgarnest/lib/features/jobs/presentation/screens/candidate_profile_screen.dart
 📏 SIZE: 79.0 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/jobs/presentation/screens/candidate_profile_screen.dart
@@ -37628,7 +37628,7 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen>
 ================================================================================
 [  66/ 151] 🎯 rojgarnest/lib/features/jobs/presentation/screens/job_detail_screen.dart
 📏 SIZE: 159.1 KB
-🕐 MODIFIED: 2026-10-14 11:14:49
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/jobs/presentation/screens/job_detail_screen.dart
@@ -42149,7 +42149,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 ================================================================================
 [  67/ 151] 🎯 rojgarnest/lib/features/jobs/presentation/screens/job_list_screen.dart
 📏 SIZE: 93.7 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/jobs/presentation/screens/job_list_screen.dart
@@ -44858,7 +44858,7 @@ class _JobListScreenState extends State<JobListScreen>
 ================================================================================
 [  68/ 151] 🎯 rojgarnest/lib/features/jobs/presentation/screens/saved_jobs_screen.dart
 📏 SIZE: 15.4 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/jobs/presentation/screens/saved_jobs_screen.dart
@@ -45341,7 +45341,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
 ================================================================================
 [  69/ 151] 🎯 rojgarnest/lib/features/jobs/presentation/screens/show_jobs_screen.dart
 📏 SIZE: 59.2 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/jobs/presentation/screens/show_jobs_screen.dart
@@ -47108,7 +47108,7 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
 ================================================================================
 [  70/ 151] 🎯 rojgarnest/lib/features/jobs/presentation/screens/user_applications_screen.dart
 📏 SIZE: 116.8 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/jobs/presentation/screens/user_applications_screen.dart
@@ -50452,7 +50452,7 @@ class _UserApplicationScreenState extends State<UserApplicationScreen>
 ================================================================================
 [  71/ 151] 🎯 rojgarnest/lib/features/jobs/presentation/widgets/submit_document_dialog.dart
 📏 SIZE: 10.9 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/jobs/presentation/widgets/submit_document_dialog.dart
@@ -50770,7 +50770,7 @@ Future<void> _pickFile() async {
 ================================================================================
 [  72/ 151] 🎯 rojgarnest/lib/features/location/distance_test_screen.dart
 📏 SIZE: 15.2 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/location/distance_test_screen.dart
@@ -51200,7 +51200,7 @@ class _DistanceTestScreenState extends State<DistanceTestScreen> {
 ================================================================================
 [  73/ 151] 🎯 rojgarnest/lib/features/location/location_test_screen.dart
 📏 SIZE: 6.1 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/location/location_test_screen.dart
@@ -51393,7 +51393,7 @@ class _LocationTestScreenState extends State<LocationTestScreen> {
 ================================================================================
 [  74/ 151] 🎯 rojgarnest/lib/features/market/AI/market_ai_service.dart
 📏 SIZE: 1.0 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/market/AI/market_ai_service.dart
@@ -51439,7 +51439,7 @@ class MarketAIService {
 ================================================================================
 [  75/ 151] 🎯 rojgarnest/lib/features/notification/screens/notifications_list_screen.dart
 📏 SIZE: 14.9 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/notification/screens/notifications_list_screen.dart
@@ -51917,7 +51917,7 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
 ================================================================================
 [  76/ 151] 🎯 rojgarnest/lib/features/notification/service/notification_service.dart
 📏 SIZE: 5.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/notification/service/notification_service.dart
@@ -52116,7 +52116,7 @@ class NotificationService {
 ================================================================================
 [  77/ 151] 🎯 rojgarnest/lib/features/notification/widgets/notification_bell.dart
 📏 SIZE: 7.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/notification/widgets/notification_bell.dart
@@ -52370,7 +52370,7 @@ class _NotificationBellState extends State<NotificationBell>
 ================================================================================
 [  78/ 151] 🎯 rojgarnest/lib/features/payment/presentation/payment.dart
 📏 SIZE: 368 B
-🕐 MODIFIED: 2026-10-14 07:59:51
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/payment/presentation/payment.dart
@@ -52388,7 +52388,7 @@ enum PaymentType {
 ================================================================================
 [  79/ 151] 🎯 rojgarnest/lib/features/payment/presentation/screens/payment_screen.dart
 📏 SIZE: 41.1 KB
-🕐 MODIFIED: 2026-10-17 10:32:33
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/payment/presentation/screens/payment_screen.dart
@@ -53467,7 +53467,7 @@ class _PaymentScreenState extends State<PaymentScreen>
 ================================================================================
 [  80/ 151] 🎯 rojgarnest/lib/features/payment/presentation/widgets/application_success_dialog.dart
 📏 SIZE: 14.7 KB
-🕐 MODIFIED: 2026-10-15 10:39:01
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/payment/presentation/widgets/application_success_dialog.dart
@@ -53865,7 +53865,7 @@ class ApplicationSuccessDialog extends StatelessWidget {
 ================================================================================
 [  81/ 151] 🎯 rojgarnest/lib/features/payment/razorpay_mobile_service.dart
 📏 SIZE: 3.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/payment/razorpay_mobile_service.dart
@@ -53991,7 +53991,7 @@ class RazorpayMobileService {
 ================================================================================
 [  82/ 151] 🎯 rojgarnest/lib/features/payment/razorpay_service.dart
 📏 SIZE: 2.1 KB
-🕐 MODIFIED: 2026-10-13 22:40:31
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/payment/razorpay_service.dart
@@ -54069,7 +54069,7 @@ class RazorpayService {
 ================================================================================
 [  83/ 151] 🎯 rojgarnest/lib/features/payment/razorpay_web_service.dart
 📏 SIZE: 6.2 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/payment/razorpay_web_service.dart
@@ -54281,7 +54281,7 @@ class RazorpayWebService {
 ================================================================================
 [  84/ 151] 🎯 rojgarnest/lib/features/payment/razorpay_web_stub.dart
 📏 SIZE: 967 B
-🕐 MODIFIED: 2026-10-07 10:25:11
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/payment/razorpay_web_stub.dart
@@ -54322,7 +54322,7 @@ class RazorpayWebService {
 ================================================================================
 [  85/ 151] 🎯 rojgarnest/lib/features/resume/AI/AI.dart
 📏 SIZE: 915 B
-🕐 MODIFIED: 2026-09-25 10:55:48
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/AI.dart
@@ -54352,7 +54352,7 @@ export 'presentation/widgets/ats_section_breakdown.dart';
 ================================================================================
 [  86/ 151] 🎯 rojgarnest/lib/features/resume/AI/data/models/ai_resume_model.dart
 📏 SIZE: 3.3 KB
-🕐 MODIFIED: 2026-09-25 10:56:23
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/data/models/ai_resume_model.dart
@@ -54449,7 +54449,7 @@ class AIResume {
 ================================================================================
 [  87/ 151] 🎯 rojgarnest/lib/features/resume/AI/data/models/ats_report_model.dart
 📏 SIZE: 6.5 KB
-🕐 MODIFIED: 2026-09-25 10:56:05
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/data/models/ats_report_model.dart
@@ -54662,7 +54662,7 @@ class ATSFix {
 ================================================================================
 [  88/ 151] 🎯 rojgarnest/lib/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart
 📏 SIZE: 24.4 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart
@@ -55336,7 +55336,7 @@ class _AIResumeGeneratorScreenState extends State<AIResumeGeneratorScreen> {
 ================================================================================
 [  89/ 151] 🎯 rojgarnest/lib/features/resume/AI/presentation/screens/ats_score_screen.dart
 📏 SIZE: 13.7 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/presentation/screens/ats_score_screen.dart
@@ -55758,7 +55758,7 @@ class _ATSScoreScreenState extends State<ATSScoreScreen> {
 ================================================================================
 [  90/ 151] 🎯 rojgarnest/lib/features/resume/AI/presentation/widgets/ai_loading_overlay.dart
 📏 SIZE: 3.9 KB
-🕐 MODIFIED: 2026-09-25 10:57:16
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/presentation/widgets/ai_loading_overlay.dart
@@ -55894,7 +55894,7 @@ class _AILoadingOverlayState extends State<AILoadingOverlay>
 ================================================================================
 [  91/ 151] 🎯 rojgarnest/lib/features/resume/AI/presentation/widgets/ats_fixes_card.dart
 📏 SIZE: 5.4 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/presentation/widgets/ats_fixes_card.dart
@@ -56062,7 +56062,7 @@ class ATSFixesCard extends StatelessWidget {
 ================================================================================
 [  92/ 151] 🎯 rojgarnest/lib/features/resume/AI/presentation/widgets/ats_keyword_chips.dart
 📏 SIZE: 4.4 KB
-🕐 MODIFIED: 2026-09-25 10:58:01
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/presentation/widgets/ats_keyword_chips.dart
@@ -56215,7 +56215,7 @@ class ATSKeywordChips extends StatelessWidget {
 ================================================================================
 [  93/ 151] 🎯 rojgarnest/lib/features/resume/AI/presentation/widgets/ats_score_gauge.dart
 📏 SIZE: 5.6 KB
-🕐 MODIFIED: 2026-09-25 10:57:31
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/presentation/widgets/ats_score_gauge.dart
@@ -56414,7 +56414,7 @@ class _GaugePainter extends CustomPainter {
 ================================================================================
 [  94/ 151] 🎯 rojgarnest/lib/features/resume/AI/presentation/widgets/ats_section_breakdown.dart
 📏 SIZE: 4.3 KB
-🕐 MODIFIED: 2026-09-25 10:57:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/presentation/widgets/ats_section_breakdown.dart
@@ -56570,7 +56570,7 @@ class ATSSectionBreakdown extends StatelessWidget {
 ================================================================================
 [  95/ 151] 🎯 rojgarnest/lib/features/resume/AI/resume_ai_service.dart
 📏 SIZE: 505 B
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/resume_ai_service.dart
@@ -56596,7 +56596,7 @@ class ResumeAIService {
 ================================================================================
 [  96/ 151] 🎯 rojgarnest/lib/features/resume/AI/resume_score_widget.dart
 📏 SIZE: 3.8 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/resume_score_widget.dart
@@ -56734,7 +56734,7 @@ class _ResumeScoreWidgetState extends State<ResumeScoreWidget> {
 ================================================================================
 [  97/ 151] 🎯 rojgarnest/lib/features/resume/AI/services/resume_ai_service.dart
 📏 SIZE: 4.1 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/AI/services/resume_ai_service.dart
@@ -56865,7 +56865,7 @@ class ResumeAIService {
 ================================================================================
 [  98/ 151] 🎯 rojgarnest/lib/features/resume/presentation/screens/build_resume_screen.dart
 📏 SIZE: 45.0 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/screens/build_resume_screen.dart
@@ -58198,7 +58198,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
 ================================================================================
 [  99/ 151] 🎯 rojgarnest/lib/features/resume/presentation/screens/format/formats/classic_format.dart
 📏 SIZE: 21.4 KB
-🕐 MODIFIED: 2026-10-06 10:16:44
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/classic_format.dart
@@ -58714,7 +58714,7 @@ body{font-family:Georgia,serif;background:#f8f8f8;padding:30px 20px;line-height:
 ================================================================================
 [ 100/ 151] 🎯 rojgarnest/lib/features/resume/presentation/screens/format/formats/executive_format.dart
 📏 SIZE: 20.4 KB
-🕐 MODIFIED: 2026-10-06 10:15:48
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/executive_format.dart
@@ -59195,7 +59195,7 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
 ================================================================================
 [ 101/ 151] 🎯 rojgarnest/lib/features/resume/presentation/screens/format/formats/fresher_format.dart
 📏 SIZE: 27.9 KB
-🕐 MODIFIED: 2026-10-06 10:15:43
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/fresher_format.dart
@@ -59825,7 +59825,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#E0F2F1;padding:30px 2
 ================================================================================
 [ 102/ 151] 🎯 rojgarnest/lib/features/resume/presentation/screens/format/formats/government_format.dart
 📏 SIZE: 27.9 KB
-🕐 MODIFIED: 2026-10-06 10:15:56
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/government_format.dart
@@ -60512,7 +60512,7 @@ th{background:#F3F4F6;font-weight:bold;color:#1F2937}
 ================================================================================
 [ 103/ 151] 🎯 rojgarnest/lib/features/resume/presentation/screens/format/formats/modern_format.dart
 📏 SIZE: 26.8 KB
-🕐 MODIFIED: 2026-10-06 10:16:12
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/modern_format.dart
@@ -61132,7 +61132,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#f3f4f6;padding:30px 2
 ================================================================================
 [ 104/ 151] 🎯 rojgarnest/lib/features/resume/presentation/screens/format/formats/tech_format.dart
 📏 SIZE: 26.6 KB
-🕐 MODIFIED: 2026-10-06 10:15:52
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/formats/tech_format.dart
@@ -61744,7 +61744,7 @@ body{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;background:#0F1
 ================================================================================
 [ 105/ 151] 🎯 rojgarnest/lib/features/resume/presentation/screens/format/resume_format_base.dart
 📏 SIZE: 26.4 KB
-🕐 MODIFIED: 2026-09-24 22:11:08
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/resume_format_base.dart
@@ -62617,7 +62617,7 @@ abstract class ResumeFormatBase {
 ================================================================================
 [ 106/ 151] 🎯 rojgarnest/lib/features/resume/presentation/screens/format/resume_format_manager.dart
 📏 SIZE: 874 B
-🕐 MODIFIED: 2026-10-06 10:16:01
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/resume_format_manager.dart
@@ -62655,7 +62655,7 @@ class ResumeFormatManager {
 ================================================================================
 [ 107/ 151] 🎯 rojgarnest/lib/features/resume/presentation/screens/format/resume_format_popup.dart
 📏 SIZE: 11.9 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/resume_format_popup.dart
@@ -63042,7 +63042,7 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
 ================================================================================
 [ 108/ 151] 🎯 rojgarnest/lib/features/resume/presentation/screens/format/resume_format_widget.dart
 📏 SIZE: 573 B
-🕐 MODIFIED: 2026-09-17 15:38:50
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/screens/format/resume_format_widget.dart
@@ -63071,7 +63071,7 @@ class ResumeFormatWidget extends StatelessWidget {
 ================================================================================
 [ 109/ 151] 🎯 rojgarnest/lib/features/resume/presentation/screens/resume_screen.dart
 📏 SIZE: 62.2 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/screens/resume_screen.dart
@@ -64759,7 +64759,7 @@ class _ResumeScreenState extends State<ResumeScreen>
 ================================================================================
 [ 110/ 151] 🎯 rojgarnest/lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
 📏 SIZE: 11.3 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
@@ -65091,7 +65091,7 @@ class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
 ================================================================================
 [ 111/ 151] 🎯 rojgarnest/lib/features/resume/services/resume_pdf_service.dart
 📏 SIZE: 5.2 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/services/resume_pdf_service.dart
@@ -65267,7 +65267,7 @@ class ResumePdfService {
 ================================================================================
 [ 112/ 151] 🎯 rojgarnest/lib/features/resume/services/resume_profile_service.dart
 📏 SIZE: 10.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/services/resume_profile_service.dart
@@ -65568,7 +65568,7 @@ class ResumeProfileService {
 ================================================================================
 [ 113/ 151] 🎯 rojgarnest/lib/features/resume/utils/resume_defaults.dart
 📏 SIZE: 7.5 KB
-🕐 MODIFIED: 2026-10-06 08:22:56
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/resume/utils/resume_defaults.dart
@@ -65723,7 +65723,7 @@ class ResumeDefaults {
 ================================================================================
 [ 114/ 151] 🎯 rojgarnest/lib/features/schemes/data/scheme_service.dart
 📏 SIZE: 37.5 KB
-🕐 MODIFIED: 2026-10-16 08:03:20
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/schemes/data/scheme_service.dart
@@ -66787,7 +66787,7 @@ class SchemeService {
 ================================================================================
 [ 115/ 151] 🎯 rojgarnest/lib/features/schemes/presentation/screens/customadmin_scheme_applications_screen.dart
 📏 SIZE: 157.0 KB
-🕐 MODIFIED: 2026-10-17 10:51:34
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/schemes/presentation/screens/customadmin_scheme_applications_screen.dart
@@ -71137,7 +71137,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 ================================================================================
 [ 116/ 151] 🎯 rojgarnest/lib/features/schemes/presentation/screens/scheme_apply_screen.dart
 📏 SIZE: 79.8 KB
-🕐 MODIFIED: 2026-10-17 12:17:57
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/schemes/presentation/screens/scheme_apply_screen.dart
@@ -73362,7 +73362,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen>
 ================================================================================
 [ 117/ 151] 🎯 rojgarnest/lib/features/schemes/presentation/screens/scheme_detail_screen.dart
 📏 SIZE: 64.5 KB
-🕐 MODIFIED: 2026-10-15 10:41:01
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/schemes/presentation/screens/scheme_detail_screen.dart
@@ -75257,7 +75257,7 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
 ================================================================================
 [ 118/ 151] 🎯 rojgarnest/lib/features/schemes/presentation/screens/scheme_list_screen.dart
 📏 SIZE: 32.9 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/schemes/presentation/screens/scheme_list_screen.dart
@@ -76228,7 +76228,7 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
 ================================================================================
 [ 119/ 151] 🎯 rojgarnest/lib/features/schemes/presentation/screens/user_scheme_applications_screen.dart
 📏 SIZE: 90.6 KB
-🕐 MODIFIED: 2026-10-16 12:12:53
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/schemes/presentation/screens/user_scheme_applications_screen.dart
@@ -78818,7 +78818,7 @@ class _SchemeApplicationDetailViewState
 ================================================================================
 [ 120/ 151] 🎯 rojgarnest/lib/features/services/data/service_data_source.dart
 📏 SIZE: 2.7 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/services/data/service_data_source.dart
@@ -78917,7 +78917,7 @@ class ServiceDataSource {
 ================================================================================
 [ 121/ 151] 🎯 rojgarnest/lib/features/services/data/service_repository.dart
 📏 SIZE: 8.2 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/services/data/service_repository.dart
@@ -79190,7 +79190,7 @@ class ServiceRepository {
 ================================================================================
 [ 122/ 151] 🎯 rojgarnest/lib/features/services/models/service_types.dart
 📏 SIZE: 25.9 KB
-🕐 MODIFIED: 2026-09-10 10:40:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/services/models/service_types.dart
@@ -79972,7 +79972,7 @@ class ServiceMasterData {
 ================================================================================
 [ 123/ 151] 🎯 rojgarnest/lib/features/services/presentation/screens/apply_service_screen.dart
 📏 SIZE: 78.5 KB
-🕐 MODIFIED: 2026-10-17 17:24:39
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/services/presentation/screens/apply_service_screen.dart
@@ -82394,7 +82394,7 @@ class _UploadedDoc {
 ================================================================================
 [ 124/ 151] 🎯 rojgarnest/lib/features/services/presentation/screens/service_application_screen.dart
 📏 SIZE: 176.4 KB
-🕐 MODIFIED: 2026-10-15 18:39:17
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/services/presentation/screens/service_application_screen.dart
@@ -87262,7 +87262,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 ================================================================================
 [ 125/ 151] 🎯 rojgarnest/lib/features/services/presentation/screens/user_service_applications_screen.dart
 📏 SIZE: 145.0 KB
-🕐 MODIFIED: 2026-10-17 20:27:03
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/services/presentation/screens/user_service_applications_screen.dart
@@ -91409,7 +91409,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 ================================================================================
 [ 126/ 151] 🎯 rojgarnest/lib/features/splash/splash_page.dart
 📏 SIZE: 11.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/splash/splash_page.dart
@@ -91732,7 +91732,7 @@ class _SplashPageState extends State<SplashPage>
 ================================================================================
 [ 127/ 151] 🎯 rojgarnest/lib/features/superadmin/AI/superadmin_ai_dashboard.dart
 📏 SIZE: 1.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/jobs/AI/job_ai_service.dart
@@ -91795,7 +91795,7 @@ class JobAIService {
 ================================================================================
 [ 128/ 151] 🎯 rojgarnest/lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
 📏 SIZE: 25.8 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
@@ -92621,7 +92621,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 ================================================================================
 [ 129/ 151] 🎯 rojgarnest/lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
 📏 SIZE: 4.1 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
@@ -92756,7 +92756,7 @@ class SuperAdminSidebar extends StatelessWidget {
 ================================================================================
 [ 130/ 151] 🎯 rojgarnest/lib/features/user/AI/user_ai_dashboard.dart
 📏 SIZE: 43.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/AI/user_ai_dashboard.dart
@@ -94075,7 +94075,7 @@ class _LineChartPainter extends CustomPainter {
 ================================================================================
 [ 131/ 151] 🎯 rojgarnest/lib/features/user/AI/user_ai_screen.dart
 📏 SIZE: 17.7 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/AI/user_ai_screen.dart
@@ -94637,7 +94637,7 @@ class _UserAIScreenState extends State<UserAIScreen> {
 ================================================================================
 [ 132/ 151] 🎯 rojgarnest/lib/features/user/AI/user_ai_service.dart
 📏 SIZE: 3.7 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/AI/user_ai_service.dart
@@ -94764,7 +94764,7 @@ class UserAIService {
 ================================================================================
 [ 133/ 151] 🎯 rojgarnest/lib/features/user/AI/user_career_roadmap_screen.dart
 📏 SIZE: 10.8 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/AI/user_career_roadmap_screen.dart
@@ -95111,7 +95111,7 @@ class _UserCareerRoadmapScreenState extends State<UserCareerRoadmapScreen> {
 ================================================================================
 [ 134/ 151] 🎯 rojgarnest/lib/features/user/data/user_service.dart
 📏 SIZE: 35.9 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/data/user_service.dart
@@ -96238,7 +96238,7 @@ class UserService {
 ================================================================================
 [ 135/ 151] 🎯 rojgarnest/lib/features/user/presentation/controllers/user_profile_controller.dart
 📏 SIZE: 7.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/presentation/controllers/user_profile_controller.dart
@@ -96531,7 +96531,7 @@ class UserProfileController extends ChangeNotifier {
 ================================================================================
 [ 136/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/advanced_details_screen.dart
 📏 SIZE: 74.2 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/presentation/screens/advanced_details_screen.dart
@@ -98607,7 +98607,7 @@ class _AdvancedDetailsScreenState extends State<AdvancedDetailsScreen>
 ================================================================================
 [ 137/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/basic_details_screen.dart
 📏 SIZE: 79.2 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/presentation/screens/basic_details_screen.dart
@@ -100564,7 +100564,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
 ================================================================================
 [ 138/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/education_screen.dart
 📏 SIZE: 60.3 KB
-🕐 MODIFIED: 2026-10-12 20:55:47
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/presentation/screens/education_screen.dart
@@ -102365,7 +102365,7 @@ class _EducationScreenState extends State<EducationScreen> {
 ================================================================================
 [ 139/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/experience_screen.dart
 📏 SIZE: 76.4 KB
-🕐 MODIFIED: 2026-10-12 20:55:48
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/presentation/screens/experience_screen.dart
@@ -104266,7 +104266,7 @@ class _TabData {
 ================================================================================
 [ 140/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/user_applications_screen.dart
 📏 SIZE: 115.1 KB
-🕐 MODIFIED: 2026-10-17 21:53:26
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/presentation/screens/user_applications_screen.dart
@@ -107553,8 +107553,8 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 
 ================================================================================
 [ 141/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/user_dashboard.dart
-📏 SIZE: 77.6 KB
-🕐 MODIFIED: 2026-10-17 22:09:11
+📏 SIZE: 78.6 KB
+🕐 MODIFIED: 2026-10-18 08:39:04
 ================================================================================
 
 // lib/features/user/presentation/screens/user_dashboard.dart
@@ -107599,6 +107599,7 @@ import 'package:rojgarnest/features/services/presentation/screens/apply_service_
 import 'package:rojgarnest/features/services/presentation/screens/user_service_applications_screen.dart';
 
 // ✅ Resume screens
+<<<<<<< HEAD:frontend/rojgarnest/lib/features/user/presentation/screens/user_dashboard.dart
 import 'package:rojgarnest/features/resume/presentation/screens/build_resume_screen.dart';
 import 'package:rojgarnest/features/resume/presentation/screens/resume_screen.dart';
 import 'package:rojgarnest/features/resume/AI/presentation/screens/ats_score_screen.dart';
@@ -107607,6 +107608,16 @@ import 'package:rojgarnest/features/resume/AI/presentation/screens/ai_resume_gen
 // ✅ AI screens
 import 'package:rojgarnest/features/user/AI/user_ai_screen.dart';
 import 'package:rojgarnest/features/user/AI/user_career_roadmap_screen.dart';
+=======
+import 'package:rojgarnext/features/resume/presentation/screens/build_resume_screen.dart';
+import 'package:rojgarnext/features/resume/presentation/screens/resume_screen.dart';
+import 'package:rojgarnext/features/resume/AI/presentation/screens/ats_score_screen.dart';
+import 'package:rojgarnext/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart';
+
+// ✅ AI screens
+import 'package:rojgarnext/features/user/AI/user_ai_screen.dart';
+import 'package:rojgarnext/features/user/AI/user_career_roadmap_screen.dart';
+>>>>>>> ea68e649c0ead809db26b81b58774bdde4282156:frontend/rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
 
 // ✅ AUTH SCREENS IMPORT
 import 'package:rojgarnest/features/auth/presentation/screens/change_password_screen.dart';
@@ -107617,6 +107628,11 @@ import 'package:rojgarnest/features/auth/presentation/screens/fingerprint_setup_
 import 'package:rojgarnest/features/schemes/presentation/screens/scheme_list_screen.dart';
 import 'package:rojgarnest/features/schemes/presentation/screens/scheme_detail_screen.dart';
 import 'package:rojgarnest/features/schemes/presentation/screens/user_scheme_applications_screen.dart';
+
+// ✅ Schemes screens
+import 'package:rojgarnext/features/schemes/presentation/screens/scheme_list_screen.dart';
+import 'package:rojgarnext/features/schemes/presentation/screens/scheme_detail_screen.dart';
+import 'package:rojgarnext/features/schemes/presentation/screens/user_scheme_applications_screen.dart';
 
 // ============================================================
 // DASHBOARD STATS MODEL
@@ -109912,7 +109928,7 @@ class _QuickAction {
 ================================================================================
 [ 142/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/user_documents_screen.dart
 📏 SIZE: 67.5 KB
-🕐 MODIFIED: 2026-10-12 20:55:48
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/presentation/screens/user_documents_screen.dart
@@ -111396,7 +111412,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 ================================================================================
 [ 143/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/user_support_screen.dart
 📏 SIZE: 27.8 KB
-🕐 MODIFIED: 2026-10-12 20:55:48
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/presentation/screens/user_support_screen.dart
@@ -112282,7 +112298,7 @@ This message was sent from RojgarNest App
 ================================================================================
 [ 144/ 151] 🎯 rojgarnest/lib/features/user/presentation/utils/menu_types.dart
 📏 SIZE: 2.5 KB
-🕐 MODIFIED: 2026-10-10 07:22:58
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/presentation/utils/menu_types.dart
@@ -112369,7 +112385,7 @@ enum SettingsSubMenu {
 ================================================================================
 [ 145/ 151] 🎯 rojgarnest/lib/features/user/presentation/widgets/user_sidebar.dart
 📏 SIZE: 33.1 KB
-🕐 MODIFIED: 2026-10-12 20:55:48
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/presentation/widgets/user_sidebar.dart
@@ -113210,7 +113226,7 @@ class _UserSidebarState extends State<UserSidebar> {
 ================================================================================
 [ 146/ 151] 🎯 rojgarnest/lib/features/user/providers/user_profile_provider.dart
 📏 SIZE: 11.4 KB
-🕐 MODIFIED: 2026-10-12 20:55:48
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/features/user/providers/user_profile_provider.dart
@@ -113586,7 +113602,7 @@ class UserProfileProvider extends ChangeNotifier {
 ================================================================================
 [ 147/ 151] 🎯 rojgarnest/lib/main.dart
 📏 SIZE: 4.7 KB
-🕐 MODIFIED: 2026-10-12 20:55:46
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 // lib/main.dart - OPTIMIZED FOR FASTER LOAD
@@ -113759,7 +113775,7 @@ class _NoGlowScrollBehavior extends ScrollBehavior {
 ================================================================================
 [ 148/ 151] 🔧 rojgarnest/nginx.conf
 📏 SIZE: 1.1 KB
-🕐 MODIFIED: 2026-09-25 20:04:32
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 server {
@@ -113806,7 +113822,7 @@ server {
 ================================================================================
 [ 149/ 151] ⚙️ rojgarnest/pubspec.yaml
 📏 SIZE: 2.0 KB
-🕐 MODIFIED: 2026-10-12 20:55:46
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 name: rojgarnest
@@ -113899,7 +113915,7 @@ flutter:
 ================================================================================
 [ 150/ 151] 🌐 rojgarnest/web/index.html
 📏 SIZE: 1.6 KB
-🕐 MODIFIED: 2026-10-12 20:55:48
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 <!DOCTYPE html>
@@ -113955,7 +113971,7 @@ flutter:
 ================================================================================
 [ 151/ 151] 📋 rojgarnest/web/manifest.json
 📏 SIZE: 951 B
-🕐 MODIFIED: 2026-10-12 20:55:48
+🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
 
 {
@@ -113999,5 +114015,5 @@ flutter:
 🎉 EXPORT COMPLETED!
 ================================================================================
 Total Files: 151
-Generated: 2026-10-17 22:19:29
+Generated: 2026-10-18 09:19:04
 ================================================================================
