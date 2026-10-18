@@ -1,8 +1,11 @@
-# app/main.py - COMPLETE FIXED VERSION WITH SCHEMES ROUTER
-# ✅ FIXED: schemes router is now imported AND registered
-# ✅ FIXED: All error handlers return proper dict details
-# ✅ FIXED: No data loss on error responses
-# ✅ FIXED: Startup banner shows all registered routes for debugging
+# app/main.py - COMPLETE FIXED VERSION (NO CONFLICT MARKERS)
+# ✅ FIXED: Removed Git merge conflict markers
+# ✅ FIXED: Removed duplicate schemes_router registration
+# ✅ FIXED: Removed duplicate schemes_router import
+# ✅ FIXED: All error handlers preserve full detail
+# ✅ FIXED: Startup banner shows registered /schemes routes for debugging
+# ✅ FIXED: Safe rate-limit cleanup to prevent memory leak
+# ✅ FIXED: Docs paths excluded from security headers injection issues
 
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,12 +15,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
-import json
 import uuid
-import asyncio
 import time
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Optional
 import os
 import sys
 import subprocess
@@ -48,14 +49,10 @@ from app.modules.customadmin.routes import router as customadmin_router
 from app.modules.location.routes import router as location_router
 from app.modules.payment.routes import router as payment_router
 from app.modules.support.routes import router as support_router
-<<<<<<< HEAD:backend/rojgarnest/app/main.py
 
-# ✅ CRITICAL FIX: Import schemes router
+# ✅ SCHEMES ROUTER — single, clean import (conflict resolved)
 from app.modules.schemes.routes import router as schemes_router
 
-=======
-from app.modules.schemes.routes import router as schemes_router
->>>>>>> ea68e649c0ead809db26b81b58774bdde4282156:backend/rojgarnext/app/main.py
 # ================= ORJSON FALLBACK =================
 try:
     DefaultResponse = ORJSONResponse
@@ -76,7 +73,7 @@ async def verify_token(
     return credentials.credentials
 
 
-
+# ================= LIFESPAN =================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("=" * 60)
@@ -118,7 +115,6 @@ async def lifespan(app: FastAPI):
                     "⚠️ Schemes collection is EMPTY — auto-seeding..."
                 )
 
-                # Determine backend root directory (where seed_schemes.py lives)
                 backend_root = os.path.dirname(
                     os.path.dirname(os.path.abspath(__file__))
                 )
@@ -190,9 +186,9 @@ async def lifespan(app: FastAPI):
 
     # ✅ AI Engines
     try:
-        from app.core.ai.ultra_ai_engine import ultra_ai_engine
-        from app.core.ai.ultra_career_ai import ultra_career_ai
-        from app.core.ai.real_time_market_ai import real_time_market_ai
+        from app.core.ai.ultra_ai_engine import ultra_ai_engine          # noqa: F401
+        from app.core.ai.ultra_career_ai import ultra_career_ai          # noqa: F401
+        from app.core.ai.real_time_market_ai import real_time_market_ai  # noqa: F401
         logger.info("✅ AI Engines Initialized")
     except Exception as e:
         logger.error(f"❌ AI Engine error: {e}")
@@ -357,6 +353,16 @@ async def rate_limit_middleware(request: Request, call_next):
         )
 
     request_counts[client_ip].append(now)
+
+    # ✅ Periodic cleanup: drop empty buckets so dict doesn't grow forever
+    if len(request_counts) > 10000:
+        stale = [
+            ip for ip, ts in request_counts.items()
+            if not ts or ts[-1] < now - window
+        ]
+        for ip in stale:
+            request_counts.pop(ip, None)
+
     return await call_next(request)
 
 
@@ -526,11 +532,8 @@ app.include_router(
 app.include_router(
     support_router, prefix="/api/v1", tags=["Support"]
 )
-app.include_router(
-    schemes_router, prefix="/api/v1/schemes", tags=["Government Schemes"]
-)
 
-# ✅ CRITICAL FIX: Register schemes router
+# ✅ SCHEMES ROUTER — registered ONCE (duplicate removed)
 app.include_router(
     schemes_router, prefix="/api/v1/schemes", tags=["Government Schemes"]
 )
