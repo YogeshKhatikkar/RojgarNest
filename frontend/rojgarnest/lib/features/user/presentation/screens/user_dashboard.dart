@@ -40,6 +40,7 @@ import 'package:rojgarnest/features/services/presentation/screens/apply_service_
 import 'package:rojgarnest/features/services/presentation/screens/user_service_applications_screen.dart';
 
 // ✅ Resume screens
+<<<<<<< HEAD:frontend/rojgarnest/lib/features/user/presentation/screens/user_dashboard.dart
 import 'package:rojgarnest/features/resume/presentation/screens/build_resume_screen.dart';
 import 'package:rojgarnest/features/resume/presentation/screens/resume_screen.dart';
 import 'package:rojgarnest/features/resume/AI/presentation/screens/ats_score_screen.dart';
@@ -48,6 +49,16 @@ import 'package:rojgarnest/features/resume/AI/presentation/screens/ai_resume_gen
 // ✅ AI screens
 import 'package:rojgarnest/features/user/AI/user_ai_screen.dart';
 import 'package:rojgarnest/features/user/AI/user_career_roadmap_screen.dart';
+=======
+import 'package:rojgarnext/features/resume/presentation/screens/build_resume_screen.dart';
+import 'package:rojgarnext/features/resume/presentation/screens/resume_screen.dart';
+import 'package:rojgarnext/features/resume/AI/presentation/screens/ats_score_screen.dart';
+import 'package:rojgarnext/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart';
+
+// ✅ AI screens
+import 'package:rojgarnext/features/user/AI/user_ai_screen.dart';
+import 'package:rojgarnext/features/user/AI/user_career_roadmap_screen.dart';
+>>>>>>> ea68e649c0ead809db26b81b58774bdde4282156:frontend/rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
 
 // ✅ AUTH SCREENS IMPORT
 import 'package:rojgarnest/features/auth/presentation/screens/change_password_screen.dart';
@@ -58,6 +69,11 @@ import 'package:rojgarnest/features/auth/presentation/screens/fingerprint_setup_
 import 'package:rojgarnest/features/schemes/presentation/screens/scheme_list_screen.dart';
 import 'package:rojgarnest/features/schemes/presentation/screens/scheme_detail_screen.dart';
 import 'package:rojgarnest/features/schemes/presentation/screens/user_scheme_applications_screen.dart';
+
+// ✅ Schemes screens
+import 'package:rojgarnext/features/schemes/presentation/screens/scheme_list_screen.dart';
+import 'package:rojgarnext/features/schemes/presentation/screens/scheme_detail_screen.dart';
+import 'package:rojgarnext/features/schemes/presentation/screens/user_scheme_applications_screen.dart';
 
 // ============================================================
 // DASHBOARD STATS MODEL
