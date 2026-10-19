@@ -23,6 +23,11 @@
 // ✅ NEW: onBack callback for embedded mode
 // ✅ NEW: onApplicationSubmitted callback preserved
 // ✅ NEW: After payment success → shows ApplicationSuccessDialog with Application Number
+// ✅✅✅ NEW CRITICAL FIX: viewMode='application' → shows APPLICATION details ONLY
+// ✅✅✅ NEW CRITICAL FIX: viewMode='job' → shows FULL JOB details ONLY
+// ✅✅✅ NEW: Both modes share the same widget — behavior switches based on viewMode
+// ✅✅✅ NEW: Application view hides job details, shows status/payment/documents
+// ✅✅✅ NEW: Job view shows all job details + apply button
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -269,6 +274,7 @@ class _JobFileTypeDetector {
 // MAIN SCREEN
 // ✅ NEW: isEmbedded mode
 // ✅ NEW: onBack callback
+// ✅✅✅ NEW: viewMode parameter — 'job' | 'application'
 // ============================================================
 class JobDetailScreen extends StatefulWidget {
   final Map<String, dynamic> job;
@@ -279,12 +285,34 @@ class JobDetailScreen extends StatefulWidget {
   /// so it can be embedded in the right panel of UserDashboard.
   final bool isEmbedded;
 
+  /// ✅✅✅ NEW CRITICAL FIX:
+  /// 'job'         → Shows FULL job details (default)
+  /// 'application' → Shows APPLICATION details (status/payment/documents)
+  final String viewMode;
+
+  /// ✅✅✅ NEW: Application-specific data (used when viewMode='application')
+  final String? applicationId;
+  final String? applicationStatus;
+  final String? applicantEmail;
+  final String? paymentStatus;
+  final String? transactionId;
+  final String? screenshotUrl;
+  final double? matchScore;
+
   const JobDetailScreen({
     super.key,
     required this.job,
     this.onBack,
     this.onApplicationSubmitted,
     this.isEmbedded = false,
+    this.viewMode = 'job',
+    this.applicationId,
+    this.applicationStatus,
+    this.applicantEmail,
+    this.paymentStatus,
+    this.transactionId,
+    this.screenshotUrl,
+    this.matchScore,
   });
 
   @override
@@ -331,6 +359,10 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   List<String> _insights = [];
   Map<String, dynamic> _userProfile = {};
 
+  // ✅ Application detail (for viewMode='application')
+  Map<String, dynamic>? _application;
+  bool _isLoadingApplication = false;
+
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -350,6 +382,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   static const Color _kCardWhite = Colors.white;
   static const Color _kBorderLight = Color(0xFFE5E7EB);
 
+  /// ✅ TRUE when we're showing application details
+  bool get _isApplicationView => widget.viewMode == 'application';
+
   // ============================================================
   // LIFECYCLE
   // ============================================================
@@ -366,11 +401,17 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     );
 
     _loadNotificationData();
-    _refreshJobData();
     _loadUserProfile();
-    _checkIfAlreadyApplied();
-    _checkIfSaved();
     _loadUserProfileData();
+
+    // ✅ Only fetch application details when in application mode
+    if (_isApplicationView) {
+      _loadApplicationDetails();
+    } else {
+      _refreshJobData();
+      _checkIfAlreadyApplied();
+      _checkIfSaved();
+    }
 
     _fadeController.forward();
   }
@@ -379,6 +420,73 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   void dispose() {
     _fadeController.dispose();
     super.dispose();
+  }
+
+  // ============================================================
+  // ✅ LOAD APPLICATION DETAILS (viewMode = 'application')
+  // ============================================================
+  Future<void> _loadApplicationDetails() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingApplication = true;
+      _isCheckingApplied = true;
+    });
+
+    try {
+      final appId = widget.applicationId;
+      if (appId != null && appId.isNotEmpty) {
+        try {
+          final response = await DioClient.dio.get(
+            '/user/applications/$appId',
+          );
+          if (mounted && response.data is Map) {
+            Map<String, dynamic> appData = {};
+            if (response.data.containsKey('data') &&
+                response.data['data'] is Map) {
+              appData = Map<String, dynamic>.from(response.data['data']);
+            } else if (response.data.containsKey('application') &&
+                response.data['application'] is Map) {
+              appData = Map<String, dynamic>.from(
+                response.data['application'],
+              );
+            } else {
+              appData = Map<String, dynamic>.from(response.data);
+            }
+            _application = appData;
+            debugPrint("✅ Application loaded: ${_application?.keys.toList()}");
+          }
+        } catch (e) {
+          debugPrint("⚠️ Application API load failed: $e");
+        }
+      }
+
+      // Fallback: use provided values
+      _application ??= {
+        'application_id': widget.applicationId,
+        'status': widget.applicationStatus,
+        'applicant_email': widget.applicantEmail,
+        'payment_verification_status': widget.paymentStatus,
+        'transaction_id': widget.transactionId,
+        'payment_receipt_url': widget.screenshotUrl,
+        'match_score': widget.matchScore,
+      };
+
+      // In application view, we don't need to check applied status
+      if (mounted) {
+        setState(() {
+          _isCheckingApplied = false;
+          _isLoadingApplication = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("❌ Application load error: $e");
+      if (mounted) {
+        setState(() {
+          _isCheckingApplied = false;
+          _isLoadingApplication = false;
+        });
+      }
+    }
   }
 
   // ============================================================
@@ -1974,9 +2082,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             },
           ),
           const SizedBox(height: 24),
-          const Text(
-            "AI is loading job details...",
-            style: TextStyle(
+          Text(
+            _isApplicationView
+                ? "AI is loading application details..."
+                : "AI is loading job details...",
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: _kTextPrimary,
@@ -1994,197 +2104,20 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   // ============================================================
   // BUILD
   // ✅ NEW: isEmbedded mode - no Scaffold/AppBar
+  // ✅✅✅ NEW: viewMode='application' → shows ApplicationView
+  // ✅✅✅ NEW: viewMode='job' → shows JobView (default)
   // ============================================================
   @override
   Widget build(BuildContext context) {
-    final job = widget.job;
-    final jobType = job['job_type'] ?? 'private';
-    final typeColor = _getJobTypeColor(jobType);
-    final postedDate = _formatPostedDate();
-    final lastDate = _getLastDate();
-    final hasValidWebsiteUrl = _hasValidWebsiteUrl();
-    final hasApplyWithUsLink = _hasApplyWithUsLink();
-    final showApplyButtons = hasValidWebsiteUrl || hasApplyWithUsLink;
-    final multiplePosts = _getMultiplePosts();
-    final hasMultiplePosts = multiplePosts.isNotEmpty;
-    final hasAnyNotification = _hasAnyNotification();
-    final hasApplicationFees = _hasApplicationFees();
-    final applicationFees = _getApplicationFees();
-    final feeBreakdown = _calculateFeeBreakdown();
-
-    // ✅ Build the main content
-    final Widget content = (_isLoadingCategory || _isLoadingDisability)
+    final Widget content = (_isLoadingCategory ||
+            _isLoadingDisability ||
+            (_isApplicationView && _isLoadingApplication))
         ? _buildLoadingScreen()
         : FadeTransition(
             opacity: _fadeAnimation,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildAIHeaderCard(job, typeColor, postedDate, lastDate),
-                  const SizedBox(height: 16),
-                  if (_isDisabled) _buildDisabilityBanner(),
-                  if (_isDisabled) const SizedBox(height: 16),
-                  if (_insights.isNotEmpty) _buildAIInsightsRow(),
-                  if (_insights.isNotEmpty) const SizedBox(height: 16),
-                  _buildKeyInfoSection(job),
-                  const SizedBox(height: 16),
-                  if (_getApplicationStartDate().isNotEmpty ||
-                      _getApplicationEndDate().isNotEmpty)
-                    _buildApplicationTimelineSection(),
-                  if (_getApplicationStartDate().isNotEmpty ||
-                      _getApplicationEndDate().isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (hasApplicationFees && applicationFees.isNotEmpty)
-                    _buildApplicationFeesSection(
-                      applicationFees,
-                      feeBreakdown,
-                    ),
-                  if (hasApplicationFees && applicationFees.isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (_getAgeLimit() != 'Not specified')
-                    _buildAgeLimitSection(),
-                  if (_getAgeLimit() != 'Not specified')
-                    const SizedBox(height: 16),
-                  if (job['exam_cities'] != null &&
-                      (job['exam_cities'] as List).isNotEmpty)
-                    _buildExamCitiesSection(job['exam_cities']),
-                  if (job['exam_cities'] != null &&
-                      (job['exam_cities'] as List).isNotEmpty)
-                    const SizedBox(height: 16),
-                  _buildWorkDetailsSection(),
-                  const SizedBox(height: 16),
-                  if (job['benefits'] != null &&
-                      (job['benefits'] as List).isNotEmpty)
-                    _buildBenefitsSection(job['benefits']),
-                  if (job['benefits'] != null &&
-                      (job['benefits'] as List).isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['languages_required'] != null &&
-                      (job['languages_required'] as List).isNotEmpty)
-                    _buildLanguagesSection(job['languages_required']),
-                  if (job['languages_required'] != null &&
-                      (job['languages_required'] as List).isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['education_details'] != null &&
-                      job['education_details'].toString().isNotEmpty)
-                    _buildEducationDetailsSection(job['education_details']),
-                  if (job['education_details'] != null &&
-                      job['education_details'].toString().isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['experience_details'] != null &&
-                      job['experience_details'].toString().isNotEmpty)
-                    _buildExperienceDetailsSection(
-                        job['experience_details']),
-                  if (job['experience_details'] != null &&
-                      job['experience_details'].toString().isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['physical_eligibility'] != null)
-                    _buildPhysicalEligibilitySection(
-                        job['physical_eligibility']),
-                  if (job['physical_eligibility'] != null)
-                    const SizedBox(height: 16),
-                  if (job['interview_venue'] != null ||
-                      job['interview_link'] != null ||
-                      job['interview_date'] != null ||
-                      job['interview_time'] != null)
-                    _buildInterviewSection(),
-                  if (job['interview_venue'] != null ||
-                      job['interview_link'] != null ||
-                      job['interview_date'] != null ||
-                      job['interview_time'] != null)
-                    const SizedBox(height: 16),
-                  if (job['selection_stages'] != null &&
-                      (job['selection_stages'] as List).isNotEmpty)
-                    _buildSelectionProcessSection(
-                        job['selection_stages'],
-                        job['selection_process_details']),
-                  if (job['selection_stages'] != null &&
-                      (job['selection_stages'] as List).isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['contact_person'] != null ||
-                      job['contact_email'] != null ||
-                      job['contact_phone'] != null)
-                    _buildContactInformationSection(),
-                  if (job['contact_person'] != null ||
-                      job['contact_email'] != null ||
-                      job['contact_phone'] != null)
-                    const SizedBox(height: 16),
-                  if (job['important_notes'] != null &&
-                      job['important_notes'].toString().isNotEmpty)
-                    _buildImportantNotesSection(job['important_notes']),
-                  if (job['important_notes'] != null &&
-                      job['important_notes'].toString().isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['terms_conditions'] != null &&
-                      job['terms_conditions'].toString().isNotEmpty)
-                    _buildTermsConditionsSection(job['terms_conditions']),
-                  if (job['terms_conditions'] != null &&
-                      job['terms_conditions'].toString().isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['admit_card_date'] != null ||
-                      job['exam_date'] != null ||
-                      job['result_date'] != null)
-                    _buildImportantDatesSection(
-                      job['admit_card_date'],
-                      job['exam_date'],
-                      job['result_date'],
-                    ),
-                  if (job['admit_card_date'] != null ||
-                      job['exam_date'] != null ||
-                      job['result_date'] != null)
-                    const SizedBox(height: 16),
-                  if (job['helpline_number'] != null ||
-                      job['helpline_email'] != null ||
-                      job['whatsapp_number'] != null ||
-                      job['telegram_channel'] != null)
-                    _buildHelplineSection(),
-                  if (job['helpline_number'] != null ||
-                      job['helpline_email'] != null ||
-                      job['whatsapp_number'] != null ||
-                      job['telegram_channel'] != null)
-                    const SizedBox(height: 16),
-                  if (job['description'] != null &&
-                      job['description'].toString().isNotEmpty)
-                    _buildDescriptionSection(job['description']),
-                  if (job['description'] != null &&
-                      job['description'].toString().isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['required_skills'] != null &&
-                      (job['required_skills'] as List).isNotEmpty)
-                    _buildSkillsSection(job['required_skills']),
-                  if (job['required_skills'] != null &&
-                      (job['required_skills'] as List).isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (hasMultiplePosts)
-                    _buildMultiplePostsTable(multiplePosts),
-                  if (hasMultiplePosts) const SizedBox(height: 16),
-                  if (_hasOfficialNotification)
-                    _buildOfficialNotificationSection(),
-                  if (_hasOfficialNotification) const SizedBox(height: 16),
-                  if (_hasAdvertisement) _buildAdvertisementSection(),
-                  if (_hasAdvertisement) const SizedBox(height: 16),
-                  if (hasAnyNotification) _buildInfoNote(),
-                  if (hasAnyNotification) const SizedBox(height: 16),
-                  if (!_isCheckingApplied) _buildSaveAndShareButtons(),
-                  if (!_isCheckingApplied) const SizedBox(height: 16),
-                  if (_isCheckingApplied)
-                    const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(_kPrimary),
-                      ),
-                    )
-                  else if (showApplyButtons)
-                    _buildApplyButtons(
-                      hasApplyWithUsLink,
-                      hasValidWebsiteUrl,
-                      feeBreakdown,
-                    ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
+            child: _isApplicationView
+                ? _buildApplicationView()
+                : _buildJobView(),
           );
 
     // ✅ EMBEDDED MODE: No Scaffold, no AppBar, no back button
@@ -2202,6 +2135,876 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       body: Container(
         decoration: _buildGradientBackground(),
         child: content,
+      ),
+    );
+  }
+
+  // ============================================================
+  // ✅✅✅ APPLICATION VIEW (viewMode = 'application')
+  // Shows ONLY application status, payment, documents, updates.
+  // Does NOT show job description / skills / fees breakdown.
+  // ============================================================
+  Widget _buildApplicationView() {
+    final app = _application ?? {};
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildApplicationHeaderCard(app),
+          const SizedBox(height: 16),
+          _buildApplicationStatusCard(app),
+          const SizedBox(height: 16),
+          _buildApplicationJobInfoCard(app),
+          const SizedBox(height: 16),
+          if (_buildApplicationPaymentInfoCard(app) != null) ...[
+            _buildApplicationPaymentInfoCard(app)!,
+            const SizedBox(height: 16),
+          ],
+          if (_buildApplicationDocumentsCard(app) != null) ...[
+            _buildApplicationDocumentsCard(app)!,
+            const SizedBox(height: 16),
+          ],
+          if (_buildApplicationUpdatesCard(app) != null) ...[
+            _buildApplicationUpdatesCard(app)!,
+            const SizedBox(height: 16),
+          ],
+          _buildApplicationTimelineCard(app),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION HEADER CARD
+  // ============================================================
+  Widget _buildApplicationHeaderCard(Map<String, dynamic> app) {
+    final status = app['status']?.toString() ?? 'pending';
+    final title = app['job_title']?.toString() ??
+        widget.job['post_name']?.toString() ??
+        'Application';
+    final org = app['organization']?.toString() ??
+        widget.job['organization']?.toString() ??
+        '';
+    final appNumber = app['application_number']?.toString() ?? '';
+    final color = _getStatusColor(status);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color, color.withOpacity(0.75)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  _getStatusIcon(status),
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Application Status",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      _formatStatus(status),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                if (org.isNotEmpty)
+                  Text(
+                    org,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (appNumber.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.confirmation_number,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    "App No: $appNumber",
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION STATUS CARD
+  // ============================================================
+  Widget _buildApplicationStatusCard(Map<String, dynamic> app) {
+    final status = app['status']?.toString() ?? 'pending';
+    final paymentStatus =
+        app['payment_verification_status']?.toString() ?? 'not_submitted';
+    final matchScore = app['match_score'] ?? widget.matchScore;
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Application Details", Icons.info_outline),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildApplicationInfoTile(
+                  "Status",
+                  _formatStatus(status),
+                  _getStatusIcon(status),
+                  _getStatusColor(status),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildApplicationInfoTile(
+                  "Payment",
+                  _formatPaymentStatus(paymentStatus),
+                  Icons.payment,
+                  _getPaymentStatusColor(paymentStatus),
+                ),
+              ),
+            ],
+          ),
+          if (matchScore != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildApplicationInfoTile(
+                    "AI Match",
+                    "${(matchScore as num).toStringAsFixed(0)}%",
+                    Icons.auto_awesome,
+                    _kPrimary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION JOB INFO CARD
+  // ============================================================
+  Widget _buildApplicationJobInfoCard(Map<String, dynamic> app) {
+    final location = app['job_location']?.toString() ??
+        _getJobLocation();
+    final organization = app['organization']?.toString() ??
+        widget.job['organization']?.toString() ??
+        '';
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Job Information", Icons.work_outline),
+          const SizedBox(height: 12),
+          if (organization.isNotEmpty)
+            _buildInfoRow(
+              Icons.business,
+              "Company",
+              organization,
+            ),
+          if (location.isNotEmpty && location != 'Not specified')
+            _buildInfoRow(
+              Icons.location_on,
+              "Location",
+              location,
+              color: Colors.red,
+            ),
+          _buildInfoRow(
+            Icons.calendar_today,
+            "Applied On",
+            _formatDate(app['applied_at']?.toString()),
+            color: Colors.blue,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION PAYMENT INFO CARD
+  // ============================================================
+  Widget? _buildApplicationPaymentInfoCard(Map<String, dynamic> app) {
+    final transactionId = app['transaction_id']?.toString() ?? '';
+    final amount = app['payment_amount'];
+    final paymentStatus =
+        app['payment_verification_status']?.toString() ?? '';
+    final screenshotUrl =
+        app['payment_receipt_url']?.toString() ?? app['screenshot_url']?.toString() ?? '';
+
+    if (transactionId.isEmpty && amount == null && screenshotUrl.isEmpty) {
+      return null;
+    }
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Payment Information", Icons.payment,
+              color: Colors.teal),
+          const SizedBox(height: 12),
+          if (amount != null)
+            _buildInfoRow(
+              Icons.currency_rupee,
+              "Amount",
+              "₹$amount",
+              color: Colors.green,
+            ),
+          if (transactionId.isNotEmpty)
+            _buildInfoRow(
+              Icons.receipt_long,
+              "Transaction ID",
+              transactionId,
+            ),
+          if (paymentStatus.isNotEmpty)
+            _buildInfoRow(
+              Icons.verified,
+              "Payment Status",
+              _formatPaymentStatus(paymentStatus),
+              color: _getPaymentStatusColor(paymentStatus),
+            ),
+          if (screenshotUrl.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FileViewerScreen(
+                      url: screenshotUrl,
+                      title: "Payment Receipt",
+                      fileType: "image",
+                      fileName: "payment_receipt",
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.teal.shade200),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.receipt, color: Colors.teal, size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "View Payment Receipt",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.teal,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios,
+                        size: 12, color: Colors.teal),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION DOCUMENTS CARD
+  // ============================================================
+  Widget? _buildApplicationDocumentsCard(Map<String, dynamic> app) {
+    final List<Widget> docWidgets = [];
+
+    // Submitted review document
+    final submittedUrl = app['submitted_document_url']?.toString() ?? '';
+    final submittedName = app['submitted_document_name']?.toString() ?? '';
+    if (submittedUrl.isNotEmpty) {
+      docWidgets.add(
+        _buildDocumentTile(
+          icon: Icons.description,
+          label: submittedName.isEmpty ? "Review Document" : submittedName,
+          color: Colors.blue,
+          url: submittedUrl,
+          badge: "ADMIN REVIEW",
+        ),
+      );
+    }
+
+    // Final submitted document
+    final finalUrl = app['final_document_url']?.toString() ?? '';
+    final finalName = app['final_document_name']?.toString() ?? '';
+    if (finalUrl.isNotEmpty && finalUrl != submittedUrl) {
+      docWidgets.add(
+        _buildDocumentTile(
+          icon: Icons.verified,
+          label: finalName.isEmpty ? "Final Document" : finalName,
+          color: Colors.green,
+          url: finalUrl,
+          badge: "FINAL",
+        ),
+      );
+    }
+
+    // User's scheme/service documents
+    final schemeDocs = app['scheme_documents'];
+    if (schemeDocs is List && schemeDocs.isNotEmpty) {
+      for (final d in schemeDocs) {
+        if (d is Map) {
+          final u = d['url']?.toString() ?? d['document_url']?.toString() ?? '';
+          if (u.isEmpty) continue;
+          docWidgets.add(
+            _buildDocumentTile(
+              icon: Icons.attach_file,
+              label: d['label']?.toString() ??
+                  d['document_name']?.toString() ??
+                  "Document",
+              color: Colors.purple,
+              url: u,
+            ),
+          );
+        }
+      }
+    }
+
+    if (docWidgets.isEmpty) return null;
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Documents", Icons.folder_open,
+              color: Colors.blue),
+          const SizedBox(height: 12),
+          ...docWidgets,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentTile({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required String url,
+    String? badge,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => FileViewerScreen(
+                url: url,
+                title: label,
+                fileType: _JobFileTypeDetector.detectFileType(url),
+                fileName: label,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _kTextPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    badge,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              Icon(Icons.arrow_forward_ios, size: 12, color: color),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION UPDATES CARD
+  // ============================================================
+  Widget? _buildApplicationUpdatesCard(Map<String, dynamic> app) {
+    final updates = app['application_updates'];
+    if (updates is! List || updates.isEmpty) return null;
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Submitted Updates", Icons.edit_note,
+              color: Colors.orange),
+          const SizedBox(height: 12),
+          ...updates.map((u) {
+            if (u is! Map) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.edit,
+                      size: 14,
+                      color: Colors.orange,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: _kTextPrimary,
+                          ),
+                          children: [
+                            TextSpan(
+                              text:
+                                  "${u['field_name']?.toString() ?? ''}: ",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            TextSpan(
+                              text: u['field_value']?.toString() ?? '',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION TIMELINE CARD
+  // ============================================================
+  Widget _buildApplicationTimelineCard(Map<String, dynamic> app) {
+    final createdAt = app['created_at']?.toString() ?? '';
+    final appliedAt = app['applied_at']?.toString() ?? '';
+    final updatedAt = app['updated_at']?.toString() ?? '';
+    final submittedAt = app['submitted_at']?.toString() ?? '';
+    final finalSubmittedAt = app['final_submitted_at']?.toString() ?? '';
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Timeline", Icons.timeline,
+              color: Colors.indigo),
+          const SizedBox(height: 12),
+          if (createdAt.isNotEmpty)
+            _buildInfoRow(
+              Icons.add_circle_outline,
+              "Created",
+              _formatDate(createdAt),
+              color: Colors.blue,
+            ),
+          if (appliedAt.isNotEmpty)
+            _buildInfoRow(
+              Icons.send,
+              "Applied",
+              _formatDate(appliedAt),
+              color: Colors.green,
+            ),
+          if (submittedAt.isNotEmpty)
+            _buildInfoRow(
+              Icons.upload_file,
+              "Submitted",
+              _formatDate(submittedAt),
+              color: Colors.orange,
+            ),
+          if (finalSubmittedAt.isNotEmpty)
+            _buildInfoRow(
+              Icons.verified,
+              "Final Submitted",
+              _formatDate(finalSubmittedAt),
+              color: Colors.teal,
+            ),
+          if (updatedAt.isNotEmpty)
+            _buildInfoRow(
+              Icons.update,
+              "Last Updated",
+              _formatDate(updatedAt),
+              color: Colors.grey,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApplicationInfoTile(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // ✅✅✅ JOB VIEW (viewMode = 'job') — EXACT ORIGINAL BEHAVIOR
+  // ============================================================
+  Widget _buildJobView() {
+    final job = widget.job;
+    final jobType = job['job_type'] ?? 'private';
+    final typeColor = _getJobTypeColor(jobType);
+    final postedDate = _formatPostedDate();
+    final lastDate = _getLastDate();
+    final hasValidWebsiteUrl = _hasValidWebsiteUrl();
+    final hasApplyWithUsLink = _hasApplyWithUsLink();
+    final showApplyButtons = hasValidWebsiteUrl || hasApplyWithUsLink;
+    final multiplePosts = _getMultiplePosts();
+    final hasMultiplePosts = multiplePosts.isNotEmpty;
+    final hasAnyNotification = _hasAnyNotification();
+    final hasApplicationFees = _hasApplicationFees();
+    final applicationFees = _getApplicationFees();
+    final feeBreakdown = _calculateFeeBreakdown();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAIHeaderCard(job, typeColor, postedDate, lastDate),
+          const SizedBox(height: 16),
+          if (_isDisabled) _buildDisabilityBanner(),
+          if (_isDisabled) const SizedBox(height: 16),
+          if (_insights.isNotEmpty) _buildAIInsightsRow(),
+          if (_insights.isNotEmpty) const SizedBox(height: 16),
+          _buildKeyInfoSection(job),
+          const SizedBox(height: 16),
+          if (_getApplicationStartDate().isNotEmpty ||
+              _getApplicationEndDate().isNotEmpty)
+            _buildApplicationTimelineSection(),
+          if (_getApplicationStartDate().isNotEmpty ||
+              _getApplicationEndDate().isNotEmpty)
+            const SizedBox(height: 16),
+          if (hasApplicationFees && applicationFees.isNotEmpty)
+            _buildApplicationFeesSection(
+              applicationFees,
+              feeBreakdown,
+            ),
+          if (hasApplicationFees && applicationFees.isNotEmpty)
+            const SizedBox(height: 16),
+          if (_getAgeLimit() != 'Not specified')
+            _buildAgeLimitSection(),
+          if (_getAgeLimit() != 'Not specified')
+            const SizedBox(height: 16),
+          if (job['exam_cities'] != null &&
+              (job['exam_cities'] as List).isNotEmpty)
+            _buildExamCitiesSection(job['exam_cities']),
+          if (job['exam_cities'] != null &&
+              (job['exam_cities'] as List).isNotEmpty)
+            const SizedBox(height: 16),
+          _buildWorkDetailsSection(),
+          const SizedBox(height: 16),
+          if (job['benefits'] != null &&
+              (job['benefits'] as List).isNotEmpty)
+            _buildBenefitsSection(job['benefits']),
+          if (job['benefits'] != null &&
+              (job['benefits'] as List).isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['languages_required'] != null &&
+              (job['languages_required'] as List).isNotEmpty)
+            _buildLanguagesSection(job['languages_required']),
+          if (job['languages_required'] != null &&
+              (job['languages_required'] as List).isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['education_details'] != null &&
+              job['education_details'].toString().isNotEmpty)
+            _buildEducationDetailsSection(job['education_details']),
+          if (job['education_details'] != null &&
+              job['education_details'].toString().isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['experience_details'] != null &&
+              job['experience_details'].toString().isNotEmpty)
+            _buildExperienceDetailsSection(
+                job['experience_details']),
+          if (job['experience_details'] != null &&
+              job['experience_details'].toString().isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['physical_eligibility'] != null)
+            _buildPhysicalEligibilitySection(
+                job['physical_eligibility']),
+          if (job['physical_eligibility'] != null)
+            const SizedBox(height: 16),
+          if (job['interview_venue'] != null ||
+              job['interview_link'] != null ||
+              job['interview_date'] != null ||
+              job['interview_time'] != null)
+            _buildInterviewSection(),
+          if (job['interview_venue'] != null ||
+              job['interview_link'] != null ||
+              job['interview_date'] != null ||
+              job['interview_time'] != null)
+            const SizedBox(height: 16),
+          if (job['selection_stages'] != null &&
+              (job['selection_stages'] as List).isNotEmpty)
+            _buildSelectionProcessSection(
+                job['selection_stages'],
+                job['selection_process_details']),
+          if (job['selection_stages'] != null &&
+              (job['selection_stages'] as List).isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['contact_person'] != null ||
+              job['contact_email'] != null ||
+              job['contact_phone'] != null)
+            _buildContactInformationSection(),
+          if (job['contact_person'] != null ||
+              job['contact_email'] != null ||
+              job['contact_phone'] != null)
+            const SizedBox(height: 16),
+          if (job['important_notes'] != null &&
+              job['important_notes'].toString().isNotEmpty)
+            _buildImportantNotesSection(job['important_notes']),
+          if (job['important_notes'] != null &&
+              job['important_notes'].toString().isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['terms_conditions'] != null &&
+              job['terms_conditions'].toString().isNotEmpty)
+            _buildTermsConditionsSection(job['terms_conditions']),
+          if (job['terms_conditions'] != null &&
+              job['terms_conditions'].toString().isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['admit_card_date'] != null ||
+              job['exam_date'] != null ||
+              job['result_date'] != null)
+            _buildImportantDatesSection(
+              job['admit_card_date'],
+              job['exam_date'],
+              job['result_date'],
+            ),
+          if (job['admit_card_date'] != null ||
+              job['exam_date'] != null ||
+              job['result_date'] != null)
+            const SizedBox(height: 16),
+          if (job['helpline_number'] != null ||
+              job['helpline_email'] != null ||
+              job['whatsapp_number'] != null ||
+              job['telegram_channel'] != null)
+            _buildHelplineSection(),
+          if (job['helpline_number'] != null ||
+              job['helpline_email'] != null ||
+              job['whatsapp_number'] != null ||
+              job['telegram_channel'] != null)
+            const SizedBox(height: 16),
+          if (job['description'] != null &&
+              job['description'].toString().isNotEmpty)
+            _buildDescriptionSection(job['description']),
+          if (job['description'] != null &&
+              job['description'].toString().isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['required_skills'] != null &&
+              (job['required_skills'] as List).isNotEmpty)
+            _buildSkillsSection(job['required_skills']),
+          if (job['required_skills'] != null &&
+              (job['required_skills'] as List).isNotEmpty)
+            const SizedBox(height: 16),
+          if (hasMultiplePosts)
+            _buildMultiplePostsTable(multiplePosts),
+          if (hasMultiplePosts) const SizedBox(height: 16),
+          if (_hasOfficialNotification)
+            _buildOfficialNotificationSection(),
+          if (_hasOfficialNotification) const SizedBox(height: 16),
+          if (_hasAdvertisement) _buildAdvertisementSection(),
+          if (_hasAdvertisement) const SizedBox(height: 16),
+          if (hasAnyNotification) _buildInfoNote(),
+          if (hasAnyNotification) const SizedBox(height: 16),
+          if (!_isCheckingApplied) _buildSaveAndShareButtons(),
+          if (!_isCheckingApplied) const SizedBox(height: 16),
+          if (_isCheckingApplied)
+            const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(_kPrimary),
+              ),
+            )
+          else if (showApplyButtons)
+            _buildApplyButtons(
+              hasApplyWithUsLink,
+              hasValidWebsiteUrl,
+              feeBreakdown,
+            ),
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }
@@ -2313,9 +3116,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   // ============================================================
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      title: const Text(
-        "Job Details",
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      title: Text(
+        _isApplicationView ? "Application Details" : "Job Details",
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
       backgroundColor: _kPrimary,
       foregroundColor: Colors.white,
@@ -2327,19 +3130,21 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             : Navigator.pop(context),
       ),
       actions: [
-        IconButton(
-          icon: Icon(
-            _isSaved ? Icons.bookmark : Icons.bookmark_border,
-            color: Colors.white,
+        if (!_isApplicationView) ...[
+          IconButton(
+            icon: Icon(
+              _isSaved ? Icons.bookmark : Icons.bookmark_border,
+              color: Colors.white,
+            ),
+            onPressed: _toggleSaveJob,
+            tooltip: "Save Job",
           ),
-          onPressed: _toggleSaveJob,
-          tooltip: "Save Job",
-        ),
-        IconButton(
-          icon: const Icon(Icons.share, color: Colors.white),
-          onPressed: _shareJob,
-          tooltip: "Share",
-        ),
+          IconButton(
+            icon: const Icon(Icons.share, color: Colors.white),
+            onPressed: _shareJob,
+            tooltip: "Share",
+          ),
+        ],
       ],
     );
   }
@@ -4510,5 +5315,94 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           ),
       ],
     );
+  }
+
+  // ============================================================
+  // STATUS HELPERS
+  // ============================================================
+  String _formatStatus(String status) {
+    return status
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isNotEmpty
+            ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}'
+            : '')
+        .join(' ');
+  }
+
+  String _formatPaymentStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+      case 'verification_successful':
+        return 'Verified';
+      case 'pending':
+        return 'Pending';
+      case 'rejected':
+      case 'verification_rejected':
+        return 'Rejected';
+      case 'not_submitted':
+        return 'Not Submitted';
+      default:
+        return _formatStatus(status);
+    }
+  }
+
+  Color _getPaymentStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+      case 'verification_successful':
+        return const Color(0xFF10B981);
+      case 'pending':
+        return const Color(0xFFF59E0B);
+      case 'rejected':
+      case 'verification_rejected':
+        return const Color(0xFFEF4444);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'shortlisted':
+        return Icons.star;
+      case 'interview':
+        return Icons.people;
+      case 'offered':
+        return Icons.celebration;
+      case 'rejected':
+        return Icons.cancel;
+      case 'verification_successful':
+        return Icons.verified;
+      case 'verification_rejected':
+        return Icons.error;
+      case 'pending_verification':
+        return Icons.hourglass_empty;
+      case 'saved':
+        return Icons.bookmark;
+      default:
+        return Icons.schedule;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'shortlisted':
+        return const Color(0xFF2563EB);
+      case 'interview':
+        return const Color(0xFFF59E0B);
+      case 'offered':
+        return const Color(0xFF10B981);
+      case 'rejected':
+        return const Color(0xFFEF4444);
+      case 'verification_successful':
+        return const Color(0xFF10B981);
+      case 'verification_rejected':
+        return const Color(0xFFEF4444);
+      case 'saved':
+        return const Color(0xFF6C63FF);
+      default:
+        return const Color(0xFF6C63FF);
+    }
   }
 }

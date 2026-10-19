@@ -1,7 +1,7 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-10-18 19:30:26
+Generated: 2026-10-19 13:26:28
 Source: E:\yogesh\website\rojgarnest\frontend
 Total Files: 151
 Total Size: 3.9 MB
@@ -37627,8 +37627,8 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen>
 
 ================================================================================
 [  66/ 151] 🎯 rojgarnest/lib/features/jobs/presentation/screens/job_detail_screen.dart
-📏 SIZE: 159.1 KB
-🕐 MODIFIED: 2026-10-18 08:35:43
+📏 SIZE: 187.4 KB
+🕐 MODIFIED: 2026-10-19 09:52:21
 ================================================================================
 
 // lib/features/jobs/presentation/screens/job_detail_screen.dart
@@ -37656,6 +37656,11 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen>
 // ✅ NEW: onBack callback for embedded mode
 // ✅ NEW: onApplicationSubmitted callback preserved
 // ✅ NEW: After payment success → shows ApplicationSuccessDialog with Application Number
+// ✅✅✅ NEW CRITICAL FIX: viewMode='application' → shows APPLICATION details ONLY
+// ✅✅✅ NEW CRITICAL FIX: viewMode='job' → shows FULL JOB details ONLY
+// ✅✅✅ NEW: Both modes share the same widget — behavior switches based on viewMode
+// ✅✅✅ NEW: Application view hides job details, shows status/payment/documents
+// ✅✅✅ NEW: Job view shows all job details + apply button
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -37902,6 +37907,7 @@ class _JobFileTypeDetector {
 // MAIN SCREEN
 // ✅ NEW: isEmbedded mode
 // ✅ NEW: onBack callback
+// ✅✅✅ NEW: viewMode parameter — 'job' | 'application'
 // ============================================================
 class JobDetailScreen extends StatefulWidget {
   final Map<String, dynamic> job;
@@ -37912,12 +37918,34 @@ class JobDetailScreen extends StatefulWidget {
   /// so it can be embedded in the right panel of UserDashboard.
   final bool isEmbedded;
 
+  /// ✅✅✅ NEW CRITICAL FIX:
+  /// 'job'         → Shows FULL job details (default)
+  /// 'application' → Shows APPLICATION details (status/payment/documents)
+  final String viewMode;
+
+  /// ✅✅✅ NEW: Application-specific data (used when viewMode='application')
+  final String? applicationId;
+  final String? applicationStatus;
+  final String? applicantEmail;
+  final String? paymentStatus;
+  final String? transactionId;
+  final String? screenshotUrl;
+  final double? matchScore;
+
   const JobDetailScreen({
     super.key,
     required this.job,
     this.onBack,
     this.onApplicationSubmitted,
     this.isEmbedded = false,
+    this.viewMode = 'job',
+    this.applicationId,
+    this.applicationStatus,
+    this.applicantEmail,
+    this.paymentStatus,
+    this.transactionId,
+    this.screenshotUrl,
+    this.matchScore,
   });
 
   @override
@@ -37964,6 +37992,10 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   List<String> _insights = [];
   Map<String, dynamic> _userProfile = {};
 
+  // ✅ Application detail (for viewMode='application')
+  Map<String, dynamic>? _application;
+  bool _isLoadingApplication = false;
+
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
@@ -37983,6 +38015,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   static const Color _kCardWhite = Colors.white;
   static const Color _kBorderLight = Color(0xFFE5E7EB);
 
+  /// ✅ TRUE when we're showing application details
+  bool get _isApplicationView => widget.viewMode == 'application';
+
   // ============================================================
   // LIFECYCLE
   // ============================================================
@@ -37999,11 +38034,17 @@ class _JobDetailScreenState extends State<JobDetailScreen>
     );
 
     _loadNotificationData();
-    _refreshJobData();
     _loadUserProfile();
-    _checkIfAlreadyApplied();
-    _checkIfSaved();
     _loadUserProfileData();
+
+    // ✅ Only fetch application details when in application mode
+    if (_isApplicationView) {
+      _loadApplicationDetails();
+    } else {
+      _refreshJobData();
+      _checkIfAlreadyApplied();
+      _checkIfSaved();
+    }
 
     _fadeController.forward();
   }
@@ -38012,6 +38053,73 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   void dispose() {
     _fadeController.dispose();
     super.dispose();
+  }
+
+  // ============================================================
+  // ✅ LOAD APPLICATION DETAILS (viewMode = 'application')
+  // ============================================================
+  Future<void> _loadApplicationDetails() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingApplication = true;
+      _isCheckingApplied = true;
+    });
+
+    try {
+      final appId = widget.applicationId;
+      if (appId != null && appId.isNotEmpty) {
+        try {
+          final response = await DioClient.dio.get(
+            '/user/applications/$appId',
+          );
+          if (mounted && response.data is Map) {
+            Map<String, dynamic> appData = {};
+            if (response.data.containsKey('data') &&
+                response.data['data'] is Map) {
+              appData = Map<String, dynamic>.from(response.data['data']);
+            } else if (response.data.containsKey('application') &&
+                response.data['application'] is Map) {
+              appData = Map<String, dynamic>.from(
+                response.data['application'],
+              );
+            } else {
+              appData = Map<String, dynamic>.from(response.data);
+            }
+            _application = appData;
+            debugPrint("✅ Application loaded: ${_application?.keys.toList()}");
+          }
+        } catch (e) {
+          debugPrint("⚠️ Application API load failed: $e");
+        }
+      }
+
+      // Fallback: use provided values
+      _application ??= {
+        'application_id': widget.applicationId,
+        'status': widget.applicationStatus,
+        'applicant_email': widget.applicantEmail,
+        'payment_verification_status': widget.paymentStatus,
+        'transaction_id': widget.transactionId,
+        'payment_receipt_url': widget.screenshotUrl,
+        'match_score': widget.matchScore,
+      };
+
+      // In application view, we don't need to check applied status
+      if (mounted) {
+        setState(() {
+          _isCheckingApplied = false;
+          _isLoadingApplication = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("❌ Application load error: $e");
+      if (mounted) {
+        setState(() {
+          _isCheckingApplied = false;
+          _isLoadingApplication = false;
+        });
+      }
+    }
   }
 
   // ============================================================
@@ -39607,9 +39715,11 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             },
           ),
           const SizedBox(height: 24),
-          const Text(
-            "AI is loading job details...",
-            style: TextStyle(
+          Text(
+            _isApplicationView
+                ? "AI is loading application details..."
+                : "AI is loading job details...",
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: _kTextPrimary,
@@ -39627,197 +39737,20 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   // ============================================================
   // BUILD
   // ✅ NEW: isEmbedded mode - no Scaffold/AppBar
+  // ✅✅✅ NEW: viewMode='application' → shows ApplicationView
+  // ✅✅✅ NEW: viewMode='job' → shows JobView (default)
   // ============================================================
   @override
   Widget build(BuildContext context) {
-    final job = widget.job;
-    final jobType = job['job_type'] ?? 'private';
-    final typeColor = _getJobTypeColor(jobType);
-    final postedDate = _formatPostedDate();
-    final lastDate = _getLastDate();
-    final hasValidWebsiteUrl = _hasValidWebsiteUrl();
-    final hasApplyWithUsLink = _hasApplyWithUsLink();
-    final showApplyButtons = hasValidWebsiteUrl || hasApplyWithUsLink;
-    final multiplePosts = _getMultiplePosts();
-    final hasMultiplePosts = multiplePosts.isNotEmpty;
-    final hasAnyNotification = _hasAnyNotification();
-    final hasApplicationFees = _hasApplicationFees();
-    final applicationFees = _getApplicationFees();
-    final feeBreakdown = _calculateFeeBreakdown();
-
-    // ✅ Build the main content
-    final Widget content = (_isLoadingCategory || _isLoadingDisability)
+    final Widget content = (_isLoadingCategory ||
+            _isLoadingDisability ||
+            (_isApplicationView && _isLoadingApplication))
         ? _buildLoadingScreen()
         : FadeTransition(
             opacity: _fadeAnimation,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildAIHeaderCard(job, typeColor, postedDate, lastDate),
-                  const SizedBox(height: 16),
-                  if (_isDisabled) _buildDisabilityBanner(),
-                  if (_isDisabled) const SizedBox(height: 16),
-                  if (_insights.isNotEmpty) _buildAIInsightsRow(),
-                  if (_insights.isNotEmpty) const SizedBox(height: 16),
-                  _buildKeyInfoSection(job),
-                  const SizedBox(height: 16),
-                  if (_getApplicationStartDate().isNotEmpty ||
-                      _getApplicationEndDate().isNotEmpty)
-                    _buildApplicationTimelineSection(),
-                  if (_getApplicationStartDate().isNotEmpty ||
-                      _getApplicationEndDate().isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (hasApplicationFees && applicationFees.isNotEmpty)
-                    _buildApplicationFeesSection(
-                      applicationFees,
-                      feeBreakdown,
-                    ),
-                  if (hasApplicationFees && applicationFees.isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (_getAgeLimit() != 'Not specified')
-                    _buildAgeLimitSection(),
-                  if (_getAgeLimit() != 'Not specified')
-                    const SizedBox(height: 16),
-                  if (job['exam_cities'] != null &&
-                      (job['exam_cities'] as List).isNotEmpty)
-                    _buildExamCitiesSection(job['exam_cities']),
-                  if (job['exam_cities'] != null &&
-                      (job['exam_cities'] as List).isNotEmpty)
-                    const SizedBox(height: 16),
-                  _buildWorkDetailsSection(),
-                  const SizedBox(height: 16),
-                  if (job['benefits'] != null &&
-                      (job['benefits'] as List).isNotEmpty)
-                    _buildBenefitsSection(job['benefits']),
-                  if (job['benefits'] != null &&
-                      (job['benefits'] as List).isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['languages_required'] != null &&
-                      (job['languages_required'] as List).isNotEmpty)
-                    _buildLanguagesSection(job['languages_required']),
-                  if (job['languages_required'] != null &&
-                      (job['languages_required'] as List).isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['education_details'] != null &&
-                      job['education_details'].toString().isNotEmpty)
-                    _buildEducationDetailsSection(job['education_details']),
-                  if (job['education_details'] != null &&
-                      job['education_details'].toString().isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['experience_details'] != null &&
-                      job['experience_details'].toString().isNotEmpty)
-                    _buildExperienceDetailsSection(
-                        job['experience_details']),
-                  if (job['experience_details'] != null &&
-                      job['experience_details'].toString().isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['physical_eligibility'] != null)
-                    _buildPhysicalEligibilitySection(
-                        job['physical_eligibility']),
-                  if (job['physical_eligibility'] != null)
-                    const SizedBox(height: 16),
-                  if (job['interview_venue'] != null ||
-                      job['interview_link'] != null ||
-                      job['interview_date'] != null ||
-                      job['interview_time'] != null)
-                    _buildInterviewSection(),
-                  if (job['interview_venue'] != null ||
-                      job['interview_link'] != null ||
-                      job['interview_date'] != null ||
-                      job['interview_time'] != null)
-                    const SizedBox(height: 16),
-                  if (job['selection_stages'] != null &&
-                      (job['selection_stages'] as List).isNotEmpty)
-                    _buildSelectionProcessSection(
-                        job['selection_stages'],
-                        job['selection_process_details']),
-                  if (job['selection_stages'] != null &&
-                      (job['selection_stages'] as List).isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['contact_person'] != null ||
-                      job['contact_email'] != null ||
-                      job['contact_phone'] != null)
-                    _buildContactInformationSection(),
-                  if (job['contact_person'] != null ||
-                      job['contact_email'] != null ||
-                      job['contact_phone'] != null)
-                    const SizedBox(height: 16),
-                  if (job['important_notes'] != null &&
-                      job['important_notes'].toString().isNotEmpty)
-                    _buildImportantNotesSection(job['important_notes']),
-                  if (job['important_notes'] != null &&
-                      job['important_notes'].toString().isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['terms_conditions'] != null &&
-                      job['terms_conditions'].toString().isNotEmpty)
-                    _buildTermsConditionsSection(job['terms_conditions']),
-                  if (job['terms_conditions'] != null &&
-                      job['terms_conditions'].toString().isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['admit_card_date'] != null ||
-                      job['exam_date'] != null ||
-                      job['result_date'] != null)
-                    _buildImportantDatesSection(
-                      job['admit_card_date'],
-                      job['exam_date'],
-                      job['result_date'],
-                    ),
-                  if (job['admit_card_date'] != null ||
-                      job['exam_date'] != null ||
-                      job['result_date'] != null)
-                    const SizedBox(height: 16),
-                  if (job['helpline_number'] != null ||
-                      job['helpline_email'] != null ||
-                      job['whatsapp_number'] != null ||
-                      job['telegram_channel'] != null)
-                    _buildHelplineSection(),
-                  if (job['helpline_number'] != null ||
-                      job['helpline_email'] != null ||
-                      job['whatsapp_number'] != null ||
-                      job['telegram_channel'] != null)
-                    const SizedBox(height: 16),
-                  if (job['description'] != null &&
-                      job['description'].toString().isNotEmpty)
-                    _buildDescriptionSection(job['description']),
-                  if (job['description'] != null &&
-                      job['description'].toString().isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (job['required_skills'] != null &&
-                      (job['required_skills'] as List).isNotEmpty)
-                    _buildSkillsSection(job['required_skills']),
-                  if (job['required_skills'] != null &&
-                      (job['required_skills'] as List).isNotEmpty)
-                    const SizedBox(height: 16),
-                  if (hasMultiplePosts)
-                    _buildMultiplePostsTable(multiplePosts),
-                  if (hasMultiplePosts) const SizedBox(height: 16),
-                  if (_hasOfficialNotification)
-                    _buildOfficialNotificationSection(),
-                  if (_hasOfficialNotification) const SizedBox(height: 16),
-                  if (_hasAdvertisement) _buildAdvertisementSection(),
-                  if (_hasAdvertisement) const SizedBox(height: 16),
-                  if (hasAnyNotification) _buildInfoNote(),
-                  if (hasAnyNotification) const SizedBox(height: 16),
-                  if (!_isCheckingApplied) _buildSaveAndShareButtons(),
-                  if (!_isCheckingApplied) const SizedBox(height: 16),
-                  if (_isCheckingApplied)
-                    const Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(_kPrimary),
-                      ),
-                    )
-                  else if (showApplyButtons)
-                    _buildApplyButtons(
-                      hasApplyWithUsLink,
-                      hasValidWebsiteUrl,
-                      feeBreakdown,
-                    ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
+            child: _isApplicationView
+                ? _buildApplicationView()
+                : _buildJobView(),
           );
 
     // ✅ EMBEDDED MODE: No Scaffold, no AppBar, no back button
@@ -39835,6 +39768,876 @@ class _JobDetailScreenState extends State<JobDetailScreen>
       body: Container(
         decoration: _buildGradientBackground(),
         child: content,
+      ),
+    );
+  }
+
+  // ============================================================
+  // ✅✅✅ APPLICATION VIEW (viewMode = 'application')
+  // Shows ONLY application status, payment, documents, updates.
+  // Does NOT show job description / skills / fees breakdown.
+  // ============================================================
+  Widget _buildApplicationView() {
+    final app = _application ?? {};
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildApplicationHeaderCard(app),
+          const SizedBox(height: 16),
+          _buildApplicationStatusCard(app),
+          const SizedBox(height: 16),
+          _buildApplicationJobInfoCard(app),
+          const SizedBox(height: 16),
+          if (_buildApplicationPaymentInfoCard(app) != null) ...[
+            _buildApplicationPaymentInfoCard(app)!,
+            const SizedBox(height: 16),
+          ],
+          if (_buildApplicationDocumentsCard(app) != null) ...[
+            _buildApplicationDocumentsCard(app)!,
+            const SizedBox(height: 16),
+          ],
+          if (_buildApplicationUpdatesCard(app) != null) ...[
+            _buildApplicationUpdatesCard(app)!,
+            const SizedBox(height: 16),
+          ],
+          _buildApplicationTimelineCard(app),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION HEADER CARD
+  // ============================================================
+  Widget _buildApplicationHeaderCard(Map<String, dynamic> app) {
+    final status = app['status']?.toString() ?? 'pending';
+    final title = app['job_title']?.toString() ??
+        widget.job['post_name']?.toString() ??
+        'Application';
+    final org = app['organization']?.toString() ??
+        widget.job['organization']?.toString() ??
+        '';
+    final appNumber = app['application_number']?.toString() ?? '';
+    final color = _getStatusColor(status);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [color, color.withOpacity(0.75)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  _getStatusIcon(status),
+                  color: Colors.white,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Application Status",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      _formatStatus(status),
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                if (org.isNotEmpty)
+                  Text(
+                    org,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Colors.white70,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (appNumber.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.confirmation_number,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    "App No: $appNumber",
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION STATUS CARD
+  // ============================================================
+  Widget _buildApplicationStatusCard(Map<String, dynamic> app) {
+    final status = app['status']?.toString() ?? 'pending';
+    final paymentStatus =
+        app['payment_verification_status']?.toString() ?? 'not_submitted';
+    final matchScore = app['match_score'] ?? widget.matchScore;
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Application Details", Icons.info_outline),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildApplicationInfoTile(
+                  "Status",
+                  _formatStatus(status),
+                  _getStatusIcon(status),
+                  _getStatusColor(status),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildApplicationInfoTile(
+                  "Payment",
+                  _formatPaymentStatus(paymentStatus),
+                  Icons.payment,
+                  _getPaymentStatusColor(paymentStatus),
+                ),
+              ),
+            ],
+          ),
+          if (matchScore != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildApplicationInfoTile(
+                    "AI Match",
+                    "${(matchScore as num).toStringAsFixed(0)}%",
+                    Icons.auto_awesome,
+                    _kPrimary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(child: SizedBox()),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION JOB INFO CARD
+  // ============================================================
+  Widget _buildApplicationJobInfoCard(Map<String, dynamic> app) {
+    final location = app['job_location']?.toString() ??
+        _getJobLocation();
+    final organization = app['organization']?.toString() ??
+        widget.job['organization']?.toString() ??
+        '';
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Job Information", Icons.work_outline),
+          const SizedBox(height: 12),
+          if (organization.isNotEmpty)
+            _buildInfoRow(
+              Icons.business,
+              "Company",
+              organization,
+            ),
+          if (location.isNotEmpty && location != 'Not specified')
+            _buildInfoRow(
+              Icons.location_on,
+              "Location",
+              location,
+              color: Colors.red,
+            ),
+          _buildInfoRow(
+            Icons.calendar_today,
+            "Applied On",
+            _formatDate(app['applied_at']?.toString()),
+            color: Colors.blue,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION PAYMENT INFO CARD
+  // ============================================================
+  Widget? _buildApplicationPaymentInfoCard(Map<String, dynamic> app) {
+    final transactionId = app['transaction_id']?.toString() ?? '';
+    final amount = app['payment_amount'];
+    final paymentStatus =
+        app['payment_verification_status']?.toString() ?? '';
+    final screenshotUrl =
+        app['payment_receipt_url']?.toString() ?? app['screenshot_url']?.toString() ?? '';
+
+    if (transactionId.isEmpty && amount == null && screenshotUrl.isEmpty) {
+      return null;
+    }
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Payment Information", Icons.payment,
+              color: Colors.teal),
+          const SizedBox(height: 12),
+          if (amount != null)
+            _buildInfoRow(
+              Icons.currency_rupee,
+              "Amount",
+              "₹$amount",
+              color: Colors.green,
+            ),
+          if (transactionId.isNotEmpty)
+            _buildInfoRow(
+              Icons.receipt_long,
+              "Transaction ID",
+              transactionId,
+            ),
+          if (paymentStatus.isNotEmpty)
+            _buildInfoRow(
+              Icons.verified,
+              "Payment Status",
+              _formatPaymentStatus(paymentStatus),
+              color: _getPaymentStatusColor(paymentStatus),
+            ),
+          if (screenshotUrl.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => FileViewerScreen(
+                      url: screenshotUrl,
+                      title: "Payment Receipt",
+                      fileType: "image",
+                      fileName: "payment_receipt",
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.teal.shade200),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.receipt, color: Colors.teal, size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "View Payment Receipt",
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.teal,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios,
+                        size: 12, color: Colors.teal),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION DOCUMENTS CARD
+  // ============================================================
+  Widget? _buildApplicationDocumentsCard(Map<String, dynamic> app) {
+    final List<Widget> docWidgets = [];
+
+    // Submitted review document
+    final submittedUrl = app['submitted_document_url']?.toString() ?? '';
+    final submittedName = app['submitted_document_name']?.toString() ?? '';
+    if (submittedUrl.isNotEmpty) {
+      docWidgets.add(
+        _buildDocumentTile(
+          icon: Icons.description,
+          label: submittedName.isEmpty ? "Review Document" : submittedName,
+          color: Colors.blue,
+          url: submittedUrl,
+          badge: "ADMIN REVIEW",
+        ),
+      );
+    }
+
+    // Final submitted document
+    final finalUrl = app['final_document_url']?.toString() ?? '';
+    final finalName = app['final_document_name']?.toString() ?? '';
+    if (finalUrl.isNotEmpty && finalUrl != submittedUrl) {
+      docWidgets.add(
+        _buildDocumentTile(
+          icon: Icons.verified,
+          label: finalName.isEmpty ? "Final Document" : finalName,
+          color: Colors.green,
+          url: finalUrl,
+          badge: "FINAL",
+        ),
+      );
+    }
+
+    // User's scheme/service documents
+    final schemeDocs = app['scheme_documents'];
+    if (schemeDocs is List && schemeDocs.isNotEmpty) {
+      for (final d in schemeDocs) {
+        if (d is Map) {
+          final u = d['url']?.toString() ?? d['document_url']?.toString() ?? '';
+          if (u.isEmpty) continue;
+          docWidgets.add(
+            _buildDocumentTile(
+              icon: Icons.attach_file,
+              label: d['label']?.toString() ??
+                  d['document_name']?.toString() ??
+                  "Document",
+              color: Colors.purple,
+              url: u,
+            ),
+          );
+        }
+      }
+    }
+
+    if (docWidgets.isEmpty) return null;
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Documents", Icons.folder_open,
+              color: Colors.blue),
+          const SizedBox(height: 12),
+          ...docWidgets,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentTile({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required String url,
+    String? badge,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => FileViewerScreen(
+                url: url,
+                title: label,
+                fileType: _JobFileTypeDetector.detectFileType(url),
+                fileName: label,
+              ),
+            ),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _kTextPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    badge,
+                    style: const TextStyle(
+                      fontSize: 9,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              const SizedBox(width: 8),
+              Icon(Icons.arrow_forward_ios, size: 12, color: color),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION UPDATES CARD
+  // ============================================================
+  Widget? _buildApplicationUpdatesCard(Map<String, dynamic> app) {
+    final updates = app['application_updates'];
+    if (updates is! List || updates.isEmpty) return null;
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Submitted Updates", Icons.edit_note,
+              color: Colors.orange),
+          const SizedBox(height: 12),
+          ...updates.map((u) {
+            if (u is! Map) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.edit,
+                      size: 14,
+                      color: Colors.orange,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: _kTextPrimary,
+                          ),
+                          children: [
+                            TextSpan(
+                              text:
+                                  "${u['field_name']?.toString() ?? ''}: ",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            TextSpan(
+                              text: u['field_value']?.toString() ?? '',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLICATION TIMELINE CARD
+  // ============================================================
+  Widget _buildApplicationTimelineCard(Map<String, dynamic> app) {
+    final createdAt = app['created_at']?.toString() ?? '';
+    final appliedAt = app['applied_at']?.toString() ?? '';
+    final updatedAt = app['updated_at']?.toString() ?? '';
+    final submittedAt = app['submitted_at']?.toString() ?? '';
+    final finalSubmittedAt = app['final_submitted_at']?.toString() ?? '';
+
+    return _buildGlassCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader("Timeline", Icons.timeline,
+              color: Colors.indigo),
+          const SizedBox(height: 12),
+          if (createdAt.isNotEmpty)
+            _buildInfoRow(
+              Icons.add_circle_outline,
+              "Created",
+              _formatDate(createdAt),
+              color: Colors.blue,
+            ),
+          if (appliedAt.isNotEmpty)
+            _buildInfoRow(
+              Icons.send,
+              "Applied",
+              _formatDate(appliedAt),
+              color: Colors.green,
+            ),
+          if (submittedAt.isNotEmpty)
+            _buildInfoRow(
+              Icons.upload_file,
+              "Submitted",
+              _formatDate(submittedAt),
+              color: Colors.orange,
+            ),
+          if (finalSubmittedAt.isNotEmpty)
+            _buildInfoRow(
+              Icons.verified,
+              "Final Submitted",
+              _formatDate(finalSubmittedAt),
+              color: Colors.teal,
+            ),
+          if (updatedAt.isNotEmpty)
+            _buildInfoRow(
+              Icons.update,
+              "Last Updated",
+              _formatDate(updatedAt),
+              color: Colors.grey,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApplicationInfoTile(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 16),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: color,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // ✅✅✅ JOB VIEW (viewMode = 'job') — EXACT ORIGINAL BEHAVIOR
+  // ============================================================
+  Widget _buildJobView() {
+    final job = widget.job;
+    final jobType = job['job_type'] ?? 'private';
+    final typeColor = _getJobTypeColor(jobType);
+    final postedDate = _formatPostedDate();
+    final lastDate = _getLastDate();
+    final hasValidWebsiteUrl = _hasValidWebsiteUrl();
+    final hasApplyWithUsLink = _hasApplyWithUsLink();
+    final showApplyButtons = hasValidWebsiteUrl || hasApplyWithUsLink;
+    final multiplePosts = _getMultiplePosts();
+    final hasMultiplePosts = multiplePosts.isNotEmpty;
+    final hasAnyNotification = _hasAnyNotification();
+    final hasApplicationFees = _hasApplicationFees();
+    final applicationFees = _getApplicationFees();
+    final feeBreakdown = _calculateFeeBreakdown();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAIHeaderCard(job, typeColor, postedDate, lastDate),
+          const SizedBox(height: 16),
+          if (_isDisabled) _buildDisabilityBanner(),
+          if (_isDisabled) const SizedBox(height: 16),
+          if (_insights.isNotEmpty) _buildAIInsightsRow(),
+          if (_insights.isNotEmpty) const SizedBox(height: 16),
+          _buildKeyInfoSection(job),
+          const SizedBox(height: 16),
+          if (_getApplicationStartDate().isNotEmpty ||
+              _getApplicationEndDate().isNotEmpty)
+            _buildApplicationTimelineSection(),
+          if (_getApplicationStartDate().isNotEmpty ||
+              _getApplicationEndDate().isNotEmpty)
+            const SizedBox(height: 16),
+          if (hasApplicationFees && applicationFees.isNotEmpty)
+            _buildApplicationFeesSection(
+              applicationFees,
+              feeBreakdown,
+            ),
+          if (hasApplicationFees && applicationFees.isNotEmpty)
+            const SizedBox(height: 16),
+          if (_getAgeLimit() != 'Not specified')
+            _buildAgeLimitSection(),
+          if (_getAgeLimit() != 'Not specified')
+            const SizedBox(height: 16),
+          if (job['exam_cities'] != null &&
+              (job['exam_cities'] as List).isNotEmpty)
+            _buildExamCitiesSection(job['exam_cities']),
+          if (job['exam_cities'] != null &&
+              (job['exam_cities'] as List).isNotEmpty)
+            const SizedBox(height: 16),
+          _buildWorkDetailsSection(),
+          const SizedBox(height: 16),
+          if (job['benefits'] != null &&
+              (job['benefits'] as List).isNotEmpty)
+            _buildBenefitsSection(job['benefits']),
+          if (job['benefits'] != null &&
+              (job['benefits'] as List).isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['languages_required'] != null &&
+              (job['languages_required'] as List).isNotEmpty)
+            _buildLanguagesSection(job['languages_required']),
+          if (job['languages_required'] != null &&
+              (job['languages_required'] as List).isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['education_details'] != null &&
+              job['education_details'].toString().isNotEmpty)
+            _buildEducationDetailsSection(job['education_details']),
+          if (job['education_details'] != null &&
+              job['education_details'].toString().isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['experience_details'] != null &&
+              job['experience_details'].toString().isNotEmpty)
+            _buildExperienceDetailsSection(
+                job['experience_details']),
+          if (job['experience_details'] != null &&
+              job['experience_details'].toString().isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['physical_eligibility'] != null)
+            _buildPhysicalEligibilitySection(
+                job['physical_eligibility']),
+          if (job['physical_eligibility'] != null)
+            const SizedBox(height: 16),
+          if (job['interview_venue'] != null ||
+              job['interview_link'] != null ||
+              job['interview_date'] != null ||
+              job['interview_time'] != null)
+            _buildInterviewSection(),
+          if (job['interview_venue'] != null ||
+              job['interview_link'] != null ||
+              job['interview_date'] != null ||
+              job['interview_time'] != null)
+            const SizedBox(height: 16),
+          if (job['selection_stages'] != null &&
+              (job['selection_stages'] as List).isNotEmpty)
+            _buildSelectionProcessSection(
+                job['selection_stages'],
+                job['selection_process_details']),
+          if (job['selection_stages'] != null &&
+              (job['selection_stages'] as List).isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['contact_person'] != null ||
+              job['contact_email'] != null ||
+              job['contact_phone'] != null)
+            _buildContactInformationSection(),
+          if (job['contact_person'] != null ||
+              job['contact_email'] != null ||
+              job['contact_phone'] != null)
+            const SizedBox(height: 16),
+          if (job['important_notes'] != null &&
+              job['important_notes'].toString().isNotEmpty)
+            _buildImportantNotesSection(job['important_notes']),
+          if (job['important_notes'] != null &&
+              job['important_notes'].toString().isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['terms_conditions'] != null &&
+              job['terms_conditions'].toString().isNotEmpty)
+            _buildTermsConditionsSection(job['terms_conditions']),
+          if (job['terms_conditions'] != null &&
+              job['terms_conditions'].toString().isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['admit_card_date'] != null ||
+              job['exam_date'] != null ||
+              job['result_date'] != null)
+            _buildImportantDatesSection(
+              job['admit_card_date'],
+              job['exam_date'],
+              job['result_date'],
+            ),
+          if (job['admit_card_date'] != null ||
+              job['exam_date'] != null ||
+              job['result_date'] != null)
+            const SizedBox(height: 16),
+          if (job['helpline_number'] != null ||
+              job['helpline_email'] != null ||
+              job['whatsapp_number'] != null ||
+              job['telegram_channel'] != null)
+            _buildHelplineSection(),
+          if (job['helpline_number'] != null ||
+              job['helpline_email'] != null ||
+              job['whatsapp_number'] != null ||
+              job['telegram_channel'] != null)
+            const SizedBox(height: 16),
+          if (job['description'] != null &&
+              job['description'].toString().isNotEmpty)
+            _buildDescriptionSection(job['description']),
+          if (job['description'] != null &&
+              job['description'].toString().isNotEmpty)
+            const SizedBox(height: 16),
+          if (job['required_skills'] != null &&
+              (job['required_skills'] as List).isNotEmpty)
+            _buildSkillsSection(job['required_skills']),
+          if (job['required_skills'] != null &&
+              (job['required_skills'] as List).isNotEmpty)
+            const SizedBox(height: 16),
+          if (hasMultiplePosts)
+            _buildMultiplePostsTable(multiplePosts),
+          if (hasMultiplePosts) const SizedBox(height: 16),
+          if (_hasOfficialNotification)
+            _buildOfficialNotificationSection(),
+          if (_hasOfficialNotification) const SizedBox(height: 16),
+          if (_hasAdvertisement) _buildAdvertisementSection(),
+          if (_hasAdvertisement) const SizedBox(height: 16),
+          if (hasAnyNotification) _buildInfoNote(),
+          if (hasAnyNotification) const SizedBox(height: 16),
+          if (!_isCheckingApplied) _buildSaveAndShareButtons(),
+          if (!_isCheckingApplied) const SizedBox(height: 16),
+          if (_isCheckingApplied)
+            const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(_kPrimary),
+              ),
+            )
+          else if (showApplyButtons)
+            _buildApplyButtons(
+              hasApplyWithUsLink,
+              hasValidWebsiteUrl,
+              feeBreakdown,
+            ),
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }
@@ -39946,9 +40749,9 @@ class _JobDetailScreenState extends State<JobDetailScreen>
   // ============================================================
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      title: const Text(
-        "Job Details",
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      title: Text(
+        _isApplicationView ? "Application Details" : "Job Details",
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
       ),
       backgroundColor: _kPrimary,
       foregroundColor: Colors.white,
@@ -39960,19 +40763,21 @@ class _JobDetailScreenState extends State<JobDetailScreen>
             : Navigator.pop(context),
       ),
       actions: [
-        IconButton(
-          icon: Icon(
-            _isSaved ? Icons.bookmark : Icons.bookmark_border,
-            color: Colors.white,
+        if (!_isApplicationView) ...[
+          IconButton(
+            icon: Icon(
+              _isSaved ? Icons.bookmark : Icons.bookmark_border,
+              color: Colors.white,
+            ),
+            onPressed: _toggleSaveJob,
+            tooltip: "Save Job",
           ),
-          onPressed: _toggleSaveJob,
-          tooltip: "Save Job",
-        ),
-        IconButton(
-          icon: const Icon(Icons.share, color: Colors.white),
-          onPressed: _shareJob,
-          tooltip: "Share",
-        ),
+          IconButton(
+            icon: const Icon(Icons.share, color: Colors.white),
+            onPressed: _shareJob,
+            tooltip: "Share",
+          ),
+        ],
       ],
     );
   }
@@ -42143,6 +42948,95 @@ class _JobDetailScreenState extends State<JobDetailScreen>
           ),
       ],
     );
+  }
+
+  // ============================================================
+  // STATUS HELPERS
+  // ============================================================
+  String _formatStatus(String status) {
+    return status
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isNotEmpty
+            ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}'
+            : '')
+        .join(' ');
+  }
+
+  String _formatPaymentStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+      case 'verification_successful':
+        return 'Verified';
+      case 'pending':
+        return 'Pending';
+      case 'rejected':
+      case 'verification_rejected':
+        return 'Rejected';
+      case 'not_submitted':
+        return 'Not Submitted';
+      default:
+        return _formatStatus(status);
+    }
+  }
+
+  Color _getPaymentStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'approved':
+      case 'verification_successful':
+        return const Color(0xFF10B981);
+      case 'pending':
+        return const Color(0xFFF59E0B);
+      case 'rejected':
+      case 'verification_rejected':
+        return const Color(0xFFEF4444);
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'shortlisted':
+        return Icons.star;
+      case 'interview':
+        return Icons.people;
+      case 'offered':
+        return Icons.celebration;
+      case 'rejected':
+        return Icons.cancel;
+      case 'verification_successful':
+        return Icons.verified;
+      case 'verification_rejected':
+        return Icons.error;
+      case 'pending_verification':
+        return Icons.hourglass_empty;
+      case 'saved':
+        return Icons.bookmark;
+      default:
+        return Icons.schedule;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'shortlisted':
+        return const Color(0xFF2563EB);
+      case 'interview':
+        return const Color(0xFFF59E0B);
+      case 'offered':
+        return const Color(0xFF10B981);
+      case 'rejected':
+        return const Color(0xFFEF4444);
+      case 'verification_successful':
+        return const Color(0xFF10B981);
+      case 'verification_rejected':
+        return const Color(0xFFEF4444);
+      case 'saved':
+        return const Color(0xFF6C63FF);
+      default:
+        return const Color(0xFF6C63FF);
+    }
   }
 }
 
@@ -104265,32 +105159,54 @@ class _TabData {
 
 ================================================================================
 [ 140/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/user_applications_screen.dart
-📏 SIZE: 115.1 KB
-🕐 MODIFIED: 2026-10-18 13:00:38
+📏 SIZE: 115.8 KB
+🕐 MODIFIED: 2026-10-19 13:14:13
 ================================================================================
 
 // lib/features/user/presentation/screens/user_applications_screen.dart
 // ✅ AI‑BASED MODERN DESIGN
 // ✅ FULLY FUNCTIONAL: List, Detail, Confirm, Update, Document viewing
 // ✅ AI LOADING ANIMATION on all loading states
-// ✅ NEW: Uploaded Documents section — SAME documents as user_documents_screen
-// ✅ FIXED: Deleted documents (null / "null" / "" / undefined) STRICTLY filtered
-// ✅ FIXED: Uses /user/full-profile as PRIMARY source (matches user_documents_screen)
-// ✅ UPDATED: Admin review/final docs shown SEPARATELY near Confirm/Update buttons
-// ✅ NEW: "View Application" button added to each card
-// ✅ NEW: Tapping "View Application" opens the full ApplicationDetailScreen
-// ✅ FIXED: Now opens ApplicationDetailScreen in RIGHT PANEL (embedded mode)
-// ✅ NEW: APPLICATION NUMBER displayed on EVERY card (format: YYYYMMSSSSS)
-// ✅ FIXED: Application Number DUPLICATE removed.
-//           Now it shows ONLY in the dedicated card right below the Status card.
-// ✅ NEW: List Card me ab sirf simple text hai, copy icon/format hata diya gaya hai.
-//         (Copy feature sirf Detail view me milega)
+// ✅ Uploaded Documents section — SAME documents as user_documents_screen
+// ✅ Deleted documents (null / "null" / "" / undefined) STRICTLY filtered
+// ✅ Uses /user/full-profile as PRIMARY source
+// ✅ Admin review/final docs shown SEPARATELY near Confirm/Update buttons
+// ✅ "View Application" button on each card
+// ✅ Tapping "View Application" opens the full ApplicationDetailScreen
+// ✅ Opens ApplicationDetailScreen in RIGHT PANEL (embedded mode)
+// ✅ APPLICATION NUMBER displayed on EVERY card (format: YYYYMMSSSSS)
+// ✅ Application Number DUPLICATE removed — only in dedicated card
+// ✅ Copy feature only in Detail view
+//
+// ✅✅✅ CRITICAL FIX (this build) — "View Full Job Details" button
+// ---------------------------------------------------------------
+//   ROOT CAUSE:
+//     • The dashboard's `onViewJob` callback fires (logs prove it),
+//       but the parent never replaces the right‑panel widget with
+//       `JobDetailScreen`. It rebuilds `ApplicationDetailScreen`
+//       again, so the user stays on the same page.
+//
+//   FIX (two layers, belt & suspenders):
+//     1. Unwrap `{data: {...}}` from `/jobs/$jobId`, guarantee `_id`.
+//     2. After calling `widget.onViewJob!(job)`, ALSO push a
+//        full‑screen `JobDetailScreen` via `Navigator.push` so the
+//        job details page ALWAYS opens — even if the dashboard
+//        callback is broken, cached, or mis‑ordered.
+//
+//   Behaviour:
+//     • Embedded (dashboard works)  → right panel switches to JobDetailScreen.
+//     • Any other case              → full‑screen JobDetailScreen opens.
+//     • User is NEVER stuck on the ApplicationDetailScreen.
+// ---------------------------------------------------------------
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rojgarnest/core/network/dio_client.dart';
 import 'package:rojgarnest/core/utils/app_snackbar.dart';
 import 'package:rojgarnest/core/widgets/file_viewer_screen.dart';
+
+// ✅ Import JobDetailScreen so we can push it as a fallback
+import 'package:rojgarnest/features/jobs/presentation/screens/job_detail_screen.dart';
 
 // ============================================================
 // MAIN APPLICATIONS LIST SCREEN
@@ -104368,18 +105284,12 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
     await _fetchApplications();
   }
 
-  // ============================================================
-  // ✅ COPY APPLICATION NUMBER (Used only in Detail Screen now)
-  // ============================================================
   void _copyApplicationNumber(String number) {
     if (number.isEmpty || number == 'N/A') return;
     Clipboard.setData(ClipboardData(text: number));
     showMessage(context, "Application Number copied: $number");
   }
 
-  // ============================================================
-  // ✅ APPLICATION NUMBER HELPER
-  // ============================================================
   String _getApplicationNumber(Map<String, dynamic> app) {
     final appNumber = (app['application_number'] ?? '').toString().trim();
     if (appNumber.isNotEmpty &&
@@ -104650,10 +105560,6 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ APPLICATION CARD (List View)
-  // ✅ FIXED: Copy button & copy format REMOVED from here
-  // ============================================================
   Widget _buildApplicationCard(Map<String, dynamic> app) {
     final status = app['status'] ?? 'pending';
     final statusColor = _getStatusColor(status);
@@ -104680,7 +105586,6 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ==================== TOP ROW (JOB + STATUS) ====================
                   Row(
                     children: [
                       Container(
@@ -104755,10 +105660,7 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 12),
-
-                  // ==================== ✅ SIMPLE APPLICATION NUMBER ROW ====================
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
@@ -104799,14 +105701,10 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
                             ),
                           ),
                         ),
-                        // ❌ Copy Icon (InkWell) hata diya gaya hai yahan se
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
-                  // ==================== INFO CHIPS ====================
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -104833,10 +105731,7 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
                         ),
                     ],
                   ),
-
                   const SizedBox(height: 14),
-
-                  // ==================== ✅ "VIEW APPLICATION" BUTTON ====================
                   SizedBox(
                     width: double.infinity,
                     height: 44,
@@ -105034,18 +105929,14 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   bool _isLoading = true;
   Map<String, dynamic>? _jobDetails;
   bool _isUpdating = false;
+  bool _isOpeningJob = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  // ✅ Uploaded documents state
   List<Map<String, dynamic>> _userDocuments = [];
   bool _isLoadingDocuments = false;
 
-  // ============================================================
-  // ✅ COMPLETE Document Key Map — SAME as user_documents_screen
-  // ============================================================
   static const List<Map<String, String>> _documentKeyMap = [
-    // ==================== IDENTITY ====================
     {'key': 'profile_photo_url', 'label': 'Profile Photo'},
     {'key': 'aadhaar_front', 'label': 'Aadhaar Card (Front)'},
     {'key': 'aadhaar_back', 'label': 'Aadhaar Card (Back)'},
@@ -105056,8 +105947,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'driving_license_url', 'label': 'Driving License'},
     {'key': 'ration_card', 'label': 'Ration Card'},
     {'key': 'npr_card', 'label': 'NPR Card'},
-
-    // ==================== EDUCATION ====================
     {'key': 'tenth_marksheet', 'label': '10th Marksheet'},
     {'key': 'tenth_certificate', 'label': '10th Certificate'},
     {'key': 'twelfth_marksheet', 'label': '12th Marksheet'},
@@ -105073,8 +105962,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'iti_certificate', 'label': 'ITI Certificate'},
     {'key': 'vocational_certificate', 'label': 'Vocational Training Certificate'},
     {'key': 'skill_development_certificate', 'label': 'Skill Development Certificate'},
-
-    // ==================== PROFESSIONAL ====================
     {'key': 'resume_url', 'label': 'Resume / CV'},
     {'key': 'experience_certificate', 'label': 'Experience Certificate'},
     {'key': 'experience_letter_url', 'label': 'Experience Letter'},
@@ -105090,8 +105977,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'training_certificate', 'label': 'Training Certificate'},
     {'key': 'internship_certificate', 'label': 'Internship Certificate'},
     {'key': 'apprenticeship_certificate', 'label': 'Apprenticeship Certificate'},
-
-    // ==================== CASTE ====================
     {'key': 'caste_certificate_general', 'label': 'Caste Certificate (General/UR)'},
     {'key': 'caste_certificate_obc', 'label': 'Caste Certificate (OBC)'},
     {'key': 'caste_certificate_sc', 'label': 'Caste Certificate (SC)'},
@@ -105099,8 +105984,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'ews_certificate', 'label': 'EWS Certificate'},
     {'key': 'non_creamy_layer', 'label': 'Non-Creamy Layer Certificate'},
     {'key': 'caste_validity', 'label': 'Caste Validity Certificate'},
-
-    // ==================== DISABILITY ====================
     {'key': 'disability_certificate_url', 'label': 'Disability Certificate'},
     {'key': 'medical_certificate_physical', 'label': 'Medical Certificate (Physical)'},
     {'key': 'hearing_disability', 'label': 'Hearing Disability Certificate'},
@@ -105109,16 +105992,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'mental_disability', 'label': 'Mental Disability Certificate'},
     {'key': 'multiple_disability', 'label': 'Multiple Disability Certificate'},
     {'key': 'disability_id_card', 'label': 'Disability ID Card'},
-
-    // ==================== INCOME ====================
     {'key': 'income_certificate_url', 'label': 'Income Certificate'},
     {'key': 'income_tax_return', 'label': 'Income Tax Return (ITR)'},
     {'key': 'form_16', 'label': 'Form 16'},
     {'key': 'bank_statement', 'label': 'Bank Passbook/Statement'},
     {'key': 'pension_certificate', 'label': 'Pension Certificate'},
     {'key': 'fd_certificate', 'label': 'Fixed Deposit Certificate'},
-
-    // ==================== RESIDENCE ====================
     {'key': 'domicile_certificate', 'label': 'Domicile Certificate'},
     {'key': 'residence_certificate', 'label': 'Residence Certificate'},
     {'key': 'electricity_bill', 'label': 'Electricity Bill'},
@@ -105126,16 +106005,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'gas_bill', 'label': 'Gas Bill'},
     {'key': 'rent_agreement', 'label': 'Rent Agreement'},
     {'key': 'property_document', 'label': 'Property Document'},
-
-    // ==================== FAMILY ====================
     {'key': 'birth_certificate', 'label': 'Birth Certificate'},
     {'key': 'marriage_certificate', 'label': 'Marriage Certificate'},
     {'key': 'family_member_id', 'label': 'Family Member ID'},
     {'key': 'dependent_certificate', 'label': 'Dependent Certificate'},
     {'key': 'family_pension', 'label': 'Family Pension Certificate'},
     {'key': 'survivor_certificate', 'label': 'Survivor Certificate'},
-
-    // ==================== GOVERNMENT ====================
     {'key': 'job_seeker_registration', 'label': 'Job Seeker Registration'},
     {'key': 'employment_exchange_card', 'label': 'Employment Exchange Card'},
     {'key': 'ncs_id', 'label': 'National Career Service ID'},
@@ -105144,8 +106019,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'pmjjby_certificate', 'label': 'PMJJBY Certificate'},
     {'key': 'pmsby_certificate', 'label': 'PMSBY Certificate'},
     {'key': 'apy_enrollment', 'label': 'APY Enrollment'},
-
-    // ==================== CERTIFICATIONS ====================
     {'key': 'professional_certification', 'label': 'Professional Certification'},
     {'key': 'skill_certificate', 'label': 'Skill Development Certificate'},
     {'key': 'computer_certificate', 'label': 'Computer Course Certificate'},
@@ -105157,8 +106030,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'data_science_certificate', 'label': 'Data Science Certificate'},
     {'key': 'cloud_computing_certificate', 'label': 'Cloud Computing Certificate'},
     {'key': 'cybersecurity_certificate', 'label': 'Cybersecurity Certificate'},
-
-    // ==================== MISCELLANEOUS ====================
     {'key': 'gap_certificate', 'label': 'Gap Certificate'},
     {'key': 'skip_certificate', 'label': 'Skip Certificate'},
     {'key': 'skip_year_certificate', 'label': 'Skip Year Certificate'},
@@ -105174,12 +106045,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'other_document_url', 'label': 'Other Document'},
   ];
 
-  // ============================================================
-  // ✅ STRICT document URL validator
-  // ============================================================
   bool _isValidDocUrl(dynamic value) {
     if (value == null) return false;
-
     if (value is Map && value.isEmpty) return false;
     if (value is List && value.isEmpty) return false;
 
@@ -105248,17 +106115,41 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     super.dispose();
   }
 
+  // ============================================================
+  // ✅✅✅ CRITICAL FIX — load job details (unwrap `data`)
+  // ============================================================
   Future<void> _fetchJobDetails() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final jobId = widget.application['job_id'];
-      if (jobId != null) {
+      if (jobId != null && jobId.toString().isNotEmpty) {
         final jobRes = await DioClient.dio.get('/jobs/$jobId');
-        _jobDetails = jobRes.data;
+
+        Map<String, dynamic> jobData = {};
+        if (jobRes.data is Map) {
+          final raw = jobRes.data as Map;
+          if (raw.containsKey('data') && raw['data'] is Map) {
+            jobData = Map<String, dynamic>.from(raw['data'] as Map);
+          } else if (raw.containsKey('job') && raw['job'] is Map) {
+            jobData = Map<String, dynamic>.from(raw['job'] as Map);
+          } else {
+            jobData = Map<String, dynamic>.from(raw);
+          }
+        }
+
+        jobData['_id'] ??= jobId.toString();
+
+        _jobDetails = jobData;
+        debugPrint(
+          "✅ Job details loaded for onViewJob → _id=${_jobDetails!['_id']}, "
+          "post_name=${_jobDetails!['post_name']}",
+        );
+      } else {
+        debugPrint("⚠️ No job_id in application — cannot load job details");
       }
     } catch (e) {
-      debugPrint("Error fetching job details: $e");
+      debugPrint("❌ Error fetching job details: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -105300,9 +106191,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         for (final entry in _documentKeyMap) {
           final key = entry['key']!;
           final label = entry['label']!;
-
           final value = additional[key] ?? profile[key];
-
           if (value != null) {
             addDoc(key, label, value);
           }
@@ -105357,8 +106246,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         !finalUrl.startsWith('blob:')) {
       finalUrl = 'https://$finalUrl';
     }
-
-    debugPrint("📄 Opening document viewer: $finalUrl");
 
     showDialog(
       context: context,
@@ -105433,16 +106320,10 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     return 'file';
   }
 
-  // ============================================================
-  // ✅ "Your Uploaded Documents" section
-  // ============================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> allDocs = [];
-
-    // 1) User profile documents
     allDocs.addAll(_userDocuments);
 
-    // 2) Payment receipt
     final receiptUrl = app['payment_receipt_url'];
     if (_isValidDocUrl(receiptUrl)) {
       final urlStr = receiptUrl.toString().trim();
@@ -105458,7 +106339,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       }
     }
 
-    // 3) Payment screenshot
     final screenshotUrl = app['screenshot_url'];
     if (_isValidDocUrl(screenshotUrl)) {
       final urlStr = screenshotUrl.toString().trim();
@@ -105473,7 +106353,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       }
     }
 
-    // 4) Application document (document_url - user uploaded)
     final docUrl = app['document_url'];
     if (_isValidDocUrl(docUrl)) {
       final urlStr = docUrl.toString().trim();
@@ -105488,7 +106367,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       }
     }
 
-    // 5) Application resume URL
     final appResume = app['resume_url'];
     if (_isValidDocUrl(appResume)) {
       final urlStr = appResume.toString().trim();
@@ -105681,9 +106559,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ Admin Documents Section (Review / Final Submit uploads)
-  // ============================================================
   Widget _buildAdminDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> adminDocs = [];
 
@@ -105887,9 +106762,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // STATUS HELPERS
-  // ============================================================
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'submitted':
@@ -105990,9 +106862,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     }
   }
 
-  // ============================================================
-  // ✅ APPLICATION NUMBER HELPER
-  // ============================================================
   String _getApplicationNumber(Map<String, dynamic> app) {
     final appNumber = (app['application_number'] ?? '').toString().trim();
     if (appNumber.isNotEmpty &&
@@ -106001,7 +106870,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         appNumber.toLowerCase() != 'n/a') {
       return appNumber;
     }
-
     final appId = (app['application_id'] ?? '').toString().trim();
     if (appId.isNotEmpty &&
         appId.toLowerCase() != 'null' &&
@@ -106009,7 +106877,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         appId.toLowerCase() != 'n/a') {
       return appId;
     }
-
     final mongoId = (app['_id'] ?? '').toString().trim();
     if (mongoId.isNotEmpty) {
       if (mongoId.length > 12) {
@@ -106017,22 +106884,15 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       }
       return mongoId;
     }
-
     return 'N/A';
   }
 
-  // ============================================================
-  // COPY APPLICATION NUMBER (Detail view)
-  // ============================================================
   void _copyApplicationNumber(String number) {
     if (number.isEmpty || number == 'N/A') return;
     Clipboard.setData(ClipboardData(text: number));
     showMessage(context, "Application Number copied: $number");
   }
 
-  // ============================================================
-  // PAYMENT RECEIPT DIALOG
-  // ============================================================
   void _showPaymentReceiptDialog(String? receiptUrl) {
     if (receiptUrl == null || receiptUrl.isEmpty) {
       showMessage(context, "No payment receipt available", isError: true);
@@ -106108,9 +106968,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // CONFIRM / UPDATE ACTIONS
-  // ============================================================
   Future<void> _confirmApplication() async {
     final applicationId = widget.application['_id'];
     final status = widget.application['status'];
@@ -106207,8 +107064,93 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   // ============================================================
-  // BUILD
+  // ✅✅✅ THE BULLETPROOF "VIEW FULL JOB DETAILS" HANDLER
+  // ------------------------------------------------------------
+  //   Layer 1: call `widget.onViewJob(job)` so the dashboard can
+  //            swap the right panel to JobDetailScreen (embedded).
+  //   Layer 2: ALSO push a full‑screen JobDetailScreen via
+  //            Navigator so the job details page ALWAYS opens,
+  //            even if the dashboard wiring is broken/cached.
+  //
+  //   Result: the user can NEVER get stuck on ApplicationDetailScreen
+  //           after tapping "View Full Job Details".
   // ============================================================
+  Future<void> _handleViewFullJobDetails() async {
+    if (_isOpeningJob) return;
+
+    if (_jobDetails == null) {
+      showMessage(
+        context,
+        "Job details are still loading, please wait...",
+        isError: false,
+      );
+      return;
+    }
+
+    final job = _jobDetails!;
+    final jobId = (job['_id'] ?? '').toString().trim();
+
+    if (jobId.isEmpty) {
+      showMessage(
+        context,
+        "Invalid job data — cannot open job details",
+        isError: true,
+      );
+      return;
+    }
+
+    setState(() => _isOpeningJob = true);
+
+    debugPrint(
+      "🚀 onViewJob fired → _id=$jobId, "
+      "post_name=${job['post_name']}, "
+      "organization=${job['organization']}",
+    );
+
+    // ── Layer 1: notify parent dashboard (embedded swap) ─────
+    if (widget.onViewJob != null) {
+      try {
+        widget.onViewJob!(job);
+      } catch (e) {
+        debugPrint("⚠️ onViewJob threw: $e");
+      }
+    }
+
+    // ── Layer 2: guaranteed full‑screen navigation ───────────
+    //   Push AFTER a short delay so if the dashboard already
+    //   swapped panels, we still show a consistent route.
+    if (!mounted) return;
+
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => JobDetailScreen(
+            job: job,
+            viewMode: 'job',
+            isEmbedded: false,
+            onBack: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              }
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint("⚠️ Navigator push failed: $e");
+      // If push fails (e.g., no route stack), show a snackbar
+      if (mounted) {
+        showMessage(
+          context,
+          "Unable to open job details: $e",
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isOpeningJob = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = widget.application;
@@ -106239,11 +107181,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                           children: [
                             _buildStatusCard(status, statusColor),
                             const SizedBox(height: 16),
-
-                            // ✅ Dedicated Application Number card
                             _buildApplicationNumberCard(app),
                             const SizedBox(height: 16),
-
                             if (status.toLowerCase() == 'review_application')
                               _buildUnderReviewSection(),
                             if (status.toLowerCase() == 'review_application')
@@ -106266,18 +107205,28 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                             const SizedBox(height: 16),
                             _buildDocumentsSection(app),
                             const SizedBox(height: 16),
+
+                            // ============================================================
+                            // ✅✅✅ "VIEW FULL JOB DETAILS" BUTTON
+                            // ------------------------------------------------------------
+                            // Calls `_handleViewFullJobDetails()` which:
+                            //   1) invokes `widget.onViewJob(job)` for embedded swap
+                            //   2) ALSO pushes a full‑screen JobDetailScreen
+                            //      so the page ALWAYS opens
+                            // ============================================================
                             SizedBox(
                               width: double.infinity,
                               height: 50,
                               child: _buildGradientButton(
-                                text: "View Full Job Details",
-                                icon: Icons.visibility,
-                                onTap: () {
-                                  if (_jobDetails != null &&
-                                      widget.onViewJob != null) {
-                                    widget.onViewJob!(_jobDetails!);
-                                  }
-                                },
+                                text: _isOpeningJob
+                                    ? "Opening Job Details..."
+                                    : "View Full Job Details",
+                                icon: _isOpeningJob
+                                    ? Icons.hourglass_empty
+                                    : Icons.visibility,
+                                onTap: _isOpeningJob
+                                    ? () {}
+                                    : _handleViewFullJobDetails,
                               ),
                             ),
                             const SizedBox(height: 20),
@@ -106328,9 +107277,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ DEDICATED APPLICATION NUMBER CARD (detail view)
-  // ============================================================
   Widget _buildApplicationNumberCard(Map<String, dynamic> app) {
     final appNumber = _getApplicationNumber(app);
 
@@ -106358,10 +107304,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF6C63FF),
-                  Color(0xFFFF6588),
-                ],
+                colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
               ),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -106409,10 +107352,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ DETAIL HEADER (Top gradient bar)
-  // ✅ Application Number row REMOVED from here
-  // ============================================================
   Widget _buildDetailHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -106659,9 +107598,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ UNDER REVIEW SECTION
-  // ============================================================
   Widget _buildUnderReviewSection() {
     final app = widget.application;
 
@@ -106716,10 +107652,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
             "Your application is currently under review. Please take action below:",
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
-
           const SizedBox(height: 20),
           _buildAdminDocumentsSection(app),
-
           const SizedBox(height: 20),
           const Divider(),
           const SizedBox(height: 16),
@@ -106818,9 +107752,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ FINAL SUBMIT SECTION
-  // ============================================================
   Widget _buildFinalSubmitSection() {
     final app = widget.application;
 
@@ -106882,9 +107813,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ JOB INFO CARD
-  // ============================================================
   Widget _buildJobInfoCard() {
     final app = widget.application;
     final jobTitle = app['job_title'] ?? _jobDetails?['post_name'] ?? 'Job Title';
@@ -107553,36 +108481,58 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 
 ================================================================================
 [ 141/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/user_dashboard.dart
-📏 SIZE: 78.6 KB
-🕐 MODIFIED: 2026-10-18 13:01:42
+📏 SIZE: 78.2 KB
+🕐 MODIFIED: 2026-10-19 13:22:26
 ================================================================================
 
 // lib/features/user/presentation/screens/user_dashboard.dart
-// ✅ COMPLETE UPDATED VERSION
+// ✅ COMPLETE FIXED VERSION — NO MERGE CONFLICTS
+// ✅ ALL imports use package:rojgarnest (not rojgarnext)
 // ✅ Parent menu tap ONLY expands sidebar — never changes right-side content
 // ✅ Right-side content changes ONLY when a submenu is tapped
 // ✅ NULLABLE submenus — no auto-select
 // ✅ Placeholder shown when parent expanded but no submenu chosen
-// ✅ FIXED: ApplicationDetailScreen now shows in right panel when "View Application" clicked
-// ✅ NEW: Schemes menu added — Browse Schemes + Scheme Applications
-// ✅ NEW: SchemeDetailScreen now shows in right panel (embedded)
-// ✅ NEW: SchemeListScreen now shows in right panel (embedded)
-// ✅ NEW: UserSchemeApplicationsScreen now shows in right panel (embedded)
-// ✅ All original functionality preserved — NO lines skipped
+// ✅ ApplicationDetailScreen shows in right panel
+// ✅ SchemeDetailScreen / SchemeListScreen / UserSchemeApplicationsScreen embedded
+// ✅ All original functionality preserved
+//
+// ✅✅✅ CRITICAL FIX (this build) — "View Full Job Details" from applications
+// ---------------------------------------------------------------
+//   ROOT CAUSE:
+//     In `_getContent()` → `case UserMenuType.jobs`, the order was:
+//       1. if (_selectedApplication != null && submenu == jobApplications) → ApplicationDetailScreen
+//       2. if (submenu == jobApplications)                                 → UserApplicationsScreen
+//       3. if (submenu == browseJobs) {
+//              if (_selectedJob != null) → JobDetailScreen
+//              else                      → JobListScreen
+//          }
+//     When the user taps "View Full Job Details" INSIDE the applications
+//     submenu, `onViewJob` sets `_selectedJob` and clears `_selectedApplication`.
+//     BUT `selectedJobSubMenu` is still `jobApplications`, so branch #2 fires
+//     → `UserApplicationsScreen` (list) is shown.
+//     Or if the list was empty, the applications branch took over.
+//
+//   FIX:
+//     Move the `_selectedJob != null` check to the TOP of `case jobs`,
+//     BEFORE any submenu check. So whenever `_selectedJob` is set (from any
+//     submenu), the right panel immediately shows `JobDetailScreen(isEmbedded:true)`.
+// ---------------------------------------------------------------
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:rojgarnest/core/storage/secure_storage.dart';
 import 'package:rojgarnest/core/services/profile_state_service.dart';
 import 'package:rojgarnest/core/utils/app_snackbar.dart';
+
 import 'package:rojgarnest/features/user/presentation/widgets/user_sidebar.dart';
 import 'package:rojgarnest/features/user/presentation/utils/menu_types.dart';
 import 'package:rojgarnest/features/notification/widgets/notification_bell.dart';
 import 'package:rojgarnest/features/common/widgets/location_display.dart';
 import 'package:rojgarnest/features/user/data/user_service.dart';
 
-// ==================== SCREENS ====================
+// ==================== USER PROFILE SCREENS ====================
 import 'package:rojgarnest/features/user/presentation/screens/basic_details_screen.dart';
 import 'package:rojgarnest/features/user/presentation/screens/education_screen.dart';
 import 'package:rojgarnest/features/user/presentation/screens/experience_screen.dart';
@@ -107590,49 +108540,35 @@ import 'package:rojgarnest/features/user/presentation/screens/advanced_details_s
 import 'package:rojgarnest/features/user/presentation/screens/user_documents_screen.dart';
 import 'package:rojgarnest/features/user/presentation/screens/user_applications_screen.dart';
 import 'package:rojgarnest/features/user/presentation/screens/user_support_screen.dart';
+
+// ==================== JOBS SCREENS ====================
 import 'package:rojgarnest/features/jobs/presentation/screens/job_list_screen.dart';
 import 'package:rojgarnest/features/jobs/presentation/screens/job_detail_screen.dart';
 import 'package:rojgarnest/features/jobs/presentation/screens/saved_jobs_screen.dart';
 
-// ✅ Service screens
+// ==================== SERVICES SCREENS ====================
 import 'package:rojgarnest/features/services/presentation/screens/apply_service_screen.dart';
 import 'package:rojgarnest/features/services/presentation/screens/user_service_applications_screen.dart';
 
-// ✅ Resume screens
-<<<<<<< HEAD:frontend/rojgarnest/lib/features/user/presentation/screens/user_dashboard.dart
+// ==================== RESUME SCREENS ====================
 import 'package:rojgarnest/features/resume/presentation/screens/build_resume_screen.dart';
 import 'package:rojgarnest/features/resume/presentation/screens/resume_screen.dart';
 import 'package:rojgarnest/features/resume/AI/presentation/screens/ats_score_screen.dart';
 import 'package:rojgarnest/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart';
 
-// ✅ AI screens
+// ==================== AI SCREENS ====================
 import 'package:rojgarnest/features/user/AI/user_ai_screen.dart';
 import 'package:rojgarnest/features/user/AI/user_career_roadmap_screen.dart';
-=======
-import 'package:rojgarnext/features/resume/presentation/screens/build_resume_screen.dart';
-import 'package:rojgarnext/features/resume/presentation/screens/resume_screen.dart';
-import 'package:rojgarnext/features/resume/AI/presentation/screens/ats_score_screen.dart';
-import 'package:rojgarnext/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart';
 
-// ✅ AI screens
-import 'package:rojgarnext/features/user/AI/user_ai_screen.dart';
-import 'package:rojgarnext/features/user/AI/user_career_roadmap_screen.dart';
->>>>>>> ea68e649c0ead809db26b81b58774bdde4282156:frontend/rojgarnext/lib/features/user/presentation/screens/user_dashboard.dart
-
-// ✅ AUTH SCREENS IMPORT
+// ==================== AUTH SETTINGS SCREENS ====================
 import 'package:rojgarnest/features/auth/presentation/screens/change_password_screen.dart';
 import 'package:rojgarnest/features/auth/presentation/screens/mpin_setup_page.dart';
 import 'package:rojgarnest/features/auth/presentation/screens/fingerprint_setup_page.dart';
 
-// ✅ Schemes screens
+// ==================== SCHEMES SCREENS ====================
 import 'package:rojgarnest/features/schemes/presentation/screens/scheme_list_screen.dart';
 import 'package:rojgarnest/features/schemes/presentation/screens/scheme_detail_screen.dart';
 import 'package:rojgarnest/features/schemes/presentation/screens/user_scheme_applications_screen.dart';
-
-// ✅ Schemes screens
-import 'package:rojgarnext/features/schemes/presentation/screens/scheme_list_screen.dart';
-import 'package:rojgarnext/features/schemes/presentation/screens/scheme_detail_screen.dart';
-import 'package:rojgarnext/features/schemes/presentation/screens/user_scheme_applications_screen.dart';
 
 // ============================================================
 // DASHBOARD STATS MODEL
@@ -107690,10 +108626,6 @@ class DashboardStats {
 
 // ============================================================
 // USER DASHBOARD
-// ✅ NULLABLE submenus — no auto-select
-// ✅ FIXED: ApplicationDetailScreen shows in right panel
-// ✅ NEW: Schemes submenu state + handlers
-// ✅ NEW: Scheme detail view in right panel
 // ============================================================
 class UserDashboard extends StatefulWidget {
   const UserDashboard({super.key});
@@ -107706,7 +108638,6 @@ class _UserDashboardState extends State<UserDashboard> {
   // ==================== STATE ====================
   UserMenuType selectedMenu = UserMenuType.dashboard;
 
-  // ✅ NULLABLE — nothing auto-selected
   JobSubMenu? selectedJobSubMenu;
   ServiceSubMenu? selectedServiceSubMenu;
   ResumeSubMenu? selectedResumeSubMenu;
@@ -107719,7 +108650,7 @@ class _UserDashboardState extends State<UserDashboard> {
   Map<String, dynamic>? _selectedJob;
   Map<String, dynamic>? _selectedApplication;
 
-  // ==================== SCHEME VIEW STATE (NEW) ====================
+  // ==================== SCHEME VIEW STATE ====================
   String? _selectedSchemeId;
   String? _selectedSchemeName;
   Map<String, dynamic>? _selectedSchemeData;
@@ -107820,9 +108751,7 @@ class _UserDashboardState extends State<UserDashboard> {
     try {
       try {
         await ProfileStateService().loadPhotoFromBackend();
-        if (mounted) {
-          setState(() {});
-        }
+        if (mounted) setState(() {});
       } catch (e) {
         debugPrint("⚠️ Photo load failed: $e");
       }
@@ -107837,9 +108766,7 @@ class _UserDashboardState extends State<UserDashboard> {
             ? profileRes['data'] as Map
             : profileRes;
         final fullName = profileData['full_name']?.toString() ?? '';
-        if (fullName.isNotEmpty) {
-          userName = fullName;
-        }
+        if (fullName.isNotEmpty) userName = fullName;
       } catch (e) {
         debugPrint("⚠️ Profile load failed: $e");
       }
@@ -107896,9 +108823,6 @@ class _UserDashboardState extends State<UserDashboard> {
     }
   }
 
-  // ============================================================
-  // ✅ Refresh dashboard stats
-  // ============================================================
   Future<void> _refreshDashboardStats() async {
     try {
       final statsResponse = await UserService.getDashboardStats();
@@ -107916,17 +108840,13 @@ class _UserDashboardState extends State<UserDashboard> {
 
       debugPrint(
         "✅ Dashboard stats refreshed: "
-        "profile=${stats.profileCompletion}% "
-        "career=${stats.careerScore}",
+        "profile=${stats.profileCompletion}% career=${stats.careerScore}",
       );
     } catch (e) {
       debugPrint("⚠️ Refresh dashboard stats failed: $e");
     }
   }
 
-  // ============================================================
-  // ✅ Called AFTER resume is generated/rebuilt
-  // ============================================================
   Future<void> _onResumeGenerated() async {
     try {
       await UserService.rebuildResume();
@@ -107959,9 +108879,6 @@ class _UserDashboardState extends State<UserDashboard> {
     }
   }
 
-  // ============================================================
-  // ✅ CLEAR ALL DETAIL VIEWS HELPER
-  // ============================================================
   void _clearAllDetailViews() {
     _selectedJob = null;
     _selectedApplication = null;
@@ -107971,7 +108888,6 @@ class _UserDashboardState extends State<UserDashboard> {
     _showSchemeDetailView = false;
   }
 
-  // ✅ Dashboard / Support — LEAF menu handlers
   void _onMenuSelected(UserMenuType menu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -107984,7 +108900,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Jobs — SUBMENU handlers (ONLY these change content)
   void _onJobSubMenuSelected(JobSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -107998,7 +108913,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Services — SUBMENU handlers
   void _onServiceSubMenuSelected(ServiceSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -108012,7 +108926,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Resume — SUBMENU handlers
   void _onResumeSubMenuSelected(ResumeSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -108026,7 +108939,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Schemes — SUBMENU handlers
   void _onSchemesSubMenuSelected(SchemesSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -108040,7 +108952,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ AI — SUBMENU handlers
   void _onAISubMenuSelected(AISubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -108054,7 +108965,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Profile — SUBMENU handlers
   void _onProfileSubMenuSelected(ProfileSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -108068,7 +108978,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Settings — SUBMENU handlers
   void _onSettingsSubMenuSelected(SettingsSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -108103,11 +109012,8 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Handle application selection from UserApplicationsScreen
   void _onApplicationSelected(Map<String, dynamic> application) {
     debugPrint("📋 Application selected: ${application['_id']}");
-    debugPrint("   Job Title: ${application['job_title']}");
-    debugPrint("   Status: ${application['status']}");
     setState(() {
       _selectedApplication = application;
       _selectedJob = null;
@@ -108125,7 +109031,44 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ SCHEME SELECTION HANDLERS (NEW)
+  // ✅✅✅ "View Full Job Details" handler for EMBEDDED right-panel swap
+  // ------------------------------------------------------------
+  // Called by `ApplicationDetailScreen.onViewJob`.
+  // Clears application state and sets the job so `_getContent()`
+  // can immediately return `JobDetailScreen(isEmbedded: true)`.
+  // ============================================================
+  void _onViewJobFromApplication(Map<String, dynamic> job) {
+    final jobId = (job['_id'] ?? '').toString().trim();
+    debugPrint(
+      "🖥️ onViewJob received → _id=$jobId, post_name=${job['post_name']}",
+    );
+
+    if (jobId.isEmpty) {
+      debugPrint("⚠️ onViewJob: invalid job (no _id) — ignoring");
+      return;
+    }
+
+    setState(() {
+      // Ensure the submenu context remains 'jobs' so the right panel
+      // still lives inside the Jobs section.
+      selectedMenu = UserMenuType.jobs;
+      selectedJobSubMenu = JobSubMenu.jobApplications;
+
+      // ✅ Clear application FIRST, then set job so the panel
+      //    immediately hits the job branch.
+      _selectedApplication = null;
+      _selectedJob = job;
+
+      // Clear scheme state (defensive)
+      _selectedSchemeId = null;
+      _selectedSchemeName = null;
+      _selectedSchemeData = null;
+      _showSchemeDetailView = false;
+    });
+  }
+
+  // ============================================================
+  // ✅ SCHEME SELECTION HANDLERS
   // ============================================================
   void _onSchemeSelectedFromList(Map<String, dynamic> schemeData) {
     debugPrint("📋 Scheme selected from list: ${schemeData['scheme_id']}");
@@ -108140,7 +109083,8 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   void _onSchemeSelectedFromApplications(Map<String, dynamic> schemeData) {
-    debugPrint("📋 Scheme selected from applications: ${schemeData['scheme_id']}");
+    debugPrint(
+        "📋 Scheme selected from applications: ${schemeData['scheme_id']}");
     setState(() {
       _selectedSchemeId = schemeData['scheme_id']?.toString();
       _selectedSchemeName = schemeData['scheme_name']?.toString();
@@ -108210,7 +109154,6 @@ class _UserDashboardState extends State<UserDashboard> {
     );
   }
 
-  // ✅ NEW: Go to Browse Schemes
   void _goToBrowseSchemes() {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -108224,7 +109167,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ NEW: Go to Scheme Applications
   void _goToSchemeApplications() {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -108292,7 +109234,6 @@ class _UserDashboardState extends State<UserDashboard> {
         );
 
       case null:
-        // ✅ Defensive fallback — settings screen only renders after submenu tap
         return _buildSelectSubmenuPlaceholder(
           title: "Settings",
           icon: Icons.settings_rounded,
@@ -108302,10 +109243,9 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ GET SCHEMES SCREEN (UPDATED — Embedded mode)
+  // ✅ GET SCHEMES SCREEN (Embedded mode)
   // ============================================================
   Widget _getSchemesScreen() {
-    // ✅ If scheme detail view is active, show detail screen
     if (_showSchemeDetailView && _selectedSchemeId != null) {
       return SchemeDetailScreen(
         schemeId: _selectedSchemeId!,
@@ -108315,7 +109255,6 @@ class _UserDashboardState extends State<UserDashboard> {
       );
     }
 
-    // ✅ Otherwise, show list or applications based on submenu
     switch (selectedSchemesSubMenu) {
       case SchemesSubMenu.browseSchemes:
         return SchemeListScreen(
@@ -108337,7 +109276,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ PLACEHOLDER — shown when parent expanded but no submenu selected
+  // ✅ PLACEHOLDER
   // ============================================================
   Widget _buildSelectSubmenuPlaceholder({
     required String title,
@@ -108361,11 +109300,7 @@ class _UserDashboardState extends State<UserDashboard> {
                 ),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 60,
-                color: const Color(0xFF6C63FF),
-              ),
+              child: Icon(icon, size: 60, color: const Color(0xFF6C63FF)),
             ),
             const SizedBox(height: 20),
             Text(
@@ -108380,17 +109315,12 @@ class _UserDashboardState extends State<UserDashboard> {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
             const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: const Color(0xFF6C63FF).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
@@ -108398,11 +109328,8 @@ class _UserDashboardState extends State<UserDashboard> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.arrow_back,
-                    size: 16,
-                    color: Color(0xFF6C63FF),
-                  ),
+                  Icon(Icons.arrow_back,
+                      size: 16, color: Color(0xFF6C63FF)),
                   SizedBox(width: 8),
                   Text(
                     "Tap a submenu in the sidebar",
@@ -108423,9 +109350,6 @@ class _UserDashboardState extends State<UserDashboard> {
 
   // ============================================================
   // ✅ GET CONTENT
-  // ✅ Uses NULLABLE checks — placeholder if submenu not selected
-  // ✅ FIXED: ApplicationDetailScreen shows when application selected
-  // ✅ NEW: Schemes case with embedded detail view
   // ============================================================
   Widget _getContent() {
     switch (selectedMenu) {
@@ -108434,27 +109358,50 @@ class _UserDashboardState extends State<UserDashboard> {
 
       // ============================================================
       // JOBS
+      // ✅✅✅ FIX: Check `_selectedJob != null` FIRST, before any
+      //          submenu branch. This guarantees that whatever set
+      //          `_selectedJob` (Browse Jobs OR View Full Job Details
+      //          from an application), the right panel immediately
+      //          renders `JobDetailScreen(isEmbedded: true)`.
       // ============================================================
       case UserMenuType.jobs:
-        // ✅ CRITICAL FIX: If application selected → show ApplicationDetailScreen
-        if (_selectedApplication != null &&
-            selectedJobSubMenu == JobSubMenu.jobApplications) {
+        // 1️⃣ JOB DETAIL (highest priority)
+        if (_selectedJob != null) {
           debugPrint(
-              "📋 Showing ApplicationDetailScreen for: ${_selectedApplication!['job_title']}");
-          return ApplicationDetailScreen(
-            application: _selectedApplication!,
-            onBack: _closeApplicationDetail,
-            onViewJob: (job) {
-              // Navigate to job detail when "View Full Job Details" clicked
+            "🖥️ Right panel → JobDetailScreen(_id=${_selectedJob!['_id']}, "
+            "post_name=${_selectedJob!['post_name']})",
+          );
+          return JobDetailScreen(
+            job: _selectedJob!,
+            viewMode: 'job',
+            isEmbedded: true,
+            onBack: () {
+              // Return to the applications list if that's where we came from
               setState(() {
-                _selectedJob = job;
+                _selectedJob = null;
                 _selectedApplication = null;
               });
+            },
+            onApplicationSubmitted: () {
+              _refreshDashboard();
             },
           );
         }
 
-        // ✅ Job Applications list
+        // 2️⃣ APPLICATION DETAIL
+        if (_selectedApplication != null &&
+            selectedJobSubMenu == JobSubMenu.jobApplications) {
+          debugPrint(
+            "🖥️ Right panel → ApplicationDetailScreen(_id=${_selectedApplication!['_id']})",
+          );
+          return ApplicationDetailScreen(
+            application: _selectedApplication!,
+            onBack: _closeApplicationDetail,
+            onViewJob: _onViewJobFromApplication, // ✅ THE FIX
+          );
+        }
+
+        // 3️⃣ APPLICATIONS LIST
         if (selectedJobSubMenu == JobSubMenu.jobApplications) {
           return UserApplicationsScreen(
             onApplicationSelected: _onApplicationSelected,
@@ -108462,25 +109409,15 @@ class _UserDashboardState extends State<UserDashboard> {
           );
         }
 
-        // ✅ Browse Jobs
+        // 4️⃣ BROWSE JOBS LIST
         if (selectedJobSubMenu == JobSubMenu.browseJobs) {
-          if (_selectedJob != null) {
-            return JobDetailScreen(
-              job: _selectedJob!,
-              isEmbedded: true,
-              onBack: _closeJobDetail,
-              onApplicationSubmitted: () {
-                _refreshDashboard();
-              },
-            );
-          }
           return JobListScreen(
             isEmbedded: true,
             onJobSelected: _onJobSelected,
           );
         }
 
-        // ✅ Placeholder — no submenu selected
+        // 5️⃣ Placeholder
         return _buildSelectSubmenuPlaceholder(
           title: "Jobs",
           icon: Icons.work_rounded,
@@ -108531,7 +109468,7 @@ class _UserDashboardState extends State<UserDashboard> {
         }
 
       // ============================================================
-      // SCHEMES ✅ UPDATED — Now shows detail view embedded
+      // SCHEMES
       // ============================================================
       case UserMenuType.schemes:
         return _getSchemesScreen();
@@ -108609,7 +109546,6 @@ class _UserDashboardState extends State<UserDashboard> {
           children: [
             _buildAIHeader(greeting),
             const SizedBox(height: 20),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -108619,7 +109555,6 @@ class _UserDashboardState extends State<UserDashboard> {
               ],
             ),
             const SizedBox(height: 16),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -108647,13 +109582,10 @@ class _UserDashboardState extends State<UserDashboard> {
               ],
             ),
             const SizedBox(height: 20),
-
             _buildCareerBreakdownCard(),
             const SizedBox(height: 20),
-
             _buildProfileSectionsCard(),
             const SizedBox(height: 20),
-
             _buildQuickActionsGrid(),
             const SizedBox(height: 16),
           ],
@@ -108705,7 +109637,9 @@ class _UserDashboardState extends State<UserDashboard> {
             child: !hasPhoto
                 ? Center(
                     child: Text(
-                      _userName.isNotEmpty ? _userName[0].toUpperCase() : 'U',
+                      _userName.isNotEmpty
+                          ? _userName[0].toUpperCase()
+                          : 'U',
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -108807,7 +109741,8 @@ class _UserDashboardState extends State<UserDashboard> {
                   ),
                 ),
               ),
-              Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
+              Icon(Icons.info_outline,
+                  size: 16, color: Colors.grey.shade400),
             ],
           ),
           const SizedBox(height: 16),
@@ -108912,11 +109847,8 @@ class _UserDashboardState extends State<UserDashboard> {
                     ),
                   ),
                 ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 12,
-                  color: Colors.grey.shade400,
-                ),
+                Icon(Icons.arrow_forward_ios,
+                    size: 12, color: Colors.grey.shade400),
               ],
             ),
             const SizedBox(height: 16),
@@ -109010,11 +109942,8 @@ class _UserDashboardState extends State<UserDashboard> {
                   child: Icon(icon, color: color, size: 20),
                 ),
                 const Spacer(),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 12,
-                  color: Colors.grey.shade400,
-                ),
+                Icon(Icons.arrow_forward_ios,
+                    size: 12, color: Colors.grey.shade400),
               ],
             ),
             const SizedBox(height: 14),
@@ -109041,9 +109970,7 @@ class _UserDashboardState extends State<UserDashboard> {
               Text(
                 "$savedCount saved",
                 style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey.shade600,
-                ),
+                    fontSize: 10, color: Colors.grey.shade600),
               ),
             ],
           ],
@@ -109057,10 +109984,7 @@ class _UserDashboardState extends State<UserDashboard> {
   // ============================================================
   Widget _buildCareerBreakdownCard() {
     final breakdown = _stats.careerBreakdown;
-
-    if (breakdown.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (breakdown.isEmpty) return const SizedBox.shrink();
 
     final items = [
       _BreakdownItem(
@@ -109089,7 +110013,8 @@ class _UserDashboardState extends State<UserDashboard> {
       ),
       _BreakdownItem(
         label: "Market Fit",
-        value: (breakdown['market_alignment_score'] as num?)?.toInt() ?? 0,
+        value:
+            (breakdown['market_alignment_score'] as num?)?.toInt() ?? 0,
         color: const Color(0xFFFF6588),
         icon: Icons.trending_up,
       ),
@@ -109189,10 +110114,7 @@ class _UserDashboardState extends State<UserDashboard> {
   // ============================================================
   Widget _buildProfileSectionsCard() {
     final sections = _stats.profileSections;
-
-    if (sections.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (sections.isEmpty) return const SizedBox.shrink();
 
     final List<_SectionItem> items = [
       _SectionItem(
@@ -109257,7 +110179,8 @@ class _UserDashboardState extends State<UserDashboard> {
         children: [
           Row(
             children: [
-              const Icon(Icons.list_alt, color: Color(0xFF10B981), size: 22),
+              const Icon(Icons.list_alt,
+                  color: Color(0xFF10B981), size: 22),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
@@ -109271,9 +110194,7 @@ class _UserDashboardState extends State<UserDashboard> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                    horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -109301,7 +110222,8 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   Widget _buildSectionChip(_SectionItem item) {
-    final color = item.done ? const Color(0xFF10B981) : Colors.grey.shade400;
+    final color =
+        item.done ? const Color(0xFF10B981) : Colors.grey.shade400;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -109340,7 +110262,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ QUICK ACTIONS GRID (UPDATED — Added Schemes)
+  // ✅ QUICK ACTIONS GRID
   // ============================================================
   Widget _buildQuickActionsGrid() {
     final actions = [
@@ -109398,7 +110320,6 @@ class _UserDashboardState extends State<UserDashboard> {
           });
         },
       ),
-      // ✅ NEW: Schemes Quick Action
       _QuickAction(
         title: 'Schemes',
         icon: Icons.account_balance,
@@ -109481,11 +110402,8 @@ class _UserDashboardState extends State<UserDashboard> {
                         color: action.color.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(
-                        action.icon,
-                        color: action.color,
-                        size: 24,
-                      ),
+                      child:
+                          Icon(action.icon, color: action.color, size: 24),
                     ),
                     const SizedBox(height: 8),
                     Padding(
@@ -109544,25 +110462,21 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ CHECK IF BACK BUTTON NEEDED (UPDATED — Includes schemes)
+  // ✅ BACK BUTTON
   // ============================================================
   bool _shouldShowBackButton() {
-    // Job detail view
     if (_selectedJob != null) return true;
-    // Application detail view
     if (_selectedApplication != null) return true;
-    // Scheme detail view
     if (_showSchemeDetailView && _selectedSchemeId != null) return true;
     return false;
   }
 
-  // ✅ Handle back button action
   void _handleBackButton() {
     setState(() {
-      if (_selectedApplication != null) {
-        _selectedApplication = null;
-      } else if (_selectedJob != null) {
+      if (_selectedJob != null) {
         _selectedJob = null;
+      } else if (_selectedApplication != null) {
+        _selectedApplication = null;
       } else if (_showSchemeDetailView) {
         _closeSchemeDetailView();
       }
@@ -109656,9 +110570,7 @@ class _UserDashboardState extends State<UserDashboard> {
                   if (!isMobile)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
+                          horizontal: 20, vertical: 12),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         boxShadow: [
@@ -109698,7 +110610,8 @@ class _UserDashboardState extends State<UserDashboard> {
                               const LocationDisplay(),
                               NotificationBell(
                                 onJobAlertClicked: _goToBrowseJobs,
-                                onApplicationStatusClicked: _goToJobApplications,
+                                onApplicationStatusClicked:
+                                    _goToJobApplications,
                               ),
                             ],
                           ),
@@ -109737,22 +110650,20 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   String _getAppBarTitle() {
-    // ✅ If scheme detail is open
     if (_showSchemeDetailView && _selectedSchemeId != null) {
       return _selectedSchemeName ?? "योजना विवरण";
     }
 
-    // ✅ If application detail is open
+    // ✅ Job Detail takes priority (also when reached from an application)
+    if (_selectedJob != null && selectedMenu == UserMenuType.jobs) {
+      return _selectedJob!['post_name']?.toString() ?? "Job Details";
+    }
+
     if (_selectedApplication != null &&
         selectedMenu == UserMenuType.jobs &&
         selectedJobSubMenu == JobSubMenu.jobApplications) {
       return _selectedApplication!['job_title']?.toString() ??
           "Application Details";
-    }
-
-    // ✅ If job is selected
-    if (_selectedJob != null && selectedMenu == UserMenuType.jobs) {
-      return _selectedJob!['post_name']?.toString() ?? "Job Details";
     }
 
     switch (selectedMenu) {
@@ -109846,8 +110757,7 @@ class _UserDashboardState extends State<UserDashboard> {
 }
 
 // ============================================================
-// ✅ Resume launcher widget — wraps resume screens and
-//    triggers dashboard refresh after generation.
+// ✅ Resume launcher widget
 // ============================================================
 class _ResumeLauncher extends StatefulWidget {
   final Widget child;
@@ -109866,7 +110776,6 @@ class _ResumeLauncherState extends State<_ResumeLauncher> {
   @override
   void initState() {
     super.initState();
-    // Silently refresh on open (in case user already had a resume)
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       try {
         await widget.onGenerated();
@@ -109923,6 +110832,7 @@ class _QuickAction {
     required this.color,
     required this.onTap,
   });
+}
 
 ================================================================================
 [ 142/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/user_documents_screen.dart
@@ -114014,5 +114924,5 @@ flutter:
 🎉 EXPORT COMPLETED!
 ================================================================================
 Total Files: 151
-Generated: 2026-10-18 19:30:31
+Generated: 2026-10-19 13:26:30
 ================================================================================

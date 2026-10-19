@@ -8,6 +8,28 @@
 // ✅ ApplicationDetailScreen shows in right panel
 // ✅ SchemeDetailScreen / SchemeListScreen / UserSchemeApplicationsScreen embedded
 // ✅ All original functionality preserved
+//
+// ✅✅✅ CRITICAL FIX (this build) — "View Full Job Details" from applications
+// ---------------------------------------------------------------
+//   ROOT CAUSE:
+//     In `_getContent()` → `case UserMenuType.jobs`, the order was:
+//       1. if (_selectedApplication != null && submenu == jobApplications) → ApplicationDetailScreen
+//       2. if (submenu == jobApplications)                                 → UserApplicationsScreen
+//       3. if (submenu == browseJobs) {
+//              if (_selectedJob != null) → JobDetailScreen
+//              else                      → JobListScreen
+//          }
+//     When the user taps "View Full Job Details" INSIDE the applications
+//     submenu, `onViewJob` sets `_selectedJob` and clears `_selectedApplication`.
+//     BUT `selectedJobSubMenu` is still `jobApplications`, so branch #2 fires
+//     → `UserApplicationsScreen` (list) is shown.
+//     Or if the list was empty, the applications branch took over.
+//
+//   FIX:
+//     Move the `_selectedJob != null` check to the TOP of `case jobs`,
+//     BEFORE any submenu check. So whenever `_selectedJob` is set (from any
+//     submenu), the right panel immediately shows `JobDetailScreen(isEmbedded:true)`.
+// ---------------------------------------------------------------
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -129,7 +151,6 @@ class _UserDashboardState extends State<UserDashboard> {
   // ==================== STATE ====================
   UserMenuType selectedMenu = UserMenuType.dashboard;
 
-  // ✅ NULLABLE — nothing auto-selected
   JobSubMenu? selectedJobSubMenu;
   ServiceSubMenu? selectedServiceSubMenu;
   ResumeSubMenu? selectedResumeSubMenu;
@@ -243,9 +264,7 @@ class _UserDashboardState extends State<UserDashboard> {
     try {
       try {
         await ProfileStateService().loadPhotoFromBackend();
-        if (mounted) {
-          setState(() {});
-        }
+        if (mounted) setState(() {});
       } catch (e) {
         debugPrint("⚠️ Photo load failed: $e");
       }
@@ -260,9 +279,7 @@ class _UserDashboardState extends State<UserDashboard> {
             ? profileRes['data'] as Map
             : profileRes;
         final fullName = profileData['full_name']?.toString() ?? '';
-        if (fullName.isNotEmpty) {
-          userName = fullName;
-        }
+        if (fullName.isNotEmpty) userName = fullName;
       } catch (e) {
         debugPrint("⚠️ Profile load failed: $e");
       }
@@ -319,9 +336,6 @@ class _UserDashboardState extends State<UserDashboard> {
     }
   }
 
-  // ============================================================
-  // ✅ Refresh dashboard stats
-  // ============================================================
   Future<void> _refreshDashboardStats() async {
     try {
       final statsResponse = await UserService.getDashboardStats();
@@ -339,17 +353,13 @@ class _UserDashboardState extends State<UserDashboard> {
 
       debugPrint(
         "✅ Dashboard stats refreshed: "
-        "profile=${stats.profileCompletion}% "
-        "career=${stats.careerScore}",
+        "profile=${stats.profileCompletion}% career=${stats.careerScore}",
       );
     } catch (e) {
       debugPrint("⚠️ Refresh dashboard stats failed: $e");
     }
   }
 
-  // ============================================================
-  // ✅ Called AFTER resume is generated/rebuilt
-  // ============================================================
   Future<void> _onResumeGenerated() async {
     try {
       await UserService.rebuildResume();
@@ -382,9 +392,6 @@ class _UserDashboardState extends State<UserDashboard> {
     }
   }
 
-  // ============================================================
-  // ✅ CLEAR ALL DETAIL VIEWS HELPER
-  // ============================================================
   void _clearAllDetailViews() {
     _selectedJob = null;
     _selectedApplication = null;
@@ -394,7 +401,6 @@ class _UserDashboardState extends State<UserDashboard> {
     _showSchemeDetailView = false;
   }
 
-  // ✅ Dashboard / Support — LEAF menu handlers
   void _onMenuSelected(UserMenuType menu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -407,7 +413,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Jobs — SUBMENU handlers (ONLY these change content)
   void _onJobSubMenuSelected(JobSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -421,7 +426,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Services — SUBMENU handlers
   void _onServiceSubMenuSelected(ServiceSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -435,7 +439,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Resume — SUBMENU handlers
   void _onResumeSubMenuSelected(ResumeSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -449,7 +452,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Schemes — SUBMENU handlers
   void _onSchemesSubMenuSelected(SchemesSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -463,7 +465,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ AI — SUBMENU handlers
   void _onAISubMenuSelected(AISubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -477,7 +478,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Profile — SUBMENU handlers
   void _onProfileSubMenuSelected(ProfileSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -491,7 +491,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ✅ Settings — SUBMENU handlers
   void _onSettingsSubMenuSelected(SettingsSubMenu subMenu) {
     _closeDrawerIfOpen();
     Future.delayed(const Duration(milliseconds: 300), () {
@@ -545,6 +544,43 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
+  // ✅✅✅ "View Full Job Details" handler for EMBEDDED right-panel swap
+  // ------------------------------------------------------------
+  // Called by `ApplicationDetailScreen.onViewJob`.
+  // Clears application state and sets the job so `_getContent()`
+  // can immediately return `JobDetailScreen(isEmbedded: true)`.
+  // ============================================================
+  void _onViewJobFromApplication(Map<String, dynamic> job) {
+    final jobId = (job['_id'] ?? '').toString().trim();
+    debugPrint(
+      "🖥️ onViewJob received → _id=$jobId, post_name=${job['post_name']}",
+    );
+
+    if (jobId.isEmpty) {
+      debugPrint("⚠️ onViewJob: invalid job (no _id) — ignoring");
+      return;
+    }
+
+    setState(() {
+      // Ensure the submenu context remains 'jobs' so the right panel
+      // still lives inside the Jobs section.
+      selectedMenu = UserMenuType.jobs;
+      selectedJobSubMenu = JobSubMenu.jobApplications;
+
+      // ✅ Clear application FIRST, then set job so the panel
+      //    immediately hits the job branch.
+      _selectedApplication = null;
+      _selectedJob = job;
+
+      // Clear scheme state (defensive)
+      _selectedSchemeId = null;
+      _selectedSchemeName = null;
+      _selectedSchemeData = null;
+      _showSchemeDetailView = false;
+    });
+  }
+
+  // ============================================================
   // ✅ SCHEME SELECTION HANDLERS
   // ============================================================
   void _onSchemeSelectedFromList(Map<String, dynamic> schemeData) {
@@ -560,7 +596,8 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   void _onSchemeSelectedFromApplications(Map<String, dynamic> schemeData) {
-    debugPrint("📋 Scheme selected from applications: ${schemeData['scheme_id']}");
+    debugPrint(
+        "📋 Scheme selected from applications: ${schemeData['scheme_id']}");
     setState(() {
       _selectedSchemeId = schemeData['scheme_id']?.toString();
       _selectedSchemeName = schemeData['scheme_name']?.toString();
@@ -752,7 +789,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ PLACEHOLDER — shown when parent expanded but no submenu selected
+  // ✅ PLACEHOLDER
   // ============================================================
   Widget _buildSelectSubmenuPlaceholder({
     required String title,
@@ -776,11 +813,7 @@ class _UserDashboardState extends State<UserDashboard> {
                 ),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                icon,
-                size: 60,
-                color: const Color(0xFF6C63FF),
-              ),
+              child: Icon(icon, size: 60, color: const Color(0xFF6C63FF)),
             ),
             const SizedBox(height: 20),
             Text(
@@ -795,17 +828,12 @@ class _UserDashboardState extends State<UserDashboard> {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
             const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: const Color(0xFF6C63FF).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
@@ -813,11 +841,8 @@ class _UserDashboardState extends State<UserDashboard> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.arrow_back,
-                    size: 16,
-                    color: Color(0xFF6C63FF),
-                  ),
+                  Icon(Icons.arrow_back,
+                      size: 16, color: Color(0xFF6C63FF)),
                   SizedBox(width: 8),
                   Text(
                     "Tap a submenu in the sidebar",
@@ -846,24 +871,50 @@ class _UserDashboardState extends State<UserDashboard> {
 
       // ============================================================
       // JOBS
+      // ✅✅✅ FIX: Check `_selectedJob != null` FIRST, before any
+      //          submenu branch. This guarantees that whatever set
+      //          `_selectedJob` (Browse Jobs OR View Full Job Details
+      //          from an application), the right panel immediately
+      //          renders `JobDetailScreen(isEmbedded: true)`.
       // ============================================================
       case UserMenuType.jobs:
-        // ✅ If application selected → show ApplicationDetailScreen
-        if (_selectedApplication != null &&
-            selectedJobSubMenu == JobSubMenu.jobApplications) {
-          return ApplicationDetailScreen(
-            application: _selectedApplication!,
-            onBack: _closeApplicationDetail,
-            onViewJob: (job) {
+        // 1️⃣ JOB DETAIL (highest priority)
+        if (_selectedJob != null) {
+          debugPrint(
+            "🖥️ Right panel → JobDetailScreen(_id=${_selectedJob!['_id']}, "
+            "post_name=${_selectedJob!['post_name']})",
+          );
+          return JobDetailScreen(
+            job: _selectedJob!,
+            viewMode: 'job',
+            isEmbedded: true,
+            onBack: () {
+              // Return to the applications list if that's where we came from
               setState(() {
-                _selectedJob = job;
+                _selectedJob = null;
                 _selectedApplication = null;
               });
+            },
+            onApplicationSubmitted: () {
+              _refreshDashboard();
             },
           );
         }
 
-        // ✅ Job Applications list
+        // 2️⃣ APPLICATION DETAIL
+        if (_selectedApplication != null &&
+            selectedJobSubMenu == JobSubMenu.jobApplications) {
+          debugPrint(
+            "🖥️ Right panel → ApplicationDetailScreen(_id=${_selectedApplication!['_id']})",
+          );
+          return ApplicationDetailScreen(
+            application: _selectedApplication!,
+            onBack: _closeApplicationDetail,
+            onViewJob: _onViewJobFromApplication, // ✅ THE FIX
+          );
+        }
+
+        // 3️⃣ APPLICATIONS LIST
         if (selectedJobSubMenu == JobSubMenu.jobApplications) {
           return UserApplicationsScreen(
             onApplicationSelected: _onApplicationSelected,
@@ -871,25 +922,15 @@ class _UserDashboardState extends State<UserDashboard> {
           );
         }
 
-        // ✅ Browse Jobs
+        // 4️⃣ BROWSE JOBS LIST
         if (selectedJobSubMenu == JobSubMenu.browseJobs) {
-          if (_selectedJob != null) {
-            return JobDetailScreen(
-              job: _selectedJob!,
-              isEmbedded: true,
-              onBack: _closeJobDetail,
-              onApplicationSubmitted: () {
-                _refreshDashboard();
-              },
-            );
-          }
           return JobListScreen(
             isEmbedded: true,
             onJobSelected: _onJobSelected,
           );
         }
 
-        // ✅ Placeholder — no submenu selected
+        // 5️⃣ Placeholder
         return _buildSelectSubmenuPlaceholder(
           title: "Jobs",
           icon: Icons.work_rounded,
@@ -1018,7 +1059,6 @@ class _UserDashboardState extends State<UserDashboard> {
           children: [
             _buildAIHeader(greeting),
             const SizedBox(height: 20),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1028,7 +1068,6 @@ class _UserDashboardState extends State<UserDashboard> {
               ],
             ),
             const SizedBox(height: 16),
-
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1056,13 +1095,10 @@ class _UserDashboardState extends State<UserDashboard> {
               ],
             ),
             const SizedBox(height: 20),
-
             _buildCareerBreakdownCard(),
             const SizedBox(height: 20),
-
             _buildProfileSectionsCard(),
             const SizedBox(height: 20),
-
             _buildQuickActionsGrid(),
             const SizedBox(height: 16),
           ],
@@ -1114,7 +1150,9 @@ class _UserDashboardState extends State<UserDashboard> {
             child: !hasPhoto
                 ? Center(
                     child: Text(
-                      _userName.isNotEmpty ? _userName[0].toUpperCase() : 'U',
+                      _userName.isNotEmpty
+                          ? _userName[0].toUpperCase()
+                          : 'U',
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -1216,7 +1254,8 @@ class _UserDashboardState extends State<UserDashboard> {
                   ),
                 ),
               ),
-              Icon(Icons.info_outline, size: 16, color: Colors.grey.shade400),
+              Icon(Icons.info_outline,
+                  size: 16, color: Colors.grey.shade400),
             ],
           ),
           const SizedBox(height: 16),
@@ -1321,11 +1360,8 @@ class _UserDashboardState extends State<UserDashboard> {
                     ),
                   ),
                 ),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 12,
-                  color: Colors.grey.shade400,
-                ),
+                Icon(Icons.arrow_forward_ios,
+                    size: 12, color: Colors.grey.shade400),
               ],
             ),
             const SizedBox(height: 16),
@@ -1419,11 +1455,8 @@ class _UserDashboardState extends State<UserDashboard> {
                   child: Icon(icon, color: color, size: 20),
                 ),
                 const Spacer(),
-                Icon(
-                  Icons.arrow_forward_ios,
-                  size: 12,
-                  color: Colors.grey.shade400,
-                ),
+                Icon(Icons.arrow_forward_ios,
+                    size: 12, color: Colors.grey.shade400),
               ],
             ),
             const SizedBox(height: 14),
@@ -1450,9 +1483,7 @@ class _UserDashboardState extends State<UserDashboard> {
               Text(
                 "$savedCount saved",
                 style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.grey.shade600,
-                ),
+                    fontSize: 10, color: Colors.grey.shade600),
               ),
             ],
           ],
@@ -1466,10 +1497,7 @@ class _UserDashboardState extends State<UserDashboard> {
   // ============================================================
   Widget _buildCareerBreakdownCard() {
     final breakdown = _stats.careerBreakdown;
-
-    if (breakdown.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (breakdown.isEmpty) return const SizedBox.shrink();
 
     final items = [
       _BreakdownItem(
@@ -1498,7 +1526,8 @@ class _UserDashboardState extends State<UserDashboard> {
       ),
       _BreakdownItem(
         label: "Market Fit",
-        value: (breakdown['market_alignment_score'] as num?)?.toInt() ?? 0,
+        value:
+            (breakdown['market_alignment_score'] as num?)?.toInt() ?? 0,
         color: const Color(0xFFFF6588),
         icon: Icons.trending_up,
       ),
@@ -1598,10 +1627,7 @@ class _UserDashboardState extends State<UserDashboard> {
   // ============================================================
   Widget _buildProfileSectionsCard() {
     final sections = _stats.profileSections;
-
-    if (sections.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    if (sections.isEmpty) return const SizedBox.shrink();
 
     final List<_SectionItem> items = [
       _SectionItem(
@@ -1666,7 +1692,8 @@ class _UserDashboardState extends State<UserDashboard> {
         children: [
           Row(
             children: [
-              const Icon(Icons.list_alt, color: Color(0xFF10B981), size: 22),
+              const Icon(Icons.list_alt,
+                  color: Color(0xFF10B981), size: 22),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
@@ -1680,9 +1707,7 @@ class _UserDashboardState extends State<UserDashboard> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                    horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -1710,7 +1735,8 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   Widget _buildSectionChip(_SectionItem item) {
-    final color = item.done ? const Color(0xFF10B981) : Colors.grey.shade400;
+    final color =
+        item.done ? const Color(0xFF10B981) : Colors.grey.shade400;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -1889,11 +1915,8 @@ class _UserDashboardState extends State<UserDashboard> {
                         color: action.color.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(
-                        action.icon,
-                        color: action.color,
-                        size: 24,
-                      ),
+                      child:
+                          Icon(action.icon, color: action.color, size: 24),
                     ),
                     const SizedBox(height: 8),
                     Padding(
@@ -1952,7 +1975,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ CHECK IF BACK BUTTON NEEDED
+  // ✅ BACK BUTTON
   // ============================================================
   bool _shouldShowBackButton() {
     if (_selectedJob != null) return true;
@@ -1963,10 +1986,10 @@ class _UserDashboardState extends State<UserDashboard> {
 
   void _handleBackButton() {
     setState(() {
-      if (_selectedApplication != null) {
-        _selectedApplication = null;
-      } else if (_selectedJob != null) {
+      if (_selectedJob != null) {
         _selectedJob = null;
+      } else if (_selectedApplication != null) {
+        _selectedApplication = null;
       } else if (_showSchemeDetailView) {
         _closeSchemeDetailView();
       }
@@ -2060,9 +2083,7 @@ class _UserDashboardState extends State<UserDashboard> {
                   if (!isMobile)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
+                          horizontal: 20, vertical: 12),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         boxShadow: [
@@ -2146,15 +2167,16 @@ class _UserDashboardState extends State<UserDashboard> {
       return _selectedSchemeName ?? "योजना विवरण";
     }
 
+    // ✅ Job Detail takes priority (also when reached from an application)
+    if (_selectedJob != null && selectedMenu == UserMenuType.jobs) {
+      return _selectedJob!['post_name']?.toString() ?? "Job Details";
+    }
+
     if (_selectedApplication != null &&
         selectedMenu == UserMenuType.jobs &&
         selectedJobSubMenu == JobSubMenu.jobApplications) {
       return _selectedApplication!['job_title']?.toString() ??
           "Application Details";
-    }
-
-    if (_selectedJob != null && selectedMenu == UserMenuType.jobs) {
-      return _selectedJob!['post_name']?.toString() ?? "Job Details";
     }
 
     switch (selectedMenu) {

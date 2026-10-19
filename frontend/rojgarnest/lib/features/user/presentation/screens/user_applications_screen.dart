@@ -2,18 +2,39 @@
 // ✅ AI‑BASED MODERN DESIGN
 // ✅ FULLY FUNCTIONAL: List, Detail, Confirm, Update, Document viewing
 // ✅ AI LOADING ANIMATION on all loading states
-// ✅ NEW: Uploaded Documents section — SAME documents as user_documents_screen
-// ✅ FIXED: Deleted documents (null / "null" / "" / undefined) STRICTLY filtered
-// ✅ FIXED: Uses /user/full-profile as PRIMARY source (matches user_documents_screen)
-// ✅ UPDATED: Admin review/final docs shown SEPARATELY near Confirm/Update buttons
-// ✅ NEW: "View Application" button added to each card
-// ✅ NEW: Tapping "View Application" opens the full ApplicationDetailScreen
-// ✅ FIXED: Now opens ApplicationDetailScreen in RIGHT PANEL (embedded mode)
-// ✅ NEW: APPLICATION NUMBER displayed on EVERY card (format: YYYYMMSSSSS)
-// ✅ FIXED: Application Number DUPLICATE removed.
-//           Now it shows ONLY in the dedicated card right below the Status card.
-// ✅ NEW: List Card me ab sirf simple text hai, copy icon/format hata diya gaya hai.
-//         (Copy feature sirf Detail view me milega)
+// ✅ Uploaded Documents section — SAME documents as user_documents_screen
+// ✅ Deleted documents (null / "null" / "" / undefined) STRICTLY filtered
+// ✅ Uses /user/full-profile as PRIMARY source
+// ✅ Admin review/final docs shown SEPARATELY near Confirm/Update buttons
+// ✅ "View Application" button on each card
+// ✅ Tapping "View Application" opens the full ApplicationDetailScreen
+// ✅ Opens ApplicationDetailScreen in RIGHT PANEL (embedded mode)
+// ✅ APPLICATION NUMBER displayed on EVERY card (format: YYYYMMSSSSS)
+// ✅ Application Number DUPLICATE removed — only in dedicated card
+// ✅ Copy feature only in Detail view
+//
+// ✅✅✅ CRITICAL FIX (this build) — "View Full Job Details" button
+// ---------------------------------------------------------------
+//   ROOT CAUSE (previous build):
+//     `_handleViewFullJobDetails()` BOTH called `widget.onViewJob(job)`
+//     (which correctly swaps the dashboard's right panel to
+//     `JobDetailScreen(isEmbedded: true)`) AND ALSO did a
+//     `Navigator.push(... JobDetailScreen(isEmbedded: false))`.
+//     The pushed full‑screen route sits ON TOP of the dashboard,
+//     so the user always saw the full‑screen job details page
+//     INSTEAD of the embedded right‑panel page.
+//
+//   FIX (this build):
+//     • REMOVED the `Navigator.push` fallback entirely.
+//     • `_handleViewFullJobDetails()` now ONLY calls
+//       `widget.onViewJob(job)`.
+//     • The dashboard's `_getContent()` already returns
+//       `JobDetailScreen(isEmbedded: true, onBack: ...)` when
+//       `_selectedJob != null`, so the job details render in the
+//       RIGHT PANEL with a working back button.
+//     • Back button in the embedded JobDetailScreen clears
+//       `_selectedJob` and returns the user to the applications list.
+// ---------------------------------------------------------------
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -97,18 +118,12 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
     await _fetchApplications();
   }
 
-  // ============================================================
-  // ✅ COPY APPLICATION NUMBER (Used only in Detail Screen now)
-  // ============================================================
   void _copyApplicationNumber(String number) {
     if (number.isEmpty || number == 'N/A') return;
     Clipboard.setData(ClipboardData(text: number));
     showMessage(context, "Application Number copied: $number");
   }
 
-  // ============================================================
-  // ✅ APPLICATION NUMBER HELPER
-  // ============================================================
   String _getApplicationNumber(Map<String, dynamic> app) {
     final appNumber = (app['application_number'] ?? '').toString().trim();
     if (appNumber.isNotEmpty &&
@@ -379,10 +394,6 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
     );
   }
 
-  // ============================================================
-  // ✅ APPLICATION CARD (List View)
-  // ✅ FIXED: Copy button & copy format REMOVED from here
-  // ============================================================
   Widget _buildApplicationCard(Map<String, dynamic> app) {
     final status = app['status'] ?? 'pending';
     final statusColor = _getStatusColor(status);
@@ -409,7 +420,6 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ==================== TOP ROW (JOB + STATUS) ====================
                   Row(
                     children: [
                       Container(
@@ -484,10 +494,7 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 12),
-
-                  // ==================== ✅ SIMPLE APPLICATION NUMBER ROW ====================
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
@@ -528,14 +535,10 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
                             ),
                           ),
                         ),
-                        // ❌ Copy Icon (InkWell) hata diya gaya hai yahan se
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
-                  // ==================== INFO CHIPS ====================
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
@@ -562,10 +565,7 @@ class _UserApplicationsScreenState extends State<UserApplicationsScreen>
                         ),
                     ],
                   ),
-
                   const SizedBox(height: 14),
-
-                  // ==================== ✅ "VIEW APPLICATION" BUTTON ====================
                   SizedBox(
                     width: double.infinity,
                     height: 44,
@@ -763,18 +763,14 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   bool _isLoading = true;
   Map<String, dynamic>? _jobDetails;
   bool _isUpdating = false;
+  bool _isOpeningJob = false;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
 
-  // ✅ Uploaded documents state
   List<Map<String, dynamic>> _userDocuments = [];
   bool _isLoadingDocuments = false;
 
-  // ============================================================
-  // ✅ COMPLETE Document Key Map — SAME as user_documents_screen
-  // ============================================================
   static const List<Map<String, String>> _documentKeyMap = [
-    // ==================== IDENTITY ====================
     {'key': 'profile_photo_url', 'label': 'Profile Photo'},
     {'key': 'aadhaar_front', 'label': 'Aadhaar Card (Front)'},
     {'key': 'aadhaar_back', 'label': 'Aadhaar Card (Back)'},
@@ -785,8 +781,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'driving_license_url', 'label': 'Driving License'},
     {'key': 'ration_card', 'label': 'Ration Card'},
     {'key': 'npr_card', 'label': 'NPR Card'},
-
-    // ==================== EDUCATION ====================
     {'key': 'tenth_marksheet', 'label': '10th Marksheet'},
     {'key': 'tenth_certificate', 'label': '10th Certificate'},
     {'key': 'twelfth_marksheet', 'label': '12th Marksheet'},
@@ -802,8 +796,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'iti_certificate', 'label': 'ITI Certificate'},
     {'key': 'vocational_certificate', 'label': 'Vocational Training Certificate'},
     {'key': 'skill_development_certificate', 'label': 'Skill Development Certificate'},
-
-    // ==================== PROFESSIONAL ====================
     {'key': 'resume_url', 'label': 'Resume / CV'},
     {'key': 'experience_certificate', 'label': 'Experience Certificate'},
     {'key': 'experience_letter_url', 'label': 'Experience Letter'},
@@ -819,8 +811,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'training_certificate', 'label': 'Training Certificate'},
     {'key': 'internship_certificate', 'label': 'Internship Certificate'},
     {'key': 'apprenticeship_certificate', 'label': 'Apprenticeship Certificate'},
-
-    // ==================== CASTE ====================
     {'key': 'caste_certificate_general', 'label': 'Caste Certificate (General/UR)'},
     {'key': 'caste_certificate_obc', 'label': 'Caste Certificate (OBC)'},
     {'key': 'caste_certificate_sc', 'label': 'Caste Certificate (SC)'},
@@ -828,8 +818,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'ews_certificate', 'label': 'EWS Certificate'},
     {'key': 'non_creamy_layer', 'label': 'Non-Creamy Layer Certificate'},
     {'key': 'caste_validity', 'label': 'Caste Validity Certificate'},
-
-    // ==================== DISABILITY ====================
     {'key': 'disability_certificate_url', 'label': 'Disability Certificate'},
     {'key': 'medical_certificate_physical', 'label': 'Medical Certificate (Physical)'},
     {'key': 'hearing_disability', 'label': 'Hearing Disability Certificate'},
@@ -838,16 +826,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'mental_disability', 'label': 'Mental Disability Certificate'},
     {'key': 'multiple_disability', 'label': 'Multiple Disability Certificate'},
     {'key': 'disability_id_card', 'label': 'Disability ID Card'},
-
-    // ==================== INCOME ====================
     {'key': 'income_certificate_url', 'label': 'Income Certificate'},
     {'key': 'income_tax_return', 'label': 'Income Tax Return (ITR)'},
     {'key': 'form_16', 'label': 'Form 16'},
     {'key': 'bank_statement', 'label': 'Bank Passbook/Statement'},
     {'key': 'pension_certificate', 'label': 'Pension Certificate'},
     {'key': 'fd_certificate', 'label': 'Fixed Deposit Certificate'},
-
-    // ==================== RESIDENCE ====================
     {'key': 'domicile_certificate', 'label': 'Domicile Certificate'},
     {'key': 'residence_certificate', 'label': 'Residence Certificate'},
     {'key': 'electricity_bill', 'label': 'Electricity Bill'},
@@ -855,16 +839,12 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'gas_bill', 'label': 'Gas Bill'},
     {'key': 'rent_agreement', 'label': 'Rent Agreement'},
     {'key': 'property_document', 'label': 'Property Document'},
-
-    // ==================== FAMILY ====================
     {'key': 'birth_certificate', 'label': 'Birth Certificate'},
     {'key': 'marriage_certificate', 'label': 'Marriage Certificate'},
     {'key': 'family_member_id', 'label': 'Family Member ID'},
     {'key': 'dependent_certificate', 'label': 'Dependent Certificate'},
     {'key': 'family_pension', 'label': 'Family Pension Certificate'},
     {'key': 'survivor_certificate', 'label': 'Survivor Certificate'},
-
-    // ==================== GOVERNMENT ====================
     {'key': 'job_seeker_registration', 'label': 'Job Seeker Registration'},
     {'key': 'employment_exchange_card', 'label': 'Employment Exchange Card'},
     {'key': 'ncs_id', 'label': 'National Career Service ID'},
@@ -873,8 +853,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'pmjjby_certificate', 'label': 'PMJJBY Certificate'},
     {'key': 'pmsby_certificate', 'label': 'PMSBY Certificate'},
     {'key': 'apy_enrollment', 'label': 'APY Enrollment'},
-
-    // ==================== CERTIFICATIONS ====================
     {'key': 'professional_certification', 'label': 'Professional Certification'},
     {'key': 'skill_certificate', 'label': 'Skill Development Certificate'},
     {'key': 'computer_certificate', 'label': 'Computer Course Certificate'},
@@ -886,8 +864,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'data_science_certificate', 'label': 'Data Science Certificate'},
     {'key': 'cloud_computing_certificate', 'label': 'Cloud Computing Certificate'},
     {'key': 'cybersecurity_certificate', 'label': 'Cybersecurity Certificate'},
-
-    // ==================== MISCELLANEOUS ====================
     {'key': 'gap_certificate', 'label': 'Gap Certificate'},
     {'key': 'skip_certificate', 'label': 'Skip Certificate'},
     {'key': 'skip_year_certificate', 'label': 'Skip Year Certificate'},
@@ -903,12 +879,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     {'key': 'other_document_url', 'label': 'Other Document'},
   ];
 
-  // ============================================================
-  // ✅ STRICT document URL validator
-  // ============================================================
   bool _isValidDocUrl(dynamic value) {
     if (value == null) return false;
-
     if (value is Map && value.isEmpty) return false;
     if (value is List && value.isEmpty) return false;
 
@@ -977,17 +949,41 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     super.dispose();
   }
 
+  // ============================================================
+  // load job details (unwrap `data`)
+  // ============================================================
   Future<void> _fetchJobDetails() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final jobId = widget.application['job_id'];
-      if (jobId != null) {
+      if (jobId != null && jobId.toString().isNotEmpty) {
         final jobRes = await DioClient.dio.get('/jobs/$jobId');
-        _jobDetails = jobRes.data;
+
+        Map<String, dynamic> jobData = {};
+        if (jobRes.data is Map) {
+          final raw = jobRes.data as Map;
+          if (raw.containsKey('data') && raw['data'] is Map) {
+            jobData = Map<String, dynamic>.from(raw['data'] as Map);
+          } else if (raw.containsKey('job') && raw['job'] is Map) {
+            jobData = Map<String, dynamic>.from(raw['job'] as Map);
+          } else {
+            jobData = Map<String, dynamic>.from(raw);
+          }
+        }
+
+        jobData['_id'] ??= jobId.toString();
+
+        _jobDetails = jobData;
+        debugPrint(
+          "✅ Job details loaded for onViewJob → _id=${_jobDetails!['_id']}, "
+          "post_name=${_jobDetails!['post_name']}",
+        );
+      } else {
+        debugPrint("⚠️ No job_id in application — cannot load job details");
       }
     } catch (e) {
-      debugPrint("Error fetching job details: $e");
+      debugPrint("❌ Error fetching job details: $e");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -1029,9 +1025,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         for (final entry in _documentKeyMap) {
           final key = entry['key']!;
           final label = entry['label']!;
-
           final value = additional[key] ?? profile[key];
-
           if (value != null) {
             addDoc(key, label, value);
           }
@@ -1086,8 +1080,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         !finalUrl.startsWith('blob:')) {
       finalUrl = 'https://$finalUrl';
     }
-
-    debugPrint("📄 Opening document viewer: $finalUrl");
 
     showDialog(
       context: context,
@@ -1162,16 +1154,10 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     return 'file';
   }
 
-  // ============================================================
-  // ✅ "Your Uploaded Documents" section
-  // ============================================================
   Widget _buildDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> allDocs = [];
-
-    // 1) User profile documents
     allDocs.addAll(_userDocuments);
 
-    // 2) Payment receipt
     final receiptUrl = app['payment_receipt_url'];
     if (_isValidDocUrl(receiptUrl)) {
       final urlStr = receiptUrl.toString().trim();
@@ -1187,7 +1173,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       }
     }
 
-    // 3) Payment screenshot
     final screenshotUrl = app['screenshot_url'];
     if (_isValidDocUrl(screenshotUrl)) {
       final urlStr = screenshotUrl.toString().trim();
@@ -1202,7 +1187,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       }
     }
 
-    // 4) Application document (document_url - user uploaded)
     final docUrl = app['document_url'];
     if (_isValidDocUrl(docUrl)) {
       final urlStr = docUrl.toString().trim();
@@ -1217,7 +1201,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       }
     }
 
-    // 5) Application resume URL
     final appResume = app['resume_url'];
     if (_isValidDocUrl(appResume)) {
       final urlStr = appResume.toString().trim();
@@ -1410,9 +1393,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ Admin Documents Section (Review / Final Submit uploads)
-  // ============================================================
   Widget _buildAdminDocumentsSection(Map<String, dynamic> app) {
     final List<Map<String, dynamic>> adminDocs = [];
 
@@ -1616,9 +1596,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // STATUS HELPERS
-  // ============================================================
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'submitted':
@@ -1719,9 +1696,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     }
   }
 
-  // ============================================================
-  // ✅ APPLICATION NUMBER HELPER
-  // ============================================================
   String _getApplicationNumber(Map<String, dynamic> app) {
     final appNumber = (app['application_number'] ?? '').toString().trim();
     if (appNumber.isNotEmpty &&
@@ -1730,7 +1704,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         appNumber.toLowerCase() != 'n/a') {
       return appNumber;
     }
-
     final appId = (app['application_id'] ?? '').toString().trim();
     if (appId.isNotEmpty &&
         appId.toLowerCase() != 'null' &&
@@ -1738,7 +1711,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
         appId.toLowerCase() != 'n/a') {
       return appId;
     }
-
     final mongoId = (app['_id'] ?? '').toString().trim();
     if (mongoId.isNotEmpty) {
       if (mongoId.length > 12) {
@@ -1746,22 +1718,15 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       }
       return mongoId;
     }
-
     return 'N/A';
   }
 
-  // ============================================================
-  // COPY APPLICATION NUMBER (Detail view)
-  // ============================================================
   void _copyApplicationNumber(String number) {
     if (number.isEmpty || number == 'N/A') return;
     Clipboard.setData(ClipboardData(text: number));
     showMessage(context, "Application Number copied: $number");
   }
 
-  // ============================================================
-  // PAYMENT RECEIPT DIALOG
-  // ============================================================
   void _showPaymentReceiptDialog(String? receiptUrl) {
     if (receiptUrl == null || receiptUrl.isEmpty) {
       showMessage(context, "No payment receipt available", isError: true);
@@ -1837,9 +1802,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // CONFIRM / UPDATE ACTIONS
-  // ============================================================
   Future<void> _confirmApplication() async {
     final applicationId = widget.application['_id'];
     final status = widget.application['status'];
@@ -1936,8 +1898,73 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   // ============================================================
-  // BUILD
+  // ✅✅✅ THE FIXED "VIEW FULL JOB DETAILS" HANDLER
+  // ------------------------------------------------------------
+  //   ONLY calls `widget.onViewJob(job)`. The parent dashboard's
+  //   `_getContent()` returns `JobDetailScreen(isEmbedded: true,
+  //   onBack: ...)` immediately, so the job details render in the
+  //   RIGHT PANEL (beside the sidebar) with a working back button.
+  //
+  //   NO `Navigator.push` — the previous build's fallback is
+  //   removed because it defeated the embedded behavior.
   // ============================================================
+  Future<void> _handleViewFullJobDetails() async {
+    if (_isOpeningJob) return;
+
+    if (_jobDetails == null) {
+      showMessage(
+        context,
+        "Job details are still loading, please wait...",
+        isError: false,
+      );
+      return;
+    }
+
+    final job = _jobDetails!;
+    final jobId = (job['_id'] ?? '').toString().trim();
+
+    if (jobId.isEmpty) {
+      showMessage(
+        context,
+        "Invalid job data — cannot open job details",
+        isError: true,
+      );
+      return;
+    }
+
+    if (widget.onViewJob == null) {
+      showMessage(
+        context,
+        "Unable to open job details right now",
+        isError: true,
+      );
+      return;
+    }
+
+    setState(() => _isOpeningJob = true);
+
+    debugPrint(
+      "🚀 onViewJob fired → _id=$jobId, "
+      "post_name=${job['post_name']}, "
+      "organization=${job['organization']}",
+    );
+
+    try {
+      widget.onViewJob!(job);
+    } catch (e) {
+      debugPrint("⚠️ onViewJob threw: $e");
+      if (mounted) {
+        showMessage(
+          context,
+          "Unable to open job details: $e",
+          isError: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isOpeningJob = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = widget.application;
@@ -1968,11 +1995,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                           children: [
                             _buildStatusCard(status, statusColor),
                             const SizedBox(height: 16),
-
-                            // ✅ Dedicated Application Number card
                             _buildApplicationNumberCard(app),
                             const SizedBox(height: 16),
-
                             if (status.toLowerCase() == 'review_application')
                               _buildUnderReviewSection(),
                             if (status.toLowerCase() == 'review_application')
@@ -1995,18 +2019,27 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                             const SizedBox(height: 16),
                             _buildDocumentsSection(app),
                             const SizedBox(height: 16),
+
+                            // ============================================================
+                            // ✅✅✅ "VIEW FULL JOB DETAILS" BUTTON
+                            // ------------------------------------------------------------
+                            // Calls `_handleViewFullJobDetails()` which ONLY
+                            // invokes `widget.onViewJob(job)` → dashboard
+                            // swaps right panel to embedded JobDetailScreen.
+                            // ============================================================
                             SizedBox(
                               width: double.infinity,
                               height: 50,
                               child: _buildGradientButton(
-                                text: "View Full Job Details",
-                                icon: Icons.visibility,
-                                onTap: () {
-                                  if (_jobDetails != null &&
-                                      widget.onViewJob != null) {
-                                    widget.onViewJob!(_jobDetails!);
-                                  }
-                                },
+                                text: _isOpeningJob
+                                    ? "Opening Job Details..."
+                                    : "View Full Job Details",
+                                icon: _isOpeningJob
+                                    ? Icons.hourglass_empty
+                                    : Icons.visibility,
+                                onTap: _isOpeningJob
+                                    ? () {}
+                                    : _handleViewFullJobDetails,
                               ),
                             ),
                             const SizedBox(height: 20),
@@ -2057,9 +2090,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ DEDICATED APPLICATION NUMBER CARD (detail view)
-  // ============================================================
   Widget _buildApplicationNumberCard(Map<String, dynamic> app) {
     final appNumber = _getApplicationNumber(app);
 
@@ -2087,10 +2117,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [
-                  Color(0xFF6C63FF),
-                  Color(0xFFFF6588),
-                ],
+                colors: [Color(0xFF6C63FF), Color(0xFFFF6588)],
               ),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -2138,10 +2165,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ DETAIL HEADER (Top gradient bar)
-  // ✅ Application Number row REMOVED from here
-  // ============================================================
   Widget _buildDetailHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -2388,9 +2411,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ UNDER REVIEW SECTION
-  // ============================================================
   Widget _buildUnderReviewSection() {
     final app = widget.application;
 
@@ -2445,10 +2465,8 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
             "Your application is currently under review. Please take action below:",
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
-
           const SizedBox(height: 20),
           _buildAdminDocumentsSection(app),
-
           const SizedBox(height: 20),
           const Divider(),
           const SizedBox(height: 16),
@@ -2547,9 +2565,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ FINAL SUBMIT SECTION
-  // ============================================================
   Widget _buildFinalSubmitSection() {
     final app = widget.application;
 
@@ -2611,9 +2626,6 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
     );
   }
 
-  // ============================================================
-  // ✅ JOB INFO CARD
-  // ============================================================
   Widget _buildJobInfoCard() {
     final app = widget.application;
     final jobTitle = app['job_title'] ?? _jobDetails?['post_name'] ?? 'Job Title';
