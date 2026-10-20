@@ -1,7 +1,7 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-10-19 13:26:28
+Generated: 2026-10-19 19:52:17
 Source: E:\yogesh\website\rojgarnest\frontend
 Total Files: 151
 Total Size: 3.9 MB
@@ -105159,8 +105159,8 @@ class _TabData {
 
 ================================================================================
 [ 140/ 151] 🎯 rojgarnest/lib/features/user/presentation/screens/user_applications_screen.dart
-📏 SIZE: 115.8 KB
-🕐 MODIFIED: 2026-10-19 13:14:13
+📏 SIZE: 114.9 KB
+🕐 MODIFIED: 2026-10-19 13:33:12
 ================================================================================
 
 // lib/features/user/presentation/screens/user_applications_screen.dart
@@ -105180,23 +105180,25 @@ class _TabData {
 //
 // ✅✅✅ CRITICAL FIX (this build) — "View Full Job Details" button
 // ---------------------------------------------------------------
-//   ROOT CAUSE:
-//     • The dashboard's `onViewJob` callback fires (logs prove it),
-//       but the parent never replaces the right‑panel widget with
-//       `JobDetailScreen`. It rebuilds `ApplicationDetailScreen`
-//       again, so the user stays on the same page.
+//   ROOT CAUSE (previous build):
+//     `_handleViewFullJobDetails()` BOTH called `widget.onViewJob(job)`
+//     (which correctly swaps the dashboard's right panel to
+//     `JobDetailScreen(isEmbedded: true)`) AND ALSO did a
+//     `Navigator.push(... JobDetailScreen(isEmbedded: false))`.
+//     The pushed full‑screen route sits ON TOP of the dashboard,
+//     so the user always saw the full‑screen job details page
+//     INSTEAD of the embedded right‑panel page.
 //
-//   FIX (two layers, belt & suspenders):
-//     1. Unwrap `{data: {...}}` from `/jobs/$jobId`, guarantee `_id`.
-//     2. After calling `widget.onViewJob!(job)`, ALSO push a
-//        full‑screen `JobDetailScreen` via `Navigator.push` so the
-//        job details page ALWAYS opens — even if the dashboard
-//        callback is broken, cached, or mis‑ordered.
-//
-//   Behaviour:
-//     • Embedded (dashboard works)  → right panel switches to JobDetailScreen.
-//     • Any other case              → full‑screen JobDetailScreen opens.
-//     • User is NEVER stuck on the ApplicationDetailScreen.
+//   FIX (this build):
+//     • REMOVED the `Navigator.push` fallback entirely.
+//     • `_handleViewFullJobDetails()` now ONLY calls
+//       `widget.onViewJob(job)`.
+//     • The dashboard's `_getContent()` already returns
+//       `JobDetailScreen(isEmbedded: true, onBack: ...)` when
+//       `_selectedJob != null`, so the job details render in the
+//       RIGHT PANEL with a working back button.
+//     • Back button in the embedded JobDetailScreen clears
+//       `_selectedJob` and returns the user to the applications list.
 // ---------------------------------------------------------------
 
 import 'package:flutter/material.dart';
@@ -105204,9 +105206,6 @@ import 'package:flutter/services.dart';
 import 'package:rojgarnest/core/network/dio_client.dart';
 import 'package:rojgarnest/core/utils/app_snackbar.dart';
 import 'package:rojgarnest/core/widgets/file_viewer_screen.dart';
-
-// ✅ Import JobDetailScreen so we can push it as a fallback
-import 'package:rojgarnest/features/jobs/presentation/screens/job_detail_screen.dart';
 
 // ============================================================
 // MAIN APPLICATIONS LIST SCREEN
@@ -106116,7 +106115,7 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   // ============================================================
-  // ✅✅✅ CRITICAL FIX — load job details (unwrap `data`)
+  // load job details (unwrap `data`)
   // ============================================================
   Future<void> _fetchJobDetails() async {
     if (!mounted) return;
@@ -107064,16 +107063,15 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
   }
 
   // ============================================================
-  // ✅✅✅ THE BULLETPROOF "VIEW FULL JOB DETAILS" HANDLER
+  // ✅✅✅ THE FIXED "VIEW FULL JOB DETAILS" HANDLER
   // ------------------------------------------------------------
-  //   Layer 1: call `widget.onViewJob(job)` so the dashboard can
-  //            swap the right panel to JobDetailScreen (embedded).
-  //   Layer 2: ALSO push a full‑screen JobDetailScreen via
-  //            Navigator so the job details page ALWAYS opens,
-  //            even if the dashboard wiring is broken/cached.
+  //   ONLY calls `widget.onViewJob(job)`. The parent dashboard's
+  //   `_getContent()` returns `JobDetailScreen(isEmbedded: true,
+  //   onBack: ...)` immediately, so the job details render in the
+  //   RIGHT PANEL (beside the sidebar) with a working back button.
   //
-  //   Result: the user can NEVER get stuck on ApplicationDetailScreen
-  //           after tapping "View Full Job Details".
+  //   NO `Navigator.push` — the previous build's fallback is
+  //   removed because it defeated the embedded behavior.
   // ============================================================
   Future<void> _handleViewFullJobDetails() async {
     if (_isOpeningJob) return;
@@ -107099,6 +107097,15 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       return;
     }
 
+    if (widget.onViewJob == null) {
+      showMessage(
+        context,
+        "Unable to open job details right now",
+        isError: true,
+      );
+      return;
+    }
+
     setState(() => _isOpeningJob = true);
 
     debugPrint(
@@ -107107,38 +107114,10 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
       "organization=${job['organization']}",
     );
 
-    // ── Layer 1: notify parent dashboard (embedded swap) ─────
-    if (widget.onViewJob != null) {
-      try {
-        widget.onViewJob!(job);
-      } catch (e) {
-        debugPrint("⚠️ onViewJob threw: $e");
-      }
-    }
-
-    // ── Layer 2: guaranteed full‑screen navigation ───────────
-    //   Push AFTER a short delay so if the dashboard already
-    //   swapped panels, we still show a consistent route.
-    if (!mounted) return;
-
     try {
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => JobDetailScreen(
-            job: job,
-            viewMode: 'job',
-            isEmbedded: false,
-            onBack: () {
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              }
-            },
-          ),
-        ),
-      );
+      widget.onViewJob!(job);
     } catch (e) {
-      debugPrint("⚠️ Navigator push failed: $e");
-      // If push fails (e.g., no route stack), show a snackbar
+      debugPrint("⚠️ onViewJob threw: $e");
       if (mounted) {
         showMessage(
           context,
@@ -107209,10 +107188,9 @@ class _ApplicationDetailScreenState extends State<ApplicationDetailScreen>
                             // ============================================================
                             // ✅✅✅ "VIEW FULL JOB DETAILS" BUTTON
                             // ------------------------------------------------------------
-                            // Calls `_handleViewFullJobDetails()` which:
-                            //   1) invokes `widget.onViewJob(job)` for embedded swap
-                            //   2) ALSO pushes a full‑screen JobDetailScreen
-                            //      so the page ALWAYS opens
+                            // Calls `_handleViewFullJobDetails()` which ONLY
+                            // invokes `widget.onViewJob(job)` → dashboard
+                            // swaps right panel to embedded JobDetailScreen.
                             // ============================================================
                             SizedBox(
                               width: double.infinity,
@@ -114924,5 +114902,5 @@ flutter:
 🎉 EXPORT COMPLETED!
 ================================================================================
 Total Files: 151
-Generated: 2026-10-19 13:26:30
+Generated: 2026-10-19 19:52:18
 ================================================================================
