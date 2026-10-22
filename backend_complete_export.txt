@@ -1,7 +1,7 @@
 ================================================================================
 ROJARGAR NEXT BACKEND - COMPLETE CODE EXPORT (SANITIZED)
 ================================================================================
-Generated: 2026-10-22 10:00:46
+Generated: 2026-10-22 17:48:20
 Source: E:\YOGESH\website\RojgarNest\backend\rojgarnest
 Total Files: 171
   - Python Files: 167
@@ -45636,7 +45636,7 @@ print("✅ Schemes Schemas Loaded — scheme_documents support")
 ================================================================================
 [ 135/ 171] 🐍 PYTHON FILE: app\modules\schemes\service.py
 📏 SIZE: 58,607 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+🕐 MODIFIED: 2026-10-22 16:33:04
 
 ================================================================================
 

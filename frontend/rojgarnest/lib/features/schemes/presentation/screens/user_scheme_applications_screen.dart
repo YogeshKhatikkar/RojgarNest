@@ -13,6 +13,14 @@
 // ✅ FIXED: Support for BOTH `document_url` AND `url` keys
 // ✅ CRITICAL FIX: source check now accepts 'schemes_application' (THE REAL BUG)
 // ✅ CRITICAL FIX: initialData documents are now pre-processed immediately
+// ✅ NEW CRITICAL FIX: Application NUMBER is now displayed everywhere
+//                      instead of MongoDB ObjectId (_id).
+// ✅ NEW: PAYMENT INFORMATION CARD added (mirrors service screen)
+//         - Status badge (VERIFIED / PENDING / REJECTED / NOT SUBMITTED)
+//         - Transaction ID, Date, Amount, Category, Razorpay Order
+//         - Rejection reason (if rejected)
+//         - View Payment Receipt button
+// ✅ NEW: Payment status badge shown on LIST card too
 // ✅ FULLY WORKING: All lines included — no skips
 // ============================================================
 
@@ -23,6 +31,171 @@ import 'package:rojgarnest/core/utils/app_snackbar.dart';
 import 'package:rojgarnest/core/widgets/file_viewer_screen.dart';
 import 'package:rojgarnest/features/schemes/data/scheme_service.dart';
 import 'package:rojgarnest/features/schemes/presentation/screens/scheme_detail_screen.dart';
+
+// ============================================================================
+// ✅ HELPER — Normalizes application numbers
+// ============================================================================
+class _ApplicationNumberResolver {
+  static final RegExp _numericPattern = RegExp(r'^\d{6,}$');
+  static final RegExp _objectIdPattern = RegExp(r'^[a-f0-9]{24}$');
+
+  static bool _looksLikeApplicationNumber(String s) {
+    final t = s.trim();
+    if (t.isEmpty) return false;
+    if (_objectIdPattern.hasMatch(t.toLowerCase())) return false;
+    return _numericPattern.hasMatch(t);
+  }
+
+  static String resolve(Map<String, dynamic> app) {
+    final candidates = <dynamic>[
+      app['application_number'],
+      app['application_id'],
+      app['applicationNo'],
+      app['applicationId'],
+    ];
+
+    for (final raw in candidates) {
+      if (raw == null) continue;
+      final s = raw.toString().trim();
+      if (s.isEmpty) continue;
+      final lower = s.toLowerCase();
+      if (lower == 'null' || lower == 'undefined') continue;
+      if (_looksLikeApplicationNumber(s)) return s;
+    }
+
+    final fallback = app['_id'] ?? app['id'];
+    if (fallback != null) {
+      final s = fallback.toString().trim();
+      if (s.isNotEmpty) {
+        debugPrint(
+          "⚠️ [ApplicationNumberResolver] No numeric app number — using _id: $s",
+        );
+        return s;
+      }
+    }
+
+    return '';
+  }
+}
+
+// ============================================================================
+// ✅ HELPER — Payment status (mirrors service screen)
+// ============================================================================
+class _SchemePaymentHelper {
+  static String _norm(dynamic v) => (v ?? '').toString().trim().toLowerCase();
+
+  /// Returns: 'approved' | 'pending' | 'rejected' | 'not_submitted'
+  static String paymentStatus(Map<String, dynamic> app) {
+    // 1) Main status first
+    final mainStatus = _norm(app['status']);
+
+    const mainApproved = {
+      'payment_verified',
+      'verification_successful',
+      'approved',
+      'approved_application',
+      'completed',
+      'confirmed_application',
+      'final_submit',
+      'final_submitted',
+      'review_application',
+      'under_review',
+      'submitted',
+      'shortlisted',
+      'interview',
+      'offered',
+      'pending_admin_review',
+      'update_application',
+    };
+    if (mainApproved.contains(mainStatus)) return 'approved';
+
+    const mainRejected = {
+      'verification_rejected',
+      'payment_rejected',
+      'rejected',
+      'update_rejected',
+    };
+    if (mainRejected.contains(mainStatus)) return 'rejected';
+
+    const mainPending = {
+      'payment_pending',
+      'pending_verification',
+      'pending',
+    };
+    if (mainPending.contains(mainStatus)) return 'pending';
+
+    // 2) payment_verification_status
+    final pvs = _norm(app['payment_verification_status']);
+    if ([
+      'approved', 'verified', 'success', 'completed',
+      'paid', 'captured', 'settled'
+    ].contains(pvs)) {
+      return 'approved';
+    }
+    if (['rejected', 'failed', 'declined', 'cancelled'].contains(pvs)) {
+      return 'rejected';
+    }
+    if ([
+      'pending', 'pending_verification', 'under_review',
+      'created', 'processing'
+    ].contains(pvs)) {
+      return 'pending';
+    }
+
+    // 3) payment_status
+    final ps = _norm(app['payment_status']);
+    if ([
+      'approved', 'verified', 'success', 'completed',
+      'paid', 'captured', 'settled'
+    ].contains(ps)) {
+      return 'approved';
+    }
+    if (['rejected', 'failed', 'declined', 'cancelled'].contains(ps)) {
+      return 'rejected';
+    }
+    if (['pending', 'created', 'processing', 'initiated'].contains(ps)) {
+      return 'pending';
+    }
+
+    // 4) Razorpay fallback
+    final razorpayId = _norm(app['razorpay_payment_id']);
+    final paymentId = _norm(app['payment_id']);
+    final transactionId = _norm(app['transaction_id']);
+    if (razorpayId.isNotEmpty ||
+        paymentId.isNotEmpty ||
+        transactionId.isNotEmpty) {
+      return 'approved';
+    }
+
+    return 'not_submitted';
+  }
+
+  static String displayPaymentStatus(Map<String, dynamic> app) {
+    switch (paymentStatus(app)) {
+      case 'approved':
+        return 'VERIFIED';
+      case 'pending':
+        return 'PENDING';
+      case 'rejected':
+        return 'REJECTED';
+      default:
+        return 'NOT SUBMITTED';
+    }
+  }
+
+  static Color paymentStatusColor(Map<String, dynamic> app) {
+    switch (paymentStatus(app)) {
+      case 'approved':
+        return Colors.green;
+      case 'pending':
+        return Colors.orange;
+      case 'rejected':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+}
 
 // ============================================================================
 // SCREEN 1: USER SCHEME APPLICATIONS (LIST + EMBEDDED DETAIL)
@@ -127,24 +300,25 @@ class _UserSchemeApplicationsScreenState
         final app = apps[i];
         if (app is Map) {
           final schemeName = app['scheme_name'] ?? app['scheme_name_hindi'];
-          final appId = app['application_id'];
-          final schemeDocs = app['scheme_documents'];
-          debugPrint("   [$i] $schemeName (app_id=$appId)");
-          debugPrint("       scheme_documents: ${schemeDocs is List ? schemeDocs.length : 'N/A'}");
+          final resolved = _ApplicationNumberResolver.resolve(
+            Map<String, dynamic>.from(app),
+          );
+          debugPrint(
+            "   [$i] $schemeName (resolved app_number=$resolved)",
+          );
         }
       }
       debugPrint("=" * 70);
 
-      // ✅ Pre-fetch document counts for each application
       final enrichedApps = <Map<String, dynamic>>[];
       for (final app in apps) {
         final appMap = app is Map<String, dynamic>
             ? Map<String, dynamic>.from(app)
             : Map<String, dynamic>.from(app as Map);
 
-        // ✅ Count documents from the app data itself
-        final docCount = _countApplicationDocs(appMap);
-        appMap['_doc_count'] = docCount;
+        appMap['display_application_number'] =
+            _ApplicationNumberResolver.resolve(appMap);
+        appMap['_doc_count'] = _countApplicationDocs(appMap);
 
         enrichedApps.add(appMap);
       }
@@ -167,13 +341,11 @@ class _UserSchemeApplicationsScreenState
 
   // ============================================================
   // ✅ COUNT DOCUMENTS FROM ALL SOURCES
-  // ✅ FIXED: Now counts from `documents` array too
   // ============================================================
   int _countApplicationDocs(Map<String, dynamic> app) {
     int count = 0;
     final Set<String> seenUrls = {};
 
-    // ---------- A. From `scheme_documents` array ----------
     final schemeDocs = app['scheme_documents'];
     if (schemeDocs is List) {
       for (final d in schemeDocs) {
@@ -186,7 +358,6 @@ class _UserSchemeApplicationsScreenState
       }
     }
 
-    // ---------- B. From `documents` array (LEGACY — THIS WAS MISSING) ----------
     final legacyDocs = app['documents'];
     if (legacyDocs is List) {
       for (final d in legacyDocs) {
@@ -199,7 +370,6 @@ class _UserSchemeApplicationsScreenState
       }
     }
 
-    // ---------- C. Admin documents ----------
     final submittedUrl = app['submitted_document_url'];
     if (_isValidDocUrl(submittedUrl) &&
         !seenUrls.contains(submittedUrl.toString().trim())) {
@@ -274,10 +444,11 @@ class _UserSchemeApplicationsScreenState
   }
 
   // ============================================================
-  // ✅ NAVIGATION — EMBEDDED DETAIL IN RIGHT PANEL
+  // ✅ NAVIGATION
   // ============================================================
   void _openApplicationDetails(Map<String, dynamic> app) {
-    final applicationId = app['application_id']?.toString() ?? '';
+    final applicationId =
+        app['display_application_number']?.toString() ?? '';
 
     if (applicationId.isEmpty) {
       showMessage(
@@ -301,7 +472,6 @@ class _UserSchemeApplicationsScreenState
       _selectedApplicationId = null;
       _selectedApplicationSeed = null;
     });
-    // ✅ Refresh list to update document counts
     _loadApplications();
   }
 
@@ -339,9 +509,6 @@ class _UserSchemeApplicationsScreenState
   // ==================== BUILD ====================
   @override
   Widget build(BuildContext context) {
-    // ============================================================
-    // ✅ If detail is open — render the detail view IN PLACE
-    // ============================================================
     if (_showDetail && _selectedApplicationId != null) {
       return _SchemeApplicationDetailView(
         applicationId: _selectedApplicationId!,
@@ -351,9 +518,6 @@ class _UserSchemeApplicationsScreenState
       );
     }
 
-    // ============================================================
-    // LIST VIEW
-    // ============================================================
     final Widget content = _isLoading && _applications.isEmpty
         ? _buildLoadingScreen()
         : Column(
@@ -628,7 +792,7 @@ class _UserSchemeApplicationsScreenState
   }
 
   // ============================================================
-  // APPLICATION CARD
+  // APPLICATION CARD (list view — WITH PAYMENT BADGE)
   // ============================================================
   Widget _buildApplicationCard(Map<String, dynamic> app, int index) {
     final schemeNameHindi = app['scheme_name_hindi']?.toString() ??
@@ -636,7 +800,8 @@ class _UserSchemeApplicationsScreenState
         'योजना';
     final schemeName = app['scheme_name']?.toString() ?? 'Scheme';
     final status = app['status']?.toString() ?? 'pending';
-    final applicationId = app['application_id']?.toString() ?? '';
+    final applicationId =
+        app['display_application_number']?.toString() ?? '';
     final createdAt = app['created_at']?.toString() ?? '';
     final level = app['scheme_level']?.toString() ?? 'central';
     final state = app['scheme_state']?.toString();
@@ -644,11 +809,14 @@ class _UserSchemeApplicationsScreenState
     final statusColor = _getStatusColor(status);
     final statusLabel = _getStatusLabelHindi(status);
 
+    // ✅ Payment status badge
+    final paymentStatusText = _SchemePaymentHelper.displayPaymentStatus(app);
+    final paymentStatusColor = _SchemePaymentHelper.paymentStatusColor(app);
+
     final levelLabel = level == 'central'
         ? 'केंद्रीय'
         : 'राज्य${state != null ? " • $state" : ""}';
 
-    // ✅ Count documents from pre-computed value
     final docsCount = app['_doc_count'] ?? _countApplicationDocs(app);
 
     return GestureDetector(
@@ -716,8 +884,11 @@ class _UserSchemeApplicationsScreenState
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 6),
-                      Row(
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
                         children: [
+                          // Level
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -737,7 +908,7 @@ class _UserSchemeApplicationsScreenState
                               ),
                             ),
                           ),
-                          const SizedBox(width: 6),
+                          // Status
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -756,9 +927,39 @@ class _UserSchemeApplicationsScreenState
                               ),
                             ),
                           ),
-                          // ✅ DOCUMENT COUNT BADGE
-                          if (docsCount > 0) ...[
-                            const SizedBox(width: 6),
+                          // ✅ Payment badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color:
+                                  paymentStatusColor.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.payment,
+                                  size: 10,
+                                  color: paymentStatusColor,
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  paymentStatusText,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: paymentStatusColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Docs count
+                          if (docsCount > 0)
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -788,7 +989,6 @@ class _UserSchemeApplicationsScreenState
                                 ],
                               ),
                             ),
-                          ],
                         ],
                       ),
                     ],
@@ -976,12 +1176,8 @@ class _UserSchemeApplicationsScreenState
 
 // ============================================================================
 // SCREEN 2: SCHEME APPLICATION DETAIL (RENDERED INLINE)
-// ✅ FIXED: Reads documents from BOTH `documents` AND `scheme_documents`
-// ✅ FIXED: Falls back to dedicated documents endpoint (mirrors service logic)
-// ✅ FIXED: COMPLETE document fetching with ALL strategies
-// ✅ FIXED: User documents AND admin documents now properly separated
-// ✅ FIXED: Legacy `documents` array NOW READ (this was the actual bug)
-// ✅ CRITICAL FIX: source check accepts BOTH 'schemes_application' AND empty
+// ✅ All original fixes preserved
+// ✅ NEW: Payment Information card (mirrors service screen)
 // ============================================================================
 
 class _SchemeApplicationDetailView extends StatefulWidget {
@@ -1010,9 +1206,6 @@ class _SchemeApplicationDetailViewState
   Map<String, dynamic>? _application;
   Map<String, dynamic>? _scheme;
 
-  // ============================================================
-  // ✅ DOCUMENTS — STRICTLY SPLIT (mirrors service screen)
-  // ============================================================
   List<Map<String, dynamic>> _userDocuments = [];
   List<Map<String, dynamic>> _adminDocuments = [];
   bool _isLoadingDocs = false;
@@ -1021,25 +1214,20 @@ class _SchemeApplicationDetailViewState
   @override
   void initState() {
     super.initState();
-    // ✅ Use initial data if available for instant display
     if (widget.initialData != null) {
       _application = Map<String, dynamic>.from(widget.initialData!);
       debugPrint("=" * 70);
       debugPrint("📄 [DETAIL] Initial data provided:");
       debugPrint("   Keys: ${_application!.keys.toList()}");
-      debugPrint("   scheme_documents: ${_application!['scheme_documents']}");
-      debugPrint("   documents: ${_application!['documents']}");
       debugPrint("=" * 70);
 
-      // ✅ CRITICAL: Process documents from initialData IMMEDIATELY
-      //    so they show up before the API call completes
       _processDocumentsFromMap(_application!);
     }
     _loadApplicationDetail();
   }
 
   // ============================================================
-  // ✅ NEW HELPER: Process documents from a map (used for initialData)
+  // ✅ Process documents from a map
   // ============================================================
   void _processDocumentsFromMap(Map<String, dynamic> appMap) {
     final List<Map<String, dynamic>> userDocs = [];
@@ -1047,13 +1235,11 @@ class _SchemeApplicationDetailViewState
     final Set<String> seenUrls = {};
 
     debugPrint("📄 [PRE-PROCESS] Reading from initialData...");
-    debugPrint("   scheme_documents type: ${appMap['scheme_documents'].runtimeType}");
-    debugPrint("   documents type: ${appMap['documents'].runtimeType}");
 
-    // ---------- A. From `scheme_documents` array ----------
     final schemeDocsArray = appMap['scheme_documents'];
     if (schemeDocsArray is List) {
-      debugPrint("📄 [PRE-PROCESS] Found ${schemeDocsArray.length} in scheme_documents");
+      debugPrint(
+          "📄 [PRE-PROCESS] Found ${schemeDocsArray.length} in scheme_documents");
       for (final raw in schemeDocsArray) {
         if (raw is! Map) continue;
         final d = Map<String, dynamic>.from(raw);
@@ -1078,8 +1264,6 @@ class _SchemeApplicationDetailViewState
           'uploaded_at': d['uploaded_at'],
         };
 
-        // ✅ FIX: Accept 'schemes_application' OR empty as USER doc
-        //    Only route to admin if source is explicitly admin_*
         if (source == 'admin_review' || source == 'admin_final') {
           adminDocs.add({
             ...entry,
@@ -1100,10 +1284,10 @@ class _SchemeApplicationDetailViewState
       }
     }
 
-    // ---------- B. From `documents` array (LEGACY) ----------
     final docsArray = appMap['documents'];
     if (docsArray is List) {
-      debugPrint("📄 [PRE-PROCESS] Found ${docsArray.length} in documents");
+      debugPrint(
+          "📄 [PRE-PROCESS] Found ${docsArray.length} in documents");
       for (final raw in docsArray) {
         if (raw is! Map) continue;
         final d = Map<String, dynamic>.from(raw);
@@ -1132,7 +1316,6 @@ class _SchemeApplicationDetailViewState
       }
     }
 
-    // ---------- C. Admin top-level URLs ----------
     final submittedUrl = appMap['submitted_document_url'];
     if (_isValidDocUrl(submittedUrl)) {
       final urlStr = submittedUrl.toString().trim();
@@ -1173,7 +1356,8 @@ class _SchemeApplicationDetailViewState
       }
     }
 
-    debugPrint("✅ [PRE-PROCESS] userDocs=${userDocs.length}, adminDocs=${adminDocs.length}");
+    debugPrint(
+        "✅ [PRE-PROCESS] userDocs=${userDocs.length}, adminDocs=${adminDocs.length}");
 
     if (mounted) {
       setState(() {
@@ -1193,7 +1377,6 @@ class _SchemeApplicationDetailViewState
     });
 
     try {
-      // ✅ STEP 1: Fetch main application detail
       final res = await DioClient.dio.get(
         '/schemes/application/${widget.applicationId}',
       );
@@ -1202,9 +1385,7 @@ class _SchemeApplicationDetailViewState
 
       debugPrint("=" * 70);
       debugPrint("📄 SCHEME APPLICATION DETAIL RESPONSE");
-      debugPrint("   Application ID: ${widget.applicationId}");
-      debugPrint("   Response type: ${res.data.runtimeType}");
-      debugPrint("   Response: ${res.data}");
+      debugPrint("   Application ID (requested): ${widget.applicationId}");
       debugPrint("=" * 70);
 
       final body = res.data;
@@ -1220,11 +1401,6 @@ class _SchemeApplicationDetailViewState
       final app = data['application'] as Map?;
       final scheme = data['scheme'] as Map?;
 
-      debugPrint("📄 App keys: ${app?.keys.toList()}");
-      debugPrint("📄 scheme_documents: ${app?['scheme_documents']}");
-      debugPrint("📄 documents: ${app?['documents']}");
-      debugPrint("📄 Scheme keys: ${scheme?.keys.toList()}");
-
       setState(() {
         if (app != null) {
           _application = Map<String, dynamic>.from(app);
@@ -1233,13 +1409,10 @@ class _SchemeApplicationDetailViewState
         _isLoading = false;
       });
 
-      // ✅ STEP 2: Process docs from the freshly loaded application
       if (_application != null) {
         _processDocumentsFromMap(_application!);
       }
 
-      // ✅ STEP 3: Also try the dedicated documents endpoint
-      //    This ADDS to the existing list (dedupe by URL)
       await _fetchApplicationDocuments();
     } catch (e) {
       debugPrint("❌ Failed to load application detail: $e");
@@ -1252,19 +1425,15 @@ class _SchemeApplicationDetailViewState
   }
 
   // ============================================================
-  // ✅ FETCH DOCUMENTS — FULL SOURCE LOADING
-  // ✅ FIXED: reads from `documents` array (legacy)
-  // ✅ FIXED: source check accepts 'schemes_application'
+  // ✅ FETCH DOCUMENTS
   // ============================================================
   Future<void> _fetchApplicationDocuments() async {
     if (!mounted) return;
 
-    // ✅ Start from existing docs (from initialData / fresh app load)
     final List<Map<String, dynamic>> userDocs = List.from(_userDocuments);
     final List<Map<String, dynamic>> adminDocs = List.from(_adminDocuments);
     final Set<String> seenUrls = {};
 
-    // Seed seen URLs
     for (final d in userDocs) {
       final u = d['url']?.toString() ?? '';
       if (u.isNotEmpty) seenUrls.add(u);
@@ -1274,62 +1443,34 @@ class _SchemeApplicationDetailViewState
       if (u.isNotEmpty) seenUrls.add(u);
     }
 
-    debugPrint("=" * 70);
-    debugPrint("📄 FETCHING FROM /documents ENDPOINT");
-    debugPrint("   Starting with userDocs=${userDocs.length}, adminDocs=${adminDocs.length}");
-    debugPrint("=" * 70);
-
-    // ============================================================
-    // ✅ SOURCE 1: Dedicated documents endpoint
-    // ============================================================
     try {
-      debugPrint(
-          "📄 GET /schemes/application/${widget.applicationId}/documents");
-
       final docsRes = await DioClient.dio.get(
         '/schemes/application/${widget.applicationId}/documents',
       );
 
-      debugPrint("📄 Dedicated endpoint response: ${docsRes.data}");
-
       if (docsRes.data is Map && docsRes.data['success'] == true) {
-        // ---------- A. User scheme documents ----------
         final List<dynamic> schemeDocs =
             (docsRes.data['scheme_documents'] as List?) ?? [];
-        debugPrint("📄 Received ${schemeDocs.length} scheme_documents from endpoint");
 
         for (final raw in schemeDocs) {
           if (raw is! Map) continue;
           final d = Map<String, dynamic>.from(raw);
 
           final url = (d['url'] ?? d['document_url'] ?? '').toString().trim();
-          if (!_isValidDocUrl(url)) {
-            debugPrint("⏭️ Skipping invalid URL: $url");
-            continue;
-          }
-          if (seenUrls.contains(url)) {
-            debugPrint("⏭️ Skipping duplicate URL: $url");
-            continue;
-          }
+          if (!_isValidDocUrl(url)) continue;
+          if (seenUrls.contains(url)) continue;
           seenUrls.add(url);
 
-          // ✅ CRITICAL FIX: Accept BOTH 'schemes_application' AND empty.
-          //    Only skip if explicitly a NON-scheme source (like 'service_application'
-          //    or 'user_documents' or 'job_application').
           final source = (d['source'] ?? '').toString();
           final sourceLower = source.toLowerCase();
 
-          final isKnownNonSchemeSource = sourceLower == 'service_application' ||
-              sourceLower == 'user_documents' ||
-              sourceLower == 'job_application' ||
-              sourceLower == 'user_application';
+          final isKnownNonSchemeSource =
+              sourceLower == 'service_application' ||
+                  sourceLower == 'user_documents' ||
+                  sourceLower == 'job_application' ||
+                  sourceLower == 'user_application';
 
-          if (isKnownNonSchemeSource) {
-            debugPrint("⏭️ Skipping non-scheme doc (source=$source)");
-            continue;
-          }
-
-          debugPrint("✅ Adding USER doc: ${d['label'] ?? d['document_name']} → $url");
+          if (isKnownNonSchemeSource) continue;
 
           userDocs.add({
             'key': (d['document_type'] ?? 'document').toString(),
@@ -1348,10 +1489,8 @@ class _SchemeApplicationDetailViewState
           });
         }
 
-        // ---------- B. Admin documents ----------
         final List<dynamic> adminDocsRaw =
             (docsRes.data['admin_documents'] as List?) ?? [];
-        debugPrint("📄 Received ${adminDocsRaw.length} admin_documents from endpoint");
 
         for (final raw in adminDocsRaw) {
           if (raw is! Map) continue;
@@ -1365,8 +1504,6 @@ class _SchemeApplicationDetailViewState
           final source = (d['source'] ?? '').toString();
           final isAdminReview = source == 'admin_review';
 
-          debugPrint("✅ Adding ADMIN doc: ${d['label']} → $url");
-
           adminDocs.add({
             'key': (d['document_type'] ?? 'admin_doc').toString(),
             'label': (d['label'] ?? 'Admin Document').toString(),
@@ -1379,20 +1516,13 @@ class _SchemeApplicationDetailViewState
             'badgeColor': isAdminReview ? Colors.orange : Colors.deepPurple,
           });
         }
-      } else {
-        debugPrint("⚠️ Endpoint returned non-success: ${docsRes.data}");
       }
     } catch (e) {
       debugPrint("⚠️ Dedicated documents endpoint failed: $e");
     }
 
-    // ============================================================
-    // ✅ SOURCE 2: SchemeService.getApplicationDocuments (fallback)
-    // ============================================================
     if (userDocs.isEmpty && adminDocs.isEmpty) {
       try {
-        debugPrint("🔄 Trying SchemeService.getApplicationDocuments...");
-
         final docsResult =
             await SchemeService.getApplicationDocuments(widget.applicationId);
 
@@ -1444,24 +1574,10 @@ class _SchemeApplicationDetailViewState
                 source == 'admin_review' ? Colors.orange : Colors.deepPurple,
           });
         }
-
-        debugPrint(
-            "✅ SchemeService fallback: ${userDocs.length} user, ${adminDocs.length} admin");
       } catch (e) {
         debugPrint("⚠️ SchemeService fallback failed: $e");
       }
     }
-
-    debugPrint("=" * 70);
-    debugPrint("✅ FINAL USER documents: ${userDocs.length}");
-    debugPrint("✅ FINAL ADMIN documents: ${adminDocs.length}");
-    for (final d in userDocs) {
-      debugPrint("   USER: ${d['label']} → ${d['url']}");
-    }
-    for (final d in adminDocs) {
-      debugPrint("   ADMIN: ${d['label']} → ${d['url']}");
-    }
-    debugPrint("=" * 70);
 
     if (mounted) {
       setState(() {
@@ -1716,10 +1832,11 @@ class _SchemeApplicationDetailViewState
                                 const SizedBox(height: 14),
                                 _buildBankCard(),
                                 const SizedBox(height: 14),
-                                // ✅ ADMIN DOCUMENTS CARD
+                                // ✅ NEW: Payment Information card
+                                _buildPaymentInformationCard(),
+                                const SizedBox(height: 14),
                                 _buildAdminDocumentsCard(),
                                 const SizedBox(height: 14),
-                                // ✅ USER DOCUMENTS CARD
                                 _buildUserDocumentsCard(),
                                 const SizedBox(height: 14),
                                 _buildTimelineCard(),
@@ -1736,7 +1853,7 @@ class _SchemeApplicationDetailViewState
   }
 
   // ============================================================
-  // TOP HEADER (with back button)
+  // TOP HEADER
   // ============================================================
   Widget _buildTopHeader() {
     return Container(
@@ -1899,7 +2016,8 @@ class _SchemeApplicationDetailViewState
     final status = _str(_app['status'], fallback: 'pending').toLowerCase();
     final statusColor = _getStatusColor(status);
     final statusLabel = _getStatusLabelHindi(status);
-    final appId = _str(_app['application_id']);
+
+    final appId = _ApplicationNumberResolver.resolve(_app);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1972,7 +2090,7 @@ class _SchemeApplicationDetailViewState
                 ),
                 const SizedBox(height: 6),
                 SelectableText(
-                  appId,
+                  appId.isEmpty ? '—' : appId,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
@@ -2130,7 +2248,141 @@ class _SchemeApplicationDetailViewState
   }
 
   // ============================================================
-  // ✅ ADMIN DOCUMENTS CARD
+  // ✅ NEW: PAYMENT INFORMATION CARD (mirrors service screen)
+  // ============================================================
+  Widget _buildPaymentInformationCard() {
+    final app = _app;
+
+    final paymentStatusKey = _SchemePaymentHelper.paymentStatus(app);
+    final paymentStatusText = _SchemePaymentHelper.displayPaymentStatus(app);
+    final paymentStatusColor = _SchemePaymentHelper.paymentStatusColor(app);
+
+    final transactionId = (
+      app['razorpay_payment_id'] ??
+      app['transaction_id'] ??
+      app['payment_id'] ??
+      'N/A'
+    ).toString();
+
+    final paymentAmount =
+        app['payment_amount'] ?? app['payment_total'] ?? app['amount'];
+
+    final paymentCategory = (
+      app['payment_category_used'] ??
+      app['payment_method'] ??
+      'N/A'
+    ).toString().toUpperCase();
+
+    final verifiedAt = app['payment_verified_at'] ??
+        app['paid_at'] ??
+        app['transaction_date'] ??
+        app['applied_at'];
+
+    final verifiedAtStr =
+        verifiedAt != null ? _formatDate(verifiedAt.toString()) : 'N/A';
+
+    final receiptUrl = app['payment_receipt_url'] ??
+        app['screenshot_url'] ??
+        app['receipt_url'];
+
+    final rejectionReason = app['payment_rejection_reason'] ??
+        app['verification_notes'] ??
+        '';
+
+    final razorpayOrderId = app['razorpay_order_id']?.toString() ?? '';
+
+    return _buildCard(
+      title: 'भुगतान जानकारी',
+      titleEn: 'Payment Information',
+      icon: Icons.receipt_long,
+      iconColor: paymentStatusColor,
+      badgeText: paymentStatusText,
+      badgeColor: paymentStatusColor.withOpacity(0.15),
+      badgeTextColor: paymentStatusColor,
+      children: [
+        _buildRow('लेन-देन आईडी / Transaction ID', transactionId,
+            isMono: true),
+        _buildRow('दिनांक / Date', verifiedAtStr),
+        _buildRow(
+          'राशि / Amount',
+          paymentAmount != null ? '₹$paymentAmount' : 'N/A',
+          isBold: true,
+        ),
+        _buildRow('श्रेणी / Category', paymentCategory),
+        if (razorpayOrderId.isNotEmpty)
+          _buildRow('Razorpay Order', razorpayOrderId, isMono: true),
+
+        // Rejection reason (if any)
+        if (paymentStatusKey == 'rejected' && rejectionReason.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text(
+                      'अस्वीकृति कारण / Rejection Reason',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  rejectionReason,
+                  style: const TextStyle(fontSize: 12, color: Colors.red),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // Receipt button
+        if (receiptUrl != null && receiptUrl.toString().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton.icon(
+              onPressed: () => _openDocumentViewer(
+                receiptUrl.toString(),
+                title: 'Payment Receipt',
+                downloadUrl: receiptUrl.toString(),
+                fileType: _fileTypeForUrl(receiptUrl.toString()),
+              ),
+              icon: const Icon(Icons.receipt, size: 18),
+              label: const Text(
+                'भुगतान रसीद देखें / View Payment Receipt',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: paymentStatusColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ============================================================
+  // ADMIN DOCUMENTS CARD
   // ============================================================
   Widget _buildAdminDocumentsCard() {
     final count = _adminDocuments.length;
@@ -2187,7 +2439,7 @@ class _SchemeApplicationDetailViewState
   }
 
   // ============================================================
-  // ✅ USER DOCUMENTS CARD
+  // USER DOCUMENTS CARD
   // ============================================================
   Widget _buildUserDocumentsCard() {
     final count = _userDocuments.length;
@@ -2244,7 +2496,7 @@ class _SchemeApplicationDetailViewState
   }
 
   // ============================================================
-  // ✅ DOCUMENT TILE (mirrors service screen)
+  // DOCUMENT TILE
   // ============================================================
   Widget _buildDocumentTile(
     Map<String, dynamic> doc, {

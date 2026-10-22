@@ -5,6 +5,10 @@ Government Schemes Service
 ✅ CRITICAL FIX: application_id now stores the APPLICATION NUMBER (YYYYMMSSSSS)
 ✅ CRITICAL FIX: Documents are stored in `scheme_documents[]` (not `documents[]`)
 ✅ CRITICAL FIX: Every document entry gets source="schemes_application"
+✅ CRITICAL FIX: All lookups accept BOTH application_number AND application_id
+✅ CRITICAL FIX: Legacy `documents[]` is merged into `scheme_documents[]` on read
+✅ CRITICAL FIX: Duplicate apply MERGES documents instead of returning empty
+✅ CRITICAL FIX: New get_application_documents() merges both arrays
 ✅ Mirrors the service module pattern EXACTLY for perfect parity
 """
 
@@ -38,9 +42,6 @@ class SchemeService:
 
     # ============================================================
     # ✅ UNIVERSAL DOCUMENT NORMALIZER
-    # ------------------------------------------------------------
-    # Forces source="schemes_application"
-    # Aligns field names with service_documents format EXACTLY
     # ============================================================
     def _normalize_document_item(self, doc: Any, index: int = 0) -> Optional[Dict[str, Any]]:
         """
@@ -194,6 +195,136 @@ class SchemeService:
             "uploaded_at": uploaded_at,
             "uploaded_by": uploaded_by,
         }
+
+    # ============================================================
+    # ✅ INTERNAL HELPERS
+    # ============================================================
+
+    async def _find_application(
+        self,
+        application_id: str,
+        user_email: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        ✅ FIX #1 — Accept application_number (YYYYMMSSSSS), application_id
+        (both numeric and ObjectId), or raw Mongo _id.
+
+        Used by all detail/document/submit/update endpoints.
+        """
+        if not application_id:
+            return None
+
+        base: Dict[str, Any] = {"application_type": SCHEME_APPLICATION_TYPE}
+        if user_email:
+            base["user_email"] = user_email
+
+        # 1) Try exact application_id / application_number
+        query = dict(base)
+        query["$or"] = [
+            {"application_id": application_id},
+            {"application_number": application_id},
+        ]
+        app = await self.applications.find_one(query)
+        if app:
+            return app
+
+        # 2) Try _id if it looks like an ObjectId
+        try:
+            from bson import ObjectId
+            if ObjectId.is_valid(application_id):
+                app = await self.applications.find_one(
+                    {**base, "_id": ObjectId(application_id)}
+                )
+                if app:
+                    return app
+        except Exception:
+            pass
+
+        return None
+
+    def _merge_documents(self, application: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        ✅ FIX #2 — Merge `scheme_documents[]` AND legacy `documents[]`
+        into one deduplicated normalized list.
+
+        Dedupes by URL. Legacy entries get `source="schemes_application"`
+        when they don't already have one.
+        """
+        merged: List[Dict[str, Any]] = []
+        seen_urls: set = set()
+
+        for arr_name in ("scheme_documents", "documents"):
+            arr = application.get(arr_name) or []
+            if not isinstance(arr, list):
+                continue
+
+            for d in arr:
+                if not isinstance(d, dict):
+                    continue
+
+                url = (
+                    d.get("url")
+                    or d.get("document_url")
+                    or ""
+                ).strip()
+                if not url or url.lower() in ("null", "undefined", "", "none", "n/a"):
+                    continue
+                if url in seen_urls:
+                    continue
+                seen_urls.add(url)
+
+                merged.append({
+                    "document_type": (
+                        d.get("document_type")
+                        or d.get("type")
+                        or d.get("doc_type")
+                        or "document"
+                    ),
+                    "label": (
+                        d.get("label")
+                        or d.get("document_name")
+                        or d.get("name")
+                        or "Document"
+                    ),
+                    "url": url,
+                    "download_url": d.get("download_url") or url,
+                    "public_id": d.get("public_id"),
+                    "resource_type": d.get("resource_type", "auto"),
+                    "file_name": (
+                        d.get("file_name")
+                        or d.get("document_name")
+                        or d.get("name")
+                    ),
+                    "file_size": d.get("file_size", 0),
+                    "is_pdf": d.get("is_pdf", False),
+                    "is_image": d.get("is_image", False),
+                    "source": d.get("source", "schemes_application"),
+                    "uploaded_at": (
+                        d["uploaded_at"].isoformat()
+                        if isinstance(d.get("uploaded_at"), datetime)
+                        else d.get("uploaded_at")
+                    ),
+                    "uploaded_by": d.get("uploaded_by"),
+                })
+
+        return merged
+
+    def _serialize_timestamps(self, application: Dict[str, Any]) -> None:
+        """Serialize all known datetime fields to ISO strings (in place)."""
+        for field in (
+            "created_at",
+            "updated_at",
+            "applied_at",
+            "submitted_at",
+            "reviewed_at",
+        ):
+            if isinstance(application.get(field), datetime):
+                application[field] = application[field].isoformat()
+
+    def _ensure_application_number(self, application: Dict[str, Any]) -> None:
+        """Backfill application_number if it's missing (in place)."""
+        if not application.get("application_number"):
+            application["application_number"] = application.get("application_id")
 
     # ============================================================
     # SCHEME LISTING
@@ -352,10 +483,6 @@ class SchemeService:
 
     # ============================================================
     # ✅ CREATE APPLICATION
-    # ------------------------------------------------------------
-    # ✅ CRITICAL FIX: application_id = APPLICATION NUMBER (YYYYMMSSSSS)
-    # ✅ CRITICAL FIX: documents → scheme_documents[]
-    # ✅ CRITICAL FIX: every doc gets source="schemes_application"
     # ============================================================
     async def create_application(
         self,
@@ -367,12 +494,10 @@ class SchemeService:
         """
         Submit a scheme application.
 
-        ✅ AUTO-FILL: If applicant_details/address/bank_details are missing,
-        they are automatically fetched from the user's profile.
-
-        ✅ CRITICAL FIX: application_id = APPLICATION NUMBER (YYYYMMSSSSS)
-        ✅ CRITICAL FIX: Documents are stored in `scheme_documents[]`
-        ✅ CRITICAL FIX: Every doc gets `source: "schemes_application"`
+        ✅ Duplicate apply → MERGES documents into existing record
+        ✅ application_id = APPLICATION NUMBER (YYYYMMSSSSS)
+        ✅ Documents are stored in `scheme_documents[]`
+        ✅ Every doc gets `source: "schemes_application"`
         """
         try:
             scheme_id = (data.get("scheme_id") or "").strip()
@@ -384,7 +509,7 @@ class SchemeService:
             # ---------- Lookup scheme ----------
             total_in_db = await self.schemes.count_documents({})
             module_logger.info("=" * 70)
-            module_logger.info(f"🔍 SCHEME APPLICATION LOOKUP")
+            module_logger.info("🔍 SCHEME APPLICATION LOOKUP")
             module_logger.info(f"   Requested scheme_id: '{scheme_id}'")
             module_logger.info(f"   Total schemes in DB:  {total_in_db}")
 
@@ -434,14 +559,10 @@ class SchemeService:
                     ),
                 )
 
-            module_logger.info(
-                f"✅ Found scheme: {scheme.get('scheme_name')}"
-            )
+            module_logger.info(f"✅ Found scheme: {scheme.get('scheme_name')}")
             module_logger.info("=" * 70)
 
-            scheme_name_hindi = (
-                scheme.get("scheme_name_hindi") or ""
-            ).strip()
+            scheme_name_hindi = (scheme.get("scheme_name_hindi") or "").strip()
             scheme_name_en = (scheme.get("scheme_name") or "").strip()
             resolved_scheme_name = (
                 scheme_name_hindi or scheme_name_en or scheme_id
@@ -451,58 +572,39 @@ class SchemeService:
             if override_name:
                 resolved_scheme_name = override_name
 
-            # ---------- Duplicate check ----------
-            existing = await self.applications.find_one(
-                {
-                    "application_type": SCHEME_APPLICATION_TYPE,
-                    "user_email": user_email,
-                    "scheme_id": scheme_id,
-                    "status": {
-                        "$nin": [
-                            "rejected",
-                            "verification_rejected",
-                            "cancelled",
-                        ]
-                    },
-                    "is_archived": {"$ne": True},
-                }
+            # ============================================================
+            # ✅ NORMALIZE INCOMING DOCS (do this BEFORE duplicate check
+            #    so we can merge them if an application already exists)
+            # ============================================================
+            now = datetime.utcnow()
+            incoming_docs = data.get("documents") or []
+            module_logger.info("=" * 70)
+            module_logger.info(
+                f"📎 PROCESSING {len(incoming_docs)} INCOMING DOCUMENT(S)"
             )
-            if existing:
+            for i, d in enumerate(incoming_docs):
+                module_logger.info(f"   [{i}] {d}")
+            module_logger.info("=" * 70)
+
+            normalized_docs: List[Dict[str, Any]] = []
+            for idx, d in enumerate(incoming_docs):
+                normalized = self._normalize_document_item(d, idx)
+                if normalized:
+                    if normalized.get("uploaded_by") is None:
+                        normalized["uploaded_by"] = user_email
+                    normalized_docs.append(normalized)
+
+            module_logger.info(
+                f"📎 NORMALIZED {len(normalized_docs)} document(s) "
+                f"out of {len(incoming_docs)} incoming"
+            )
+            for i, doc in enumerate(normalized_docs):
                 module_logger.info(
-                    f"📋 Existing application found: "
-                    f"application_id={existing.get('application_id')}"
+                    f"   [{i}] {doc['document_type']} → {doc['url'][:80]}"
                 )
-                return {
-                    "success": True,
-                    "message": "You have already applied for this scheme",
-                    "application_id": existing.get("application_id"),
-                    "application_number": existing.get("application_id"),
-                    "status": existing.get("status", "pending"),
-                    "already_exists": True,
-                }
 
             # ============================================================
-            # ✅ GENERATE APPLICATION NUMBER (WILL BE USED AS application_id)
-            # ============================================================
-            try:
-                application_number = await ApplicationNumberGenerator.generate_application_number(self.db)
-                module_logger.info("=" * 70)
-                module_logger.info(f"🎫 APPLICATION NUMBER GENERATED: {application_number}")
-                module_logger.info(f"   Format: YYYYMMSSSSS")
-                module_logger.info(f"   Year: {application_number[:4]}")
-                module_logger.info(f"   Month: {application_number[4:6]}")
-                module_logger.info(f"   Sequence: {application_number[6:]}")
-                module_logger.info("=" * 70)
-            except Exception as e:
-                module_logger.error(f"❌ Failed to generate application number: {e}")
-                from datetime import datetime as dt
-                now = dt.utcnow()
-                fallback_seq = int(now.timestamp()) % 100000
-                application_number = f"{now.year}{now.month:02d}{fallback_seq:05d}"
-                module_logger.warning(f"⚠️ Using fallback application number: {application_number}")
-
-            # ============================================================
-            # ✅ AUTO-FILL FROM PROFILE
+            # ✅ AUTO-FILL FROM PROFILE (needed for both create + merge paths)
             # ============================================================
             profile = await self.profile.find_one({"email": user_email})
             auth_user = await self.auth.find_one({"email": user_email})
@@ -518,7 +620,6 @@ class SchemeService:
             provided_address = data.get("applicant_address", {}) or {}
             provided_bank = data.get("bank_details", {}) or {}
 
-            # --- Build complete applicant details ---
             disability = (profile.get("disability", {}) or {}) if profile else {}
             gov_ids = (profile.get("government_ids", {}) or {}) if profile else {}
 
@@ -562,8 +663,7 @@ class SchemeService:
                     (profile.get("phone") if profile else "")
                 ),
                 "email": (
-                    provided_details.get("email") or
-                    user_email
+                    provided_details.get("email") or user_email
                 ),
                 "annual_income": (
                     provided_details.get("annual_income") or
@@ -586,7 +686,6 @@ class SchemeService:
                 "application_type": SCHEME_APPLICATION_TYPE,
             }
 
-            # --- Build complete address ---
             current_address = (
                 (profile.get("current_address", {}) or {}) if profile else {}
             )
@@ -595,36 +694,30 @@ class SchemeService:
                 "address_line1": (
                     provided_address.get("address_line1") or
                     current_address.get("house_number") or
-                    current_address.get("address_line1") or
-                    ""
+                    current_address.get("address_line1") or ""
                 ),
                 "address_line2": (
                     provided_address.get("address_line2") or
                     current_address.get("landmark") or
-                    current_address.get("address_line2") or
-                    ""
+                    current_address.get("address_line2") or ""
                 ),
                 "village_city": (
                     provided_address.get("village_city") or
                     current_address.get("village_name") or
-                    current_address.get("city") or
-                    ""
+                    current_address.get("city") or ""
                 ),
                 "district": (
                     provided_address.get("district") or
-                    current_address.get("district") or
-                    ""
+                    current_address.get("district") or ""
                 ),
                 "state": (
                     provided_address.get("state") or
-                    current_address.get("state") or
-                    ""
+                    current_address.get("state") or ""
                 ),
                 "pincode": (
                     provided_address.get("pincode") or
                     current_address.get("pincode") or
-                    current_address.get("zipcode") or
-                    ""
+                    current_address.get("zipcode") or ""
                 ),
                 "country": (
                     provided_address.get("country") or
@@ -633,7 +726,6 @@ class SchemeService:
                 ),
             }
 
-            # --- Build complete bank details ---
             profile_bank = (
                 (profile.get("bank_details", {}) or {}) if profile else {}
             )
@@ -641,28 +733,23 @@ class SchemeService:
             bank_details = {
                 "account_holder_name": (
                     provided_bank.get("account_holder_name") or
-                    profile_bank.get("account_holder_name") or
-                    ""
+                    profile_bank.get("account_holder_name") or ""
                 ),
                 "bank_name": (
                     provided_bank.get("bank_name") or
-                    profile_bank.get("bank_name") or
-                    ""
+                    profile_bank.get("bank_name") or ""
                 ),
                 "account_number": (
                     provided_bank.get("account_number") or
-                    profile_bank.get("account_number") or
-                    ""
+                    profile_bank.get("account_number") or ""
                 ),
                 "ifsc_code": (
                     provided_bank.get("ifsc_code") or
-                    profile_bank.get("ifsc_code") or
-                    ""
+                    profile_bank.get("ifsc_code") or ""
                 ),
                 "branch_name": (
                     provided_bank.get("branch_name") or
-                    profile_bank.get("branch_name") or
-                    ""
+                    profile_bank.get("branch_name") or ""
                 ),
                 "account_type": (
                     provided_bank.get("account_type") or
@@ -672,47 +759,117 @@ class SchemeService:
             }
 
             # ============================================================
-            # ✅ NORMALIZE DOCUMENTS → SCHEME_DOCUMENTS
+            # ✅ DUPLICATE CHECK → MERGE INSTEAD OF RETURNING EMPTY
             # ============================================================
-            now = datetime.utcnow()
-
-            incoming_docs = data.get("documents") or []
-            module_logger.info("=" * 70)
-            module_logger.info(
-                f"📎 PROCESSING {len(incoming_docs)} INCOMING DOCUMENT(S)"
+            existing = await self.applications.find_one(
+                {
+                    "application_type": SCHEME_APPLICATION_TYPE,
+                    "user_email": user_email,
+                    "scheme_id": scheme_id,
+                    "status": {
+                        "$nin": [
+                            "rejected",
+                            "verification_rejected",
+                            "cancelled",
+                        ]
+                    },
+                    "is_archived": {"$ne": True},
+                }
             )
-            for i, d in enumerate(incoming_docs):
-                module_logger.info(f"   [{i}] {d}")
-            module_logger.info("=" * 70)
 
-            normalized_docs: List[Dict[str, Any]] = []
-            for idx, d in enumerate(incoming_docs):
-                normalized = self._normalize_document_item(d, idx)
-                if normalized:
-                    # ✅ Tag uploader
-                    if normalized.get("uploaded_by") is None:
-                        normalized["uploaded_by"] = user_email
-                    normalized_docs.append(normalized)
-
-            module_logger.info(
-                f"📎 NORMALIZED {len(normalized_docs)} document(s) "
-                f"out of {len(incoming_docs)} incoming"
-            )
-            for i, doc in enumerate(normalized_docs):
+            if existing:
+                module_logger.info("=" * 70)
                 module_logger.info(
-                    f"   [{i}] {doc['document_type']} → "
-                    f"{doc['url'][:80]}"
+                    f"📋 EXISTING application found: _id={existing['_id']}, "
+                    f"application_id={existing.get('application_id')} — MERGING"
                 )
 
+                # ✅ Start from merged existing docs (scheme_documents + legacy)
+                merged_existing = self._merge_documents(existing)
+                existing_urls = {d["url"] for d in merged_existing}
+
+                # ✅ Append new docs (skip duplicates)
+                added = 0
+                for d in normalized_docs:
+                    u = (d.get("url") or "").strip()
+                    if u and u not in existing_urls:
+                        merged_existing.append(d)
+                        existing_urls.add(u)
+                        added += 1
+
+                # ✅ Backfill authoritative application_number
+                resolved_number = (
+                    existing.get("application_number")
+                    or existing.get("application_id")
+                )
+
+                update_fields: Dict[str, Any] = {
+                    "scheme_documents": merged_existing,
+                    "documents": [],       # clear legacy
+                    "updated_at": now,
+                }
+                if resolved_number:
+                    update_fields["application_number"] = resolved_number
+                    update_fields["application_id"] = resolved_number
+
+                # Backfill applicant / address / bank if missing
+                if not existing.get("applicant_details"):
+                    update_fields["applicant_details"] = applicant_details
+                if not existing.get("applicant_address"):
+                    update_fields["applicant_address"] = applicant_address
+                if not existing.get("bank_details"):
+                    update_fields["bank_details"] = bank_details
+
+                await self.applications.update_one(
+                    {"_id": existing["_id"]},
+                    {"$set": update_fields},
+                )
+
+                final_id = resolved_number or str(existing["_id"])
+
+                module_logger.info(
+                    f"✅ MERGED: {added} new doc(s). "
+                    f"Total now: {len(merged_existing)}. "
+                    f"application_id={final_id}"
+                )
+                module_logger.info("=" * 70)
+
+                return {
+                    "success": True,
+                    "message": "Application updated with new documents",
+                    "application_id": final_id,
+                    "application_number": final_id,
+                    "application_type": SCHEME_APPLICATION_TYPE,
+                    "status": existing.get("status", "pending"),
+                    "already_exists": True,
+                    "documents_saved": len(merged_existing),
+                }
+
             # ============================================================
-            # ✅ BUILD APPLICATION DOCUMENT
-            # ------------------------------------------------------------
-            # ✅ application_id  = APPLICATION NUMBER (YYYYMMSSSSS)
-            # ✅ scheme_documents = normalized_docs
-            # ✅ documents       = [] (legacy, empty)
+            # ✅ FRESH INSERT
             # ============================================================
+            try:
+                application_number = await ApplicationNumberGenerator.generate_application_number(self.db)
+                module_logger.info("=" * 70)
+                module_logger.info(f"🎫 APPLICATION NUMBER GENERATED: {application_number}")
+                module_logger.info("   Format: YYYYMMSSSSS")
+                module_logger.info(f"   Year: {application_number[:4]}")
+                module_logger.info(f"   Month: {application_number[4:6]}")
+                module_logger.info(f"   Sequence: {application_number[6:]}")
+                module_logger.info("=" * 70)
+            except Exception as e:
+                module_logger.error(f"❌ Failed to generate application number: {e}")
+                from datetime import datetime as dt
+                now_dt = dt.utcnow()
+                fallback_seq = int(now_dt.timestamp()) % 100000
+                application_number = f"{now_dt.year}{now_dt.month:02d}{fallback_seq:05d}"
+                module_logger.warning(
+                    f"⚠️ Using fallback application number: {application_number}"
+                )
+
             application_doc: Dict[str, Any] = {
                 "application_id": application_number,
+                "application_number": application_number,
                 "application_type": SCHEME_APPLICATION_TYPE,
                 "user_email": user_email,
                 "user_id": user_id,
@@ -755,9 +912,13 @@ class SchemeService:
             }
 
             module_logger.info("=" * 70)
-            module_logger.info(f"💾 INSERTING SCHEME APPLICATION")
-            module_logger.info(f"   application_id (= application_number): {application_number}")
-            module_logger.info(f"   scheme_documents: {len(normalized_docs)} doc(s)")
+            module_logger.info("💾 INSERTING SCHEME APPLICATION")
+            module_logger.info(
+                f"   application_id (= application_number): {application_number}"
+            )
+            module_logger.info(
+                f"   scheme_documents: {len(normalized_docs)} doc(s)"
+            )
             module_logger.info("=" * 70)
 
             await self.applications.insert_one(application_doc)
@@ -792,9 +953,7 @@ class SchemeService:
                         application_number,
                     )
                 except Exception as e:
-                    module_logger.warning(
-                        f"Notification send failed: {e}"
-                    )
+                    module_logger.warning(f"Notification send failed: {e}")
 
             return {
                 "success": True,
@@ -808,9 +967,7 @@ class SchemeService:
         except HTTPException:
             raise
         except Exception as e:
-            module_logger.error(
-                f"Error creating scheme application: {e}"
-            )
+            module_logger.error(f"Error creating scheme application: {e}")
             import traceback
             traceback.print_exc()
             raise HTTPException(status_code=500, detail=str(e))
@@ -825,12 +982,8 @@ class SchemeService:
         additional_data: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         try:
-            application = await self.applications.find_one(
-                {
-                    "application_type": SCHEME_APPLICATION_TYPE,
-                    "application_id": application_id,
-                    "user_email": user_email,
-                }
+            application = await self._find_application(
+                application_id, user_email=user_email
             )
 
             if not application:
@@ -848,7 +1001,8 @@ class SchemeService:
                 return {
                     "success": True,
                     "message": f"Application already {current_status}",
-                    "application_id": application_id,
+                    "application_id": application.get("application_number")
+                        or application.get("application_id"),
                     "status": current_status,
                 }
 
@@ -869,12 +1023,17 @@ class SchemeService:
                     ]
 
             await self.applications.update_one(
-                {"application_id": application_id},
+                {"_id": application["_id"]},
                 {"$set": update_data},
             )
 
+            resolved_number = (
+                application.get("application_number")
+                or application.get("application_id")
+            )
+
             module_logger.info(
-                f"✅ Application {application_id} submitted successfully"
+                f"✅ Application {resolved_number} submitted successfully"
             )
 
             scheme_name = (
@@ -892,11 +1051,11 @@ class SchemeService:
                     message=(
                         f"Dear {user_name}, your application for "
                         f"'{scheme_name}' has been submitted "
-                        f"successfully. Application ID: {application_id}"
+                        f"successfully. Application ID: {resolved_number}"
                     ),
-                    related_id=application_id,
+                    related_id=resolved_number,
                     metadata={
-                        "application_id": application_id,
+                        "application_id": resolved_number,
                         "scheme_name": scheme_name,
                         "status": "submitted",
                     },
@@ -909,7 +1068,7 @@ class SchemeService:
             return {
                 "success": True,
                 "message": "Application submitted successfully",
-                "application_id": application_id,
+                "application_id": resolved_number,
                 "status": "submitted",
                 "submitted_at": now.isoformat(),
             }
@@ -922,9 +1081,6 @@ class SchemeService:
 
     # ============================================================
     # ✅ UPLOAD A DOCUMENT (per application)
-    # ------------------------------------------------------------
-    # Mirrors the service upload endpoint exactly.
-    # Appends to scheme_documents[] with source="schemes_application".
     # ============================================================
     async def upload_document(
         self,
@@ -942,48 +1098,52 @@ class SchemeService:
                     detail="document_url is required",
                 )
 
-            application = await self.applications.find_one(
-                {
-                    "application_type": SCHEME_APPLICATION_TYPE,
-                    "application_id": application_id,
-                    "user_email": user_email,
-                }
+            application = await self._find_application(
+                application_id, user_email=user_email
             )
             if not application:
                 raise HTTPException(
                     status_code=404, detail="Application not found"
                 )
 
-            doc_type_safe = (document_type or "").strip() or f"document_{int(datetime.utcnow().timestamp())}"
+            doc_type_safe = (
+                (document_type or "").strip()
+                or f"document_{int(datetime.utcnow().timestamp())}"
+            )
 
             doc = {
                 "document_type": doc_type_safe,
-                "label": (document_name or "").strip() or doc_type_safe.replace("_", " ").title(),
+                "label": (
+                    (document_name or "").strip()
+                    or doc_type_safe.replace("_", " ").title()
+                ),
                 "url": document_url.strip(),
                 "download_url": document_url.strip(),
                 "public_id": public_id,
                 "resource_type": "auto",
-                "file_name": (document_name or "").strip() or doc_type_safe,
+                "file_name": (
+                    (document_name or "").strip() or doc_type_safe
+                ),
                 "file_size": 0,
                 "is_pdf": bool(document_url.lower().endswith(".pdf")),
                 "is_image": bool(
                     any(document_url.lower().endswith(ext)
                         for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"))
                 ),
-                "source": "schemes_application",   # ✅ FORCED
+                "source": "schemes_application",
                 "uploaded_at": datetime.utcnow().isoformat(),
                 "uploaded_by": user_email,
             }
 
             # Replace existing doc of same type (idempotent)
             await self.applications.update_one(
-                {"application_id": application_id},
+                {"_id": application["_id"]},
                 {"$pull": {"scheme_documents": {"document_type": doc_type_safe}}},
             )
 
             # Push new doc
             await self.applications.update_one(
-                {"application_id": application_id},
+                {"_id": application["_id"]},
                 {
                     "$push": {"scheme_documents": doc},
                     "$set": {"updated_at": datetime.utcnow()},
@@ -1016,12 +1176,16 @@ class SchemeService:
         document_type: str,
     ) -> Dict[str, Any]:
         try:
+            application = await self._find_application(
+                application_id, user_email=user_email
+            )
+            if not application:
+                raise HTTPException(
+                    status_code=404, detail="Application not found"
+                )
+
             result = await self.applications.update_one(
-                {
-                    "application_id": application_id,
-                    "application_type": SCHEME_APPLICATION_TYPE,
-                    "user_email": user_email,
-                },
+                {"_id": application["_id"]},
                 {
                     "$pull": {"scheme_documents": {"document_type": document_type}},
                     "$set": {"updated_at": datetime.utcnow()},
@@ -1030,17 +1194,134 @@ class SchemeService:
 
             return {
                 "success": result.modified_count > 0,
-                "message": "Document removed" if result.modified_count > 0 else "Not found",
+                "message": (
+                    "Document removed"
+                    if result.modified_count > 0
+                    else "Not found"
+                ),
             }
+        except HTTPException:
+            raise
         except Exception as e:
             module_logger.error(f"Error deleting document: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     # ============================================================
-    # GET USER APPLICATIONS
+    # ✅ GET APPLICATION DOCUMENTS (dedicated endpoint)
     # ------------------------------------------------------------
-    # ✅ Returns scheme_documents[] (normalized + source tag)
-    # ✅ Drops legacy `documents` to prevent double-render on frontend
+    # ✅ FIX #5 — Merges scheme_documents[] + legacy documents[]
+    # ✅ FIX #5 — Splits user docs vs admin docs
+    # ============================================================
+    async def get_application_documents(
+        self,
+        application_id: str,
+        user_email: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        try:
+            module_logger.info("=" * 70)
+            module_logger.info("📄 GET SCHEME DOCUMENTS")
+            module_logger.info(f"   Raw ID from URL: '{application_id}'")
+            module_logger.info(f"   User email: {user_email}")
+            module_logger.info("=" * 70)
+
+            application = await self._find_application(
+                application_id, user_email=user_email
+            )
+            if not application:
+                module_logger.warning(
+                    f"❌ Application not found: {application_id}"
+                )
+                raise HTTPException(
+                    status_code=404, detail="Application not found"
+                )
+
+            module_logger.info(
+                f"✅ Found scheme application: _id={application['_id']}, "
+                f"application_id={application.get('application_id')}"
+            )
+
+            merged = self._merge_documents(application)
+
+            # Split into user vs admin based on `source`
+            user_docs: List[Dict[str, Any]] = []
+            admin_docs: List[Dict[str, Any]] = []
+
+            for d in merged:
+                source = (d.get("source") or "").lower()
+
+                # Skip docs explicitly belonging to other modules
+                if source in (
+                    "service_application",
+                    "service_documents",
+                    "user_documents",
+                    "job_application",
+                    "user_application",
+                ):
+                    continue
+
+                if source in ("admin_review", "admin_final"):
+                    d["badge"] = (
+                        "ADMIN REVIEW"
+                        if source == "admin_review"
+                        else "ADMIN FINAL"
+                    )
+                    d["is_admin_doc"] = True
+                    d["is_user_doc"] = False
+                    admin_docs.append(d)
+                else:
+                    d["is_admin_doc"] = False
+                    d["is_user_doc"] = True
+                    user_docs.append(d)
+
+            # Top-level admin URLs (legacy support)
+            for key_url, key_name, src in (
+                ("submitted_document_url", "submitted_document_name", "admin_review"),
+                ("final_document_url", "final_document_name", "admin_final"),
+            ):
+                url = application.get(key_url)
+                if url and isinstance(url, str) and url.strip().startswith("http"):
+                    url_str = url.strip()
+                    if not any(a.get("url") == url_str for a in admin_docs):
+                        admin_docs.append({
+                            "document_type": key_url,
+                            "label": application.get(key_name) or "Admin Document",
+                            "url": url_str,
+                            "download_url": application.get(
+                                key_url.replace("_url", "_download_url")
+                            ) or url_str,
+                            "source": src,
+                            "is_admin_doc": True,
+                            "is_user_doc": False,
+                            "badge": (
+                                "ADMIN REVIEW"
+                                if src == "admin_review"
+                                else "ADMIN FINAL"
+                            ),
+                        })
+
+            module_logger.info(
+                f"📄 Total merged: {len(merged)} | "
+                f"userDocs={len(user_docs)} | adminDocs={len(admin_docs)}"
+            )
+            module_logger.info("=" * 70)
+
+            return {
+                "success": True,
+                "scheme_documents": user_docs,
+                "admin_documents": admin_docs,
+                "total": len(user_docs) + len(admin_docs),
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            module_logger.error(f"Error getting documents: {e}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # ============================================================
+    # GET USER APPLICATIONS
     # ============================================================
     async def get_user_applications(
         self,
@@ -1064,55 +1345,13 @@ class SchemeService:
 
             for app in applications:
                 app["_id"] = str(app["_id"])
-                if isinstance(app.get("created_at"), datetime):
-                    app["created_at"] = app["created_at"].isoformat()
-                if isinstance(app.get("updated_at"), datetime):
-                    app["updated_at"] = app["updated_at"].isoformat()
-                if isinstance(app.get("applied_at"), datetime):
-                    app["applied_at"] = app["applied_at"].isoformat()
-                if isinstance(app.get("submitted_at"), datetime):
-                    app["submitted_at"] = app["submitted_at"].isoformat()
+                self._serialize_timestamps(app)
+                self._ensure_application_number(app)
 
-                # ✅ Ensure application_number
-                if "application_number" not in app or not app["application_number"]:
-                    app["application_number"] = app.get("application_id")
+                # ✅ Merge legacy + new documents into one list
+                app["scheme_documents"] = self._merge_documents(app)
 
-                # ✅ Normalize scheme_documents
-                docs = app.get("scheme_documents") or []
-                normalized = []
-                if isinstance(docs, list):
-                    for d in docs:
-                        if not isinstance(d, dict):
-                            continue
-                        url = (
-                            d.get("url")
-                            or d.get("document_url")
-                            or ""
-                        ).strip()
-                        if not url or url.lower() in ("null", "undefined", ""):
-                            continue
-                        normalized.append({
-                            "document_type": d.get("document_type"),
-                            "label": d.get("label") or d.get("document_name"),
-                            "url": url,
-                            "download_url": d.get("download_url") or url,
-                            "public_id": d.get("public_id"),
-                            "resource_type": d.get("resource_type", "auto"),
-                            "file_name": d.get("file_name"),
-                            "file_size": d.get("file_size", 0),
-                            "is_pdf": d.get("is_pdf", False),
-                            "is_image": d.get("is_image", False),
-                            "source": d.get("source", "schemes_application"),
-                            "uploaded_at": (
-                                d["uploaded_at"].isoformat()
-                                if isinstance(d.get("uploaded_at"), datetime)
-                                else d.get("uploaded_at")
-                            ),
-                            "uploaded_by": d.get("uploaded_by"),
-                        })
-                app["scheme_documents"] = normalized
-
-                # ✅ Drop legacy documents array (frontend reads scheme_documents)
+                # ✅ Drop legacy array to prevent double-render
                 app.pop("documents", None)
 
             return {
@@ -1121,72 +1360,38 @@ class SchemeService:
                 "total": len(applications),
             }
         except Exception as e:
-            module_logger.error(
-                f"Error getting user applications: {e}"
-            )
+            module_logger.error(f"Error getting user applications: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
+    # ============================================================
+    # ✅ GET APPLICATION DETAIL
+    # ------------------------------------------------------------
+    # ✅ FIX #1 — Accept application_number OR application_id OR _id
+    # ✅ FIX #2 — Merge scheme_documents[] + legacy documents[]
+    # ============================================================
     async def get_application_detail(
         self, application_id: str, user_email: str
     ) -> Dict[str, Any]:
         try:
-            application = await self.applications.find_one(
-                {
-                    "application_type": SCHEME_APPLICATION_TYPE,
-                    "application_id": application_id,
-                    "user_email": user_email,
-                }
+            application = await self._find_application(
+                application_id, user_email=user_email
             )
+
             if not application:
+                module_logger.warning(
+                    f"❌ Application not found for ID: {application_id} "
+                    f"(user={user_email})"
+                )
                 raise HTTPException(
                     status_code=404, detail="Application not found"
                 )
+
             application["_id"] = str(application["_id"])
+            self._serialize_timestamps(application)
+            self._ensure_application_number(application)
 
-            # ✅ Ensure application_number
-            if "application_number" not in application or not application["application_number"]:
-                application["application_number"] = application.get("application_id")
-
-            # ✅ Serialize timestamps
-            for field in [
-                "created_at",
-                "updated_at",
-                "applied_at",
-                "submitted_at",
-                "reviewed_at",
-            ]:
-                if isinstance(application.get(field), datetime):
-                    application[field] = application[field].isoformat()
-
-            # ✅ Normalize scheme_documents
-            docs = application.get("scheme_documents") or []
-            normalized = []
-            for d in docs:
-                if not isinstance(d, dict):
-                    continue
-                url = (d.get("url") or d.get("document_url") or "").strip()
-                if not url or url.lower() in ("null", "undefined", ""):
-                    continue
-                normalized.append({
-                    "document_type": d.get("document_type"),
-                    "label": d.get("label") or d.get("document_name"),
-                    "url": url,
-                    "download_url": d.get("download_url") or url,
-                    "public_id": d.get("public_id"),
-                    "resource_type": d.get("resource_type", "auto"),
-                    "file_name": d.get("file_name"),
-                    "file_size": d.get("file_size", 0),
-                    "is_pdf": d.get("is_pdf", False),
-                    "is_image": d.get("is_image", False),
-                    "source": d.get("source", "schemes_application"),
-                    "uploaded_at": (
-                        d["uploaded_at"].isoformat()
-                        if isinstance(d.get("uploaded_at"), datetime)
-                        else d.get("uploaded_at")
-                    ),
-                    "uploaded_by": d.get("uploaded_by"),
-                })
-            application["scheme_documents"] = normalized
+            # ✅ Merge legacy + new documents into scheme_documents
+            application["scheme_documents"] = self._merge_documents(application)
             application.pop("documents", None)
 
             # Attach scheme master doc
@@ -1196,6 +1401,13 @@ class SchemeService:
             if scheme:
                 scheme["_id"] = str(scheme["_id"])
 
+            module_logger.info(
+                f"✅ Application detail returned: "
+                f"_id={application['_id']}, "
+                f"app_number={application.get('application_number')}, "
+                f"docs={len(application['scheme_documents'])}"
+            )
+
             return {
                 "success": True,
                 "application": application,
@@ -1204,9 +1416,7 @@ class SchemeService:
         except HTTPException:
             raise
         except Exception as e:
-            module_logger.error(
-                f"Error getting application detail: {e}"
-            )
+            module_logger.error(f"Error getting application detail: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     # ============================================================
@@ -1250,46 +1460,11 @@ class SchemeService:
             )
             for app in apps:
                 app["_id"] = str(app["_id"])
-                if isinstance(app.get("created_at"), datetime):
-                    app["created_at"] = app["created_at"].isoformat()
-                if isinstance(app.get("updated_at"), datetime):
-                    app["updated_at"] = app["updated_at"].isoformat()
-                if isinstance(app.get("applied_at"), datetime):
-                    app["applied_at"] = app["applied_at"].isoformat()
+                self._serialize_timestamps(app)
+                self._ensure_application_number(app)
 
-                # ✅ Ensure application_number
-                if "application_number" not in app or not app["application_number"]:
-                    app["application_number"] = app.get("application_id")
-
-                # ✅ Normalize scheme_documents for admin view
-                docs = app.get("scheme_documents") or []
-                normalized = []
-                for d in docs:
-                    if not isinstance(d, dict):
-                        continue
-                    url = (d.get("url") or d.get("document_url") or "").strip()
-                    if not url or url.lower() in ("null", "undefined", ""):
-                        continue
-                    normalized.append({
-                        "document_type": d.get("document_type"),
-                        "label": d.get("label") or d.get("document_name"),
-                        "url": url,
-                        "download_url": d.get("download_url") or url,
-                        "public_id": d.get("public_id"),
-                        "resource_type": d.get("resource_type", "auto"),
-                        "file_name": d.get("file_name"),
-                        "file_size": d.get("file_size", 0),
-                        "is_pdf": d.get("is_pdf", False),
-                        "is_image": d.get("is_image", False),
-                        "source": d.get("source", "schemes_application"),
-                        "uploaded_at": (
-                            d["uploaded_at"].isoformat()
-                            if isinstance(d.get("uploaded_at"), datetime)
-                            else d.get("uploaded_at")
-                        ),
-                        "uploaded_by": d.get("uploaded_by"),
-                    })
-                app["scheme_documents"] = normalized
+                # ✅ Merge legacy + new
+                app["scheme_documents"] = self._merge_documents(app)
                 app.pop("documents", None)
 
             return {
@@ -1300,9 +1475,7 @@ class SchemeService:
         except HTTPException:
             raise
         except Exception as e:
-            module_logger.error(
-                f"Error getting all applications: {e}"
-            )
+            module_logger.error(f"Error getting all applications: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     async def update_application_status(
@@ -1323,12 +1496,7 @@ class SchemeService:
                     status_code=403, detail="Access denied"
                 )
 
-            application = await self.applications.find_one(
-                {
-                    "application_type": SCHEME_APPLICATION_TYPE,
-                    "application_id": application_id,
-                }
-            )
+            application = await self._find_application(application_id)
             if not application:
                 raise HTTPException(
                     status_code=404, detail="Application not found"
@@ -1345,7 +1513,7 @@ class SchemeService:
                 update_data["admin_notes"] = notes
 
             await self.applications.update_one(
-                {"application_id": application_id},
+                {"_id": application["_id"]},
                 {"$set": update_data},
             )
 
@@ -1355,21 +1523,23 @@ class SchemeService:
                 or application.get("scheme_name_hindi")
                 or "Scheme"
             )
+            resolved_number = (
+                application.get("application_number")
+                or application.get("application_id")
+            )
 
             try:
                 await central_notification.send_notification(
                     user_ids=[user_email],
                     notification_type="application_status",
-                    title=(
-                        f"Scheme Application Update: {scheme_name}"
-                    ),
+                    title=f"Scheme Application Update: {scheme_name}",
                     message=(
                         f"Your application for '{scheme_name}' "
                         f"has been updated to: {status.upper()}"
                     ),
-                    related_id=application_id,
+                    related_id=resolved_number,
                     metadata={
-                        "application_id": application_id,
+                        "application_id": resolved_number,
                         "scheme_name": scheme_name,
                         "status": status,
                         "admin_notes": notes,
@@ -1383,14 +1553,12 @@ class SchemeService:
             return {
                 "success": True,
                 "message": f"Application status updated to {status}",
-                "application_id": application_id,
+                "application_id": resolved_number,
             }
         except HTTPException:
             raise
         except Exception as e:
-            module_logger.error(
-                f"Error updating application status: {e}"
-            )
+            module_logger.error(f"Error updating application status: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     # ============================================================
@@ -1407,9 +1575,7 @@ class SchemeService:
             await central_notification.send_notification(
                 user_ids=[user_email],
                 notification_type="application_status",
-                title=(
-                    f"✅ Scheme Application Submitted: {scheme_name}"
-                ),
+                title=f"✅ Scheme Application Submitted: {scheme_name}",
                 message=(
                     f"Dear {user_name}, your application for "
                     f"'{scheme_name}' has been submitted successfully. "
@@ -1425,9 +1591,7 @@ class SchemeService:
                 send_websocket=True,
             )
         except Exception as e:
-            module_logger.error(
-                f"Error sending notification: {e}"
-            )
+            module_logger.error(f"Error sending notification: {e}")
 
     async def seed_schemes(self) -> Dict[str, Any]:
         try:
@@ -1456,5 +1620,7 @@ print("✅ Scheme Service Loaded — SCHEME DOCUMENTS PARITY WITH SERVICE")
 print("   ✅ application_id = APPLICATION NUMBER (YYYYMMSSSSS)")
 print("   ✅ Documents stored in `scheme_documents[]` (parallel to service_documents)")
 print("   ✅ Every doc tagged with source='schemes_application'")
-print("   ✅ Accepts document_url / url / documentUrl / file_url / fileUrl")
-print("   ✅ Verifies documents are saved to DB after insert")
+print("   ✅ All lookups accept application_number AND application_id AND _id")
+print("   ✅ Legacy `documents[]` auto-merged into `scheme_documents[]` on read")
+print("   ✅ Duplicate apply MERGES documents instead of returning empty")
+print("   ✅ Dedicated get_application_documents() merges both arrays")
