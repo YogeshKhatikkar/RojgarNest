@@ -7,28 +7,18 @@
 // ✅ Placeholder shown when parent expanded but no submenu chosen
 // ✅ ApplicationDetailScreen shows in right panel
 // ✅ SchemeDetailScreen / SchemeListScreen / UserSchemeApplicationsScreen embedded
-// ✅ All original functionality preserved
 //
-// ✅✅✅ CRITICAL FIX (this build) — "View Full Job Details" from applications
-// ---------------------------------------------------------------
-//   ROOT CAUSE:
-//     In `_getContent()` → `case UserMenuType.jobs`, the order was:
-//       1. if (_selectedApplication != null && submenu == jobApplications) → ApplicationDetailScreen
-//       2. if (submenu == jobApplications)                                 → UserApplicationsScreen
-//       3. if (submenu == browseJobs) {
-//              if (_selectedJob != null) → JobDetailScreen
-//              else                      → JobListScreen
-//          }
-//     When the user taps "View Full Job Details" INSIDE the applications
-//     submenu, `onViewJob` sets `_selectedJob` and clears `_selectedApplication`.
-//     BUT `selectedJobSubMenu` is still `jobApplications`, so branch #2 fires
-//     → `UserApplicationsScreen` (list) is shown.
-//     Or if the list was empty, the applications branch took over.
-//
-//   FIX:
-//     Move the `_selectedJob != null` check to the TOP of `case jobs`,
-//     BEFORE any submenu check. So whenever `_selectedJob` is set (from any
-//     submenu), the right panel immediately shows `JobDetailScreen(isEmbedded:true)`.
+// ✅✅✅ NEW (this build) — FULL PAYMENT TRACKING:
+//   DashboardStats model now includes:
+//     - jobPaymentReceived / jobPaymentPending
+//     - servicePaymentReceived / servicePaymentPending
+//     - schemePaymentReceived / schemePaymentPending
+//     - totals: overall total/pending/approved/rejected/payment_received
+//   Each application card now shows:
+//     - Total count
+//     - Pending / Approved / Rejected chips
+//     - ✅ Payment Received chip (NEW)
+//   Cache saves & restores all new fields.
 // ---------------------------------------------------------------
 
 import 'dart:convert';
@@ -84,15 +74,45 @@ import 'package:rojgarnest/features/schemes/presentation/screens/scheme_detail_s
 import 'package:rojgarnest/features/schemes/presentation/screens/user_scheme_applications_screen.dart';
 
 // ============================================================
-// DASHBOARD STATS MODEL
+// DASHBOARD STATS MODEL — COUNTS ONLY
 // ============================================================
 class DashboardStats {
   final int profileCompletion;
   final int careerScore;
+
+  // ---- Job Applications (counts only) ----
   final int jobApplicationsTotal;
   final int jobApplicationsSaved;
   final int jobApplicationsApplied;
+  final int jobApplicationsPending;
+  final int jobApplicationsApproved;
+  final int jobApplicationsRejected;
+  final int jobPaymentReceived;
+  final int jobPaymentPending;
+
+  // ---- Service Applications (counts only) ----
   final int serviceApplicationsTotal;
+  final int serviceApplicationsPending;
+  final int serviceApplicationsApproved;
+  final int serviceApplicationsRejected;
+  final int servicePaymentReceived;
+  final int servicePaymentPending;
+
+  // ---- Scheme Applications (counts only) ----
+  final int schemeApplicationsTotal;
+  final int schemeApplicationsPending;
+  final int schemeApplicationsApproved;
+  final int schemeApplicationsRejected;
+  final int schemePaymentReceived;
+  final int schemePaymentPending;
+
+  // ---- Overall Totals ----
+  final int totalApplications;
+  final int totalPending;
+  final int totalApproved;
+  final int totalRejected;
+  final int totalPaymentReceived;
+
   final Map<String, dynamic> profileSections;
   final Map<String, dynamic> careerBreakdown;
 
@@ -102,26 +122,90 @@ class DashboardStats {
     required this.jobApplicationsTotal,
     required this.jobApplicationsSaved,
     required this.jobApplicationsApplied,
+    required this.jobApplicationsPending,
+    required this.jobApplicationsApproved,
+    required this.jobApplicationsRejected,
+    required this.jobPaymentReceived,
+    required this.jobPaymentPending,
     required this.serviceApplicationsTotal,
+    required this.serviceApplicationsPending,
+    required this.serviceApplicationsApproved,
+    required this.serviceApplicationsRejected,
+    required this.servicePaymentReceived,
+    required this.servicePaymentPending,
+    required this.schemeApplicationsTotal,
+    required this.schemeApplicationsPending,
+    required this.schemeApplicationsApproved,
+    required this.schemeApplicationsRejected,
+    required this.schemePaymentReceived,
+    required this.schemePaymentPending,
+    required this.totalApplications,
+    required this.totalPending,
+    required this.totalApproved,
+    required this.totalRejected,
+    required this.totalPaymentReceived,
     required this.profileSections,
     required this.careerBreakdown,
   });
 
+  // ============================================================
+  // Safe JSON parsing helpers
+  // ============================================================
+  static int _asInt(dynamic v) {
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? 0;
+    return 0;
+  }
+
   factory DashboardStats.fromJson(Map<String, dynamic> json) {
-    final jobApps = json['job_applications'] as Map? ?? {};
-    final serviceApps = json['service_applications'] as Map? ?? {};
+    final jobApps = (json['job_applications'] as Map?) ?? {};
+    final serviceApps = (json['service_applications'] as Map?) ?? {};
+    final schemeApps = (json['scheme_applications'] as Map?) ?? {};
+    final totals = (json['totals'] as Map?) ?? {};
 
     return DashboardStats(
-      profileCompletion: (json['profile_completion'] as num?)?.toInt() ?? 0,
-      careerScore: (json['career_score'] as num?)?.toInt() ?? 0,
-      jobApplicationsTotal: (jobApps['total'] as num?)?.toInt() ?? 0,
-      jobApplicationsSaved: (jobApps['saved'] as num?)?.toInt() ?? 0,
-      jobApplicationsApplied: (jobApps['applied'] as num?)?.toInt() ?? 0,
-      serviceApplicationsTotal: (serviceApps['total'] as num?)?.toInt() ?? 0,
-      profileSections:
-          Map<String, dynamic>.from(json['profile_sections'] as Map? ?? {}),
-      careerBreakdown:
-          Map<String, dynamic>.from(json['career_breakdown'] as Map? ?? {}),
+      profileCompletion: _asInt(json['profile_completion']),
+      careerScore: _asInt(json['career_score']),
+
+      // ---- Job ----
+      jobApplicationsTotal: _asInt(jobApps['total']),
+      jobApplicationsSaved: _asInt(jobApps['saved']),
+      jobApplicationsApplied: _asInt(jobApps['applied']),
+      jobApplicationsPending: _asInt(jobApps['pending']),
+      jobApplicationsApproved: _asInt(jobApps['approved']),
+      jobApplicationsRejected: _asInt(jobApps['rejected']),
+      jobPaymentReceived: _asInt(jobApps['payment_received']),
+      jobPaymentPending: _asInt(jobApps['payment_pending']),
+
+      // ---- Service ----
+      serviceApplicationsTotal: _asInt(serviceApps['total']),
+      serviceApplicationsPending: _asInt(serviceApps['pending']),
+      serviceApplicationsApproved: _asInt(serviceApps['approved']),
+      serviceApplicationsRejected: _asInt(serviceApps['rejected']),
+      servicePaymentReceived: _asInt(serviceApps['payment_received']),
+      servicePaymentPending: _asInt(serviceApps['payment_pending']),
+
+      // ---- Scheme ----
+      schemeApplicationsTotal: _asInt(schemeApps['total']),
+      schemeApplicationsPending: _asInt(schemeApps['pending']),
+      schemeApplicationsApproved: _asInt(schemeApps['approved']),
+      schemeApplicationsRejected: _asInt(schemeApps['rejected']),
+      schemePaymentReceived: _asInt(schemeApps['payment_received']),
+      schemePaymentPending: _asInt(schemeApps['payment_pending']),
+
+      // ---- Totals ----
+      totalApplications: _asInt(totals['total']),
+      totalPending: _asInt(totals['pending']),
+      totalApproved: _asInt(totals['approved']),
+      totalRejected: _asInt(totals['rejected']),
+      totalPaymentReceived: _asInt(totals['payment_received']),
+
+      profileSections: Map<String, dynamic>.from(
+        (json['profile_sections'] as Map?) ?? {},
+      ),
+      careerBreakdown: Map<String, dynamic>.from(
+        (json['career_breakdown'] as Map?) ?? {},
+      ),
     );
   }
 
@@ -131,7 +215,28 @@ class DashboardStats {
         jobApplicationsTotal: 0,
         jobApplicationsSaved: 0,
         jobApplicationsApplied: 0,
+        jobApplicationsPending: 0,
+        jobApplicationsApproved: 0,
+        jobApplicationsRejected: 0,
+        jobPaymentReceived: 0,
+        jobPaymentPending: 0,
         serviceApplicationsTotal: 0,
+        serviceApplicationsPending: 0,
+        serviceApplicationsApproved: 0,
+        serviceApplicationsRejected: 0,
+        servicePaymentReceived: 0,
+        servicePaymentPending: 0,
+        schemeApplicationsTotal: 0,
+        schemeApplicationsPending: 0,
+        schemeApplicationsApproved: 0,
+        schemeApplicationsRejected: 0,
+        schemePaymentReceived: 0,
+        schemePaymentPending: 0,
+        totalApplications: 0,
+        totalPending: 0,
+        totalApproved: 0,
+        totalRejected: 0,
+        totalPaymentReceived: 0,
         profileSections: {},
         careerBreakdown: {},
       );
@@ -159,11 +264,9 @@ class _UserDashboardState extends State<UserDashboard> {
   ProfileSubMenu? selectedProfileSubMenu;
   SettingsSubMenu? selectedSettingsSubMenu;
 
-  // ✅ Embedded detail views
   Map<String, dynamic>? _selectedJob;
   Map<String, dynamic>? _selectedApplication;
 
-  // ==================== SCHEME VIEW STATE ====================
   String? _selectedSchemeId;
   String? _selectedSchemeName;
   Map<String, dynamic>? _selectedSchemeData;
@@ -175,14 +278,11 @@ class _UserDashboardState extends State<UserDashboard> {
   bool _isDataReady = false;
   String _userName = 'User';
 
-  // ==================== CACHED EMAIL ====================
   String? _cachedEmail;
   bool _emailLoaded = false;
 
-  // ==================== DRAWER ====================
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // ==================== CACHE KEY ====================
   static const String _cacheKey = 'user_dashboard_stats_cache';
 
   // ============================================================
@@ -197,7 +297,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ SYNC CACHE LOAD - ZERO DELAY
+  // ✅ SYNC CACHE LOAD — ZERO DELAY
   // ============================================================
   void _loadFromCacheSync() {
     try {
@@ -295,6 +395,11 @@ class _UserDashboardState extends State<UserDashboard> {
 
       await _cacheDashboardData(stats, userName);
       debugPrint("✅ User Dashboard refresh complete");
+      debugPrint(
+        "   Job: ${stats.jobApplicationsTotal} (pay: ${stats.jobPaymentReceived})"
+        " | Service: ${stats.serviceApplicationsTotal} (pay: ${stats.servicePaymentReceived})"
+        " | Scheme: ${stats.schemeApplicationsTotal} (pay: ${stats.schemePaymentReceived})",
+      );
     } catch (e) {
       debugPrint("❌ User dashboard refresh error: $e");
       if (mounted) {
@@ -306,8 +411,11 @@ class _UserDashboardState extends State<UserDashboard> {
     }
   }
 
+  // ✅ Cache now saves ALL numeric fields including payment
   Future<void> _cacheDashboardData(
-      DashboardStats stats, String userName) async {
+    DashboardStats stats,
+    String userName,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
@@ -319,9 +427,34 @@ class _UserDashboardState extends State<UserDashboard> {
             'total': stats.jobApplicationsTotal,
             'saved': stats.jobApplicationsSaved,
             'applied': stats.jobApplicationsApplied,
+            'pending': stats.jobApplicationsPending,
+            'approved': stats.jobApplicationsApproved,
+            'rejected': stats.jobApplicationsRejected,
+            'payment_received': stats.jobPaymentReceived,
+            'payment_pending': stats.jobPaymentPending,
           },
           'service_applications': {
             'total': stats.serviceApplicationsTotal,
+            'pending': stats.serviceApplicationsPending,
+            'approved': stats.serviceApplicationsApproved,
+            'rejected': stats.serviceApplicationsRejected,
+            'payment_received': stats.servicePaymentReceived,
+            'payment_pending': stats.servicePaymentPending,
+          },
+          'scheme_applications': {
+            'total': stats.schemeApplicationsTotal,
+            'pending': stats.schemeApplicationsPending,
+            'approved': stats.schemeApplicationsApproved,
+            'rejected': stats.schemeApplicationsRejected,
+            'payment_received': stats.schemePaymentReceived,
+            'payment_pending': stats.schemePaymentPending,
+          },
+          'totals': {
+            'total': stats.totalApplications,
+            'pending': stats.totalPending,
+            'approved': stats.totalApproved,
+            'rejected': stats.totalRejected,
+            'payment_received': stats.totalPaymentReceived,
           },
           'profile_sections': stats.profileSections,
           'career_breakdown': stats.careerBreakdown,
@@ -353,7 +486,11 @@ class _UserDashboardState extends State<UserDashboard> {
 
       debugPrint(
         "✅ Dashboard stats refreshed: "
-        "profile=${stats.profileCompletion}% career=${stats.careerScore}",
+        "profile=${stats.profileCompletion}% "
+        "career=${stats.careerScore} "
+        "jobs=${stats.jobApplicationsTotal} "
+        "services=${stats.serviceApplicationsTotal} "
+        "schemes=${stats.schemeApplicationsTotal}",
       );
     } catch (e) {
       debugPrint("⚠️ Refresh dashboard stats failed: $e");
@@ -505,7 +642,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ JOB / APPLICATION selection (embedded)
+  // JOB / APPLICATION selection
   // ============================================================
   void _onJobSelected(Map<String, dynamic> job) {
     debugPrint("📋 Job selected: ${job['post_name']}");
@@ -543,13 +680,6 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
-  // ============================================================
-  // ✅✅✅ "View Full Job Details" handler for EMBEDDED right-panel swap
-  // ------------------------------------------------------------
-  // Called by `ApplicationDetailScreen.onViewJob`.
-  // Clears application state and sets the job so `_getContent()`
-  // can immediately return `JobDetailScreen(isEmbedded: true)`.
-  // ============================================================
   void _onViewJobFromApplication(Map<String, dynamic> job) {
     final jobId = (job['_id'] ?? '').toString().trim();
     debugPrint(
@@ -562,17 +692,10 @@ class _UserDashboardState extends State<UserDashboard> {
     }
 
     setState(() {
-      // Ensure the submenu context remains 'jobs' so the right panel
-      // still lives inside the Jobs section.
       selectedMenu = UserMenuType.jobs;
       selectedJobSubMenu = JobSubMenu.jobApplications;
-
-      // ✅ Clear application FIRST, then set job so the panel
-      //    immediately hits the job branch.
       _selectedApplication = null;
       _selectedJob = job;
-
-      // Clear scheme state (defensive)
       _selectedSchemeId = null;
       _selectedSchemeName = null;
       _selectedSchemeData = null;
@@ -581,7 +704,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ SCHEME SELECTION HANDLERS
+  // SCHEME SELECTION
   // ============================================================
   void _onSchemeSelectedFromList(Map<String, dynamic> schemeData) {
     debugPrint("📋 Scheme selected from list: ${schemeData['scheme_id']}");
@@ -597,7 +720,8 @@ class _UserDashboardState extends State<UserDashboard> {
 
   void _onSchemeSelectedFromApplications(Map<String, dynamic> schemeData) {
     debugPrint(
-        "📋 Scheme selected from applications: ${schemeData['scheme_id']}");
+      "📋 Scheme selected from applications: ${schemeData['scheme_id']}",
+    );
     setState(() {
       _selectedSchemeId = schemeData['scheme_id']?.toString();
       _selectedSchemeName = schemeData['scheme_name']?.toString();
@@ -618,7 +742,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ NAVIGATION HELPERS
+  // NAVIGATION HELPERS
   // ============================================================
   void _goToJobApplications() {
     _closeDrawerIfOpen();
@@ -694,7 +818,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ GET SETTINGS SCREEN
+  // SETTINGS SCREEN
   // ============================================================
   Widget _getSettingsScreen() {
     switch (selectedSettingsSubMenu) {
@@ -756,7 +880,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ GET SCHEMES SCREEN (Embedded mode)
+  // SCHEMES SCREEN
   // ============================================================
   Widget _getSchemesScreen() {
     if (_showSchemeDetailView && _selectedSchemeId != null) {
@@ -789,7 +913,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ PLACEHOLDER
+  // PLACEHOLDER
   // ============================================================
   Widget _buildSelectSubmenuPlaceholder({
     required String title,
@@ -832,8 +956,10 @@ class _UserDashboardState extends State<UserDashboard> {
             ),
             const SizedBox(height: 16),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
               decoration: BoxDecoration(
                 color: const Color(0xFF6C63FF).withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
@@ -862,23 +988,14 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ GET CONTENT
+  // GET CONTENT
   // ============================================================
   Widget _getContent() {
     switch (selectedMenu) {
       case UserMenuType.dashboard:
         return _buildDashboardContent();
 
-      // ============================================================
-      // JOBS
-      // ✅✅✅ FIX: Check `_selectedJob != null` FIRST, before any
-      //          submenu branch. This guarantees that whatever set
-      //          `_selectedJob` (Browse Jobs OR View Full Job Details
-      //          from an application), the right panel immediately
-      //          renders `JobDetailScreen(isEmbedded: true)`.
-      // ============================================================
       case UserMenuType.jobs:
-        // 1️⃣ JOB DETAIL (highest priority)
         if (_selectedJob != null) {
           debugPrint(
             "🖥️ Right panel → JobDetailScreen(_id=${_selectedJob!['_id']}, "
@@ -889,7 +1006,6 @@ class _UserDashboardState extends State<UserDashboard> {
             viewMode: 'job',
             isEmbedded: true,
             onBack: () {
-              // Return to the applications list if that's where we came from
               setState(() {
                 _selectedJob = null;
                 _selectedApplication = null;
@@ -901,20 +1017,19 @@ class _UserDashboardState extends State<UserDashboard> {
           );
         }
 
-        // 2️⃣ APPLICATION DETAIL
         if (_selectedApplication != null &&
             selectedJobSubMenu == JobSubMenu.jobApplications) {
           debugPrint(
-            "🖥️ Right panel → ApplicationDetailScreen(_id=${_selectedApplication!['_id']})",
+            "🖥️ Right panel → ApplicationDetailScreen("
+            "_id=${_selectedApplication!['_id']})",
           );
           return ApplicationDetailScreen(
             application: _selectedApplication!,
             onBack: _closeApplicationDetail,
-            onViewJob: _onViewJobFromApplication, // ✅ THE FIX
+            onViewJob: _onViewJobFromApplication,
           );
         }
 
-        // 3️⃣ APPLICATIONS LIST
         if (selectedJobSubMenu == JobSubMenu.jobApplications) {
           return UserApplicationsScreen(
             onApplicationSelected: _onApplicationSelected,
@@ -922,7 +1037,6 @@ class _UserDashboardState extends State<UserDashboard> {
           );
         }
 
-        // 4️⃣ BROWSE JOBS LIST
         if (selectedJobSubMenu == JobSubMenu.browseJobs) {
           return JobListScreen(
             isEmbedded: true,
@@ -930,16 +1044,12 @@ class _UserDashboardState extends State<UserDashboard> {
           );
         }
 
-        // 5️⃣ Placeholder
         return _buildSelectSubmenuPlaceholder(
           title: "Jobs",
           icon: Icons.work_rounded,
           message: "Select a submenu from the sidebar",
         );
 
-      // ============================================================
-      // SERVICES
-      // ============================================================
       case UserMenuType.services:
         if (selectedServiceSubMenu == ServiceSubMenu.browseServices) {
           return const ApplyServiceScreen();
@@ -953,9 +1063,6 @@ class _UserDashboardState extends State<UserDashboard> {
           message: "Select a submenu from the sidebar",
         );
 
-      // ============================================================
-      // RESUME
-      // ============================================================
       case UserMenuType.resume:
         switch (selectedResumeSubMenu) {
           case ResumeSubMenu.buildResume:
@@ -980,15 +1087,9 @@ class _UserDashboardState extends State<UserDashboard> {
             );
         }
 
-      // ============================================================
-      // SCHEMES
-      // ============================================================
       case UserMenuType.schemes:
         return _getSchemesScreen();
 
-      // ============================================================
-      // AI
-      // ============================================================
       case UserMenuType.ai:
         switch (selectedAISubMenu) {
           case AISubMenu.dashboard:
@@ -1003,9 +1104,6 @@ class _UserDashboardState extends State<UserDashboard> {
             );
         }
 
-      // ============================================================
-      // PROFILE
-      // ============================================================
       case UserMenuType.profile:
         switch (selectedProfileSubMenu) {
           case ProfileSubMenu.basicDetails:
@@ -1026,22 +1124,16 @@ class _UserDashboardState extends State<UserDashboard> {
             );
         }
 
-      // ============================================================
-      // SUPPORT (LEAF)
-      // ============================================================
       case UserMenuType.support:
         return const SupportScreen();
 
-      // ============================================================
-      // SETTINGS
-      // ============================================================
       case UserMenuType.settings:
         return _getSettingsScreen();
     }
   }
 
   // ============================================================
-  // ✅ DASHBOARD CONTENT
+  // DASHBOARD CONTENT
   // ============================================================
   Widget _buildDashboardContent() {
     final greeting = _getGreetingMessage();
@@ -1059,6 +1151,8 @@ class _UserDashboardState extends State<UserDashboard> {
           children: [
             _buildAIHeader(greeting),
             const SizedBox(height: 20),
+
+            // === Career Score + Profile Completion ===
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1068,32 +1162,48 @@ class _UserDashboardState extends State<UserDashboard> {
               ],
             ),
             const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildApplicationCountCard(
-                    title: "Job Applications",
-                    count: _stats.jobApplicationsTotal,
-                    savedCount: _stats.jobApplicationsSaved,
-                    icon: Icons.work_rounded,
-                    color: const Color(0xFF6C63FF),
-                    onTap: _goToJobApplications,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildApplicationCountCard(
-                    title: "Service Applications",
-                    count: _stats.serviceApplicationsTotal,
-                    savedCount: 0,
-                    icon: Icons.workspace_premium_rounded,
-                    color: const Color(0xFFFF6588),
-                    onTap: _goToServiceApplications,
-                  ),
-                ),
-              ],
+
+            // === Job Applications Card — COUNTS ONLY ===
+            _buildApplicationCountCard(
+              title: "Job Applications",
+              total: _stats.jobApplicationsTotal,
+              pending: _stats.jobApplicationsPending,
+              approved: _stats.jobApplicationsApproved,
+              rejected: _stats.jobApplicationsRejected,
+              paymentReceived: _stats.jobPaymentReceived,
+              icon: Icons.work_rounded,
+              color: const Color(0xFF6C63FF),
+              onTap: _goToJobApplications,
             ),
+            const SizedBox(height: 12),
+
+            // === Service Applications Card — COUNTS ONLY ===
+            _buildApplicationCountCard(
+              title: "Service Applications",
+              total: _stats.serviceApplicationsTotal,
+              pending: _stats.serviceApplicationsPending,
+              approved: _stats.serviceApplicationsApproved,
+              rejected: _stats.serviceApplicationsRejected,
+              paymentReceived: _stats.servicePaymentReceived,
+              icon: Icons.workspace_premium_rounded,
+              color: const Color(0xFFFF6588),
+              onTap: _goToServiceApplications,
+            ),
+            const SizedBox(height: 12),
+
+            // === Scheme Applications Card — COUNTS ONLY ===
+            _buildApplicationCountCard(
+              title: "Scheme Applications",
+              total: _stats.schemeApplicationsTotal,
+              pending: _stats.schemeApplicationsPending,
+              approved: _stats.schemeApplicationsApproved,
+              rejected: _stats.schemeApplicationsRejected,
+              paymentReceived: _stats.schemePaymentReceived,
+              icon: Icons.account_balance_rounded,
+              color: const Color(0xFF059669),
+              onTap: _goToSchemeApplications,
+            ),
+
             const SizedBox(height: 20),
             _buildCareerBreakdownCard(),
             const SizedBox(height: 20),
@@ -1108,7 +1218,171 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ AI HEADER
+  // ✅ COUNTS-ONLY APPLICATION CARD (with Payment Received)
+  // ============================================================
+  Widget _buildApplicationCountCard({
+    required String title,
+    required int total,
+    required int pending,
+    required int approved,
+    required int rejected,
+    required int paymentReceived,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.12),
+              blurRadius: 15,
+              spreadRadius: 3,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ---- Header row ----
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: color, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 12,
+                  color: Colors.grey.shade400,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // ---- Total count ----
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  "$total",
+                  style: TextStyle(
+                    fontSize: 34,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    total == 1
+                        ? "total application"
+                        : "total applications",
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // ---- Pending / Approved / Rejected / Payment Received ----
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildStatusChip(
+                  label: "Pending",
+                  count: pending,
+                  color: const Color(0xFFF59E0B),
+                ),
+                _buildStatusChip(
+                  label: "Approved",
+                  count: approved,
+                  color: const Color(0xFF10B981),
+                ),
+                _buildStatusChip(
+                  label: "Rejected",
+                  count: rejected,
+                  color: const Color(0xFFEF4444),
+                ),
+                _buildStatusChip(
+                  label: "Payment Received",
+                  count: paymentReceived,
+                  color: const Color(0xFF059669),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip({
+    required String label,
+    required int count,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            "$label: $count",
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // AI HEADER
   // ============================================================
   Widget _buildAIHeader(String greeting) {
     final photoUrl = ProfileStateService().profilePhotoUrl.value;
@@ -1211,7 +1485,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ CAREER SCORE CARD
+  // CAREER SCORE CARD
   // ============================================================
   Widget _buildCareerScoreCard() {
     final score = _stats.careerScore;
@@ -1254,8 +1528,11 @@ class _UserDashboardState extends State<UserDashboard> {
                   ),
                 ),
               ),
-              Icon(Icons.info_outline,
-                  size: 16, color: Colors.grey.shade400),
+              Icon(
+                Icons.info_outline,
+                size: 16,
+                color: Colors.grey.shade400,
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -1309,7 +1586,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ PROFILE COMPLETION CARD
+  // PROFILE COMPLETION CARD
   // ============================================================
   Widget _buildProfileCompletionCard() {
     final percent = _stats.profileCompletion;
@@ -1360,8 +1637,11 @@ class _UserDashboardState extends State<UserDashboard> {
                     ),
                   ),
                 ),
-                Icon(Icons.arrow_forward_ios,
-                    size: 12, color: Colors.grey.shade400),
+                Icon(
+                  Icons.arrow_forward_ios,
+                  size: 12,
+                  color: Colors.grey.shade400,
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -1416,84 +1696,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ APPLICATION COUNT CARD
-  // ============================================================
-  Widget _buildApplicationCountCard({
-    required String title,
-    required int count,
-    required int savedCount,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: color.withOpacity(0.12),
-              blurRadius: 15,
-              spreadRadius: 3,
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: color, size: 20),
-                ),
-                const Spacer(),
-                Icon(Icons.arrow_forward_ios,
-                    size: 12, color: Colors.grey.shade400),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              "$count",
-              style: TextStyle(
-                fontSize: 34,
-                fontWeight: FontWeight.bold,
-                color: color,
-                height: 1,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),
-            if (savedCount > 0) ...[
-              const SizedBox(height: 4),
-              Text(
-                "$savedCount saved",
-                style: TextStyle(
-                    fontSize: 10, color: Colors.grey.shade600),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // ✅ CAREER BREAKDOWN CARD
+  // CAREER BREAKDOWN CARD
   // ============================================================
   Widget _buildCareerBreakdownCard() {
     final breakdown = _stats.careerBreakdown;
@@ -1623,7 +1826,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ PROFILE SECTIONS CARD
+  // PROFILE SECTIONS CARD
   // ============================================================
   Widget _buildProfileSectionsCard() {
     final sections = _stats.profileSections;
@@ -1692,8 +1895,11 @@ class _UserDashboardState extends State<UserDashboard> {
         children: [
           Row(
             children: [
-              const Icon(Icons.list_alt,
-                  color: Color(0xFF10B981), size: 22),
+              const Icon(
+                Icons.list_alt,
+                color: Color(0xFF10B981),
+                size: 22,
+              ),
               const SizedBox(width: 10),
               const Expanded(
                 child: Text(
@@ -1707,7 +1913,9 @@ class _UserDashboardState extends State<UserDashboard> {
               ),
               Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 10, vertical: 4),
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -1775,7 +1983,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ QUICK ACTIONS GRID
+  // QUICK ACTIONS GRID
   // ============================================================
   Widget _buildQuickActionsGrid() {
     final actions = [
@@ -1975,7 +2183,7 @@ class _UserDashboardState extends State<UserDashboard> {
   }
 
   // ============================================================
-  // ✅ BACK BUTTON
+  // BACK BUTTON
   // ============================================================
   bool _shouldShowBackButton() {
     if (_selectedJob != null) return true;
@@ -2083,7 +2291,9 @@ class _UserDashboardState extends State<UserDashboard> {
                   if (!isMobile)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         boxShadow: [
@@ -2101,8 +2311,10 @@ class _UserDashboardState extends State<UserDashboard> {
                             children: [
                               if (showBackButton) ...[
                                 IconButton(
-                                  icon: const Icon(Icons.arrow_back,
-                                      color: Colors.blueAccent),
+                                  icon: const Icon(
+                                    Icons.arrow_back,
+                                    color: Colors.blueAccent,
+                                  ),
                                   onPressed: _handleBackButton,
                                   tooltip: "Back",
                                 ),
@@ -2167,7 +2379,6 @@ class _UserDashboardState extends State<UserDashboard> {
       return _selectedSchemeName ?? "योजना विवरण";
     }
 
-    // ✅ Job Detail takes priority (also when reached from an application)
     if (_selectedJob != null && selectedMenu == UserMenuType.jobs) {
       return _selectedJob!['post_name']?.toString() ?? "Job Details";
     }
@@ -2270,7 +2481,7 @@ class _UserDashboardState extends State<UserDashboard> {
 }
 
 // ============================================================
-// ✅ Resume launcher widget
+// Resume launcher widget
 // ============================================================
 class _ResumeLauncher extends StatefulWidget {
   final Widget child;

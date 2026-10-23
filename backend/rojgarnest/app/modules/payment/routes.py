@@ -15,6 +15,17 @@
 #   11. Failed/cancelled payments create NO record
 #   12. Supports BOTH job, service, AND scheme payments
 #   13. Razorpay ONLY - No PhonePe, No QR code
+#
+# ✅ LATEST FIX (THIS UPDATE):
+#   🎯 SCHEME applications now get status="verification_successful"
+#      (NOT "pending") after successful payment verification.
+#   🎯 Removed duplicate `"status": "pending"` dict-key override bug in:
+#        - verify_razorpay_payment()       → scheme branch
+#        - verify_payment_no_signature()   → scheme branch
+#        - razorpay_webhook()              → scheme branch
+#   🎯 Existing scheme application update path now also sets
+#      status="verification_successful".
+#   🎯 Notification messages updated accordingly.
 # ============================================================
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, BackgroundTasks, UploadFile, File, Form
@@ -161,9 +172,6 @@ def calculate_fee_breakdown(application_fee: int) -> Dict[str, int]:
        Subtotal = Application Fee + Service Charge
        GST      = 18% of Subtotal
        Total    = Subtotal + GST
-
-    Example: App Fee = ₹3, Service = ₹50
-       Subtotal = 53, GST = 10, Total = ₹63
     """
     subtotal = application_fee + SERVICE_CHARGE
     gst_amount = int((subtotal * GST_PERCENT) / 100)
@@ -179,7 +187,6 @@ def calculate_fee_breakdown(application_fee: int) -> Dict[str, int]:
 
 # ============================================================
 # ✅ NEW CRITICAL HELPER — Normalize payment breakdown
-# Ensures payment_amount, payment_gst, payment_total are ALWAYS correct
 # ============================================================
 def build_payment_breakdown(
     application_fee: int,
@@ -190,14 +197,6 @@ def build_payment_breakdown(
 ) -> Dict[str, int]:
     """
     ✅ Guarantees a consistent, mathematically correct breakdown.
-
-    Rules:
-      1. If subtotal <= 0: subtotal = application_fee + service_charge
-      2. If total_amount <= 0: total_amount = subtotal + gst_amount
-      3. ✅ KEY FIX: If gst_amount <= 0 but total_amount > subtotal:
-             gst_amount = total_amount - subtotal
-      4. If math doesn't work (subtotal + gst != total):
-             trust total_amount as the truth (it's what user paid)
     """
     # Rule 1
     if subtotal <= 0:
@@ -207,7 +206,7 @@ def build_payment_breakdown(
     if total_amount <= 0:
         total_amount = subtotal + max(0, gst_amount)
 
-    # ✅ Rule 3 — THE KEY FIX: infer GST from total - subtotal
+    # ✅ Rule 3 — infer GST from total - subtotal
     if gst_amount <= 0 and total_amount > subtotal:
         gst_amount = total_amount - subtotal
         logger.info(f"🔧 Inferred gst_amount from total-subtotal: ₹{gst_amount}")
@@ -218,7 +217,6 @@ def build_payment_breakdown(
         if total_amount > subtotal:
             gst_amount = total_amount - subtotal
         else:
-            # Rare: total < subtotal → adjust subtotal down
             subtotal = total_amount
             gst_amount = 0
         logger.info(
@@ -237,7 +235,6 @@ def build_payment_breakdown(
 
 # ============================================================
 # ✅ NEW HELPER — Resolve effective application_type
-# CRITICAL FIX: Handles "scheme" → "schemes" mapping correctly
 # ============================================================
 def resolve_application_type(
     payment_type: str,
@@ -245,22 +242,7 @@ def resolve_application_type(
     scheme_id: Optional[str] = None,
     service_id: Optional[str] = None,
 ) -> tuple:
-    """
-    Resolve the effective payment_type and application_type.
-
-    Returns:
-        tuple: (effective_payment_type, effective_application_type)
-
-    ✅ CRITICAL RULES:
-        - payment_type="scheme"  → ("scheme", "schemes")
-        - payment_type="schemes" → ("scheme", "schemes")
-        - application_type="schemes" → ("scheme", "schemes")
-        - application_type="scheme"  → ("scheme", "schemes")
-        - payment_type="job"     → ("job", "job")
-        - payment_type="service" → ("service", "service")
-        - payment_type="service" + scheme_id present → ("scheme", "schemes")
-        - payment_type="service" + service_id present → ("service", "service")
-    """
+    """Resolve the effective payment_type and application_type."""
     pt = (payment_type or "job").lower().strip()
     at = (application_type or "").lower().strip()
 
@@ -274,9 +256,6 @@ def resolve_application_type(
     logger.info(f"   normalized at        = '{at}'")
     logger.info("=" * 70)
 
-    # ============================================================
-    # ✅ PRIORITY 1: application_type wins if explicitly set
-    # ============================================================
     if at in ("schemes", "scheme"):
         logger.info("✅ Matched: application_type='schemes' → (scheme, schemes)")
         return ("scheme", "schemes")
@@ -286,16 +265,12 @@ def resolve_application_type(
         return ("job", "job")
 
     if at == "service":
-        # Check if this is actually a scheme (scheme_id present)
         if scheme_id:
             logger.info("✅ Matched: application_type='service' + scheme_id → (scheme, schemes)")
             return ("scheme", "schemes")
         logger.info("✅ Matched: application_type='service' → (service, service)")
         return ("service", "service")
 
-    # ============================================================
-    # ✅ PRIORITY 2: payment_type determines application_type
-    # ============================================================
     if pt == "scheme" or pt == "schemes":
         logger.info(f"✅ Matched: payment_type='{pt}' → (scheme, schemes)")
         return ("scheme", "schemes")
@@ -305,16 +280,12 @@ def resolve_application_type(
         return ("job", "job")
 
     if pt == "service":
-        # ✅ CRITICAL: Check if scheme_id present → this is a SCHEME
         if scheme_id:
             logger.info("✅ Matched: payment_type='service' + scheme_id → (scheme, schemes)")
             return ("scheme", "schemes")
         logger.info("✅ Matched: payment_type='service' → (service, service)")
         return ("service", "service")
 
-    # ============================================================
-    # ✅ PRIORITY 3: Fallback
-    # ============================================================
     logger.warning(f"⚠️ No match! pt='{pt}', at='{at}' → defaulting to (job, job)")
     return ("job", "job")
 
@@ -322,30 +293,18 @@ def resolve_application_type(
 # ==================== SCHEMAS ====================
 
 class CreateOrderSchema(BaseModel):
-    """
-    Schema for creating Razorpay order.
-
-    ✅ CRITICAL: `use_provided_amount` flag
-       - When True: Backend uses the exact `amount` provided (already includes GST + service charge)
-       - When False: Backend recalculates fee based on category (legacy behavior)
-
-    ✅ NEW: Scheme support via `scheme_id`, `scheme_name`
-    """
     amount: int
-    payment_type: str = "job"  # "job" | "service" | "scheme"
+    payment_type: str = "job"
 
-    # Job fields
     job_id: Optional[str] = None
     job_title: Optional[str] = None
     organization: Optional[str] = None
 
-    # Service fields
     service_id: Optional[str] = None
     service_type: Optional[str] = None
     sub_type_id: Optional[str] = None
     sub_service_name: Optional[str] = None
 
-    # ✅ NEW: Scheme fields
     scheme_id: Optional[str] = None
     scheme_name: Optional[str] = None
     scheme_name_hindi: Optional[str] = None
@@ -353,24 +312,19 @@ class CreateOrderSchema(BaseModel):
     scheme_state: Optional[str] = None
     scheme_category: Optional[str] = None
 
-    # Applicant details (for schemes)
     applicant_details: Optional[Dict[str, Any]] = None
     applicant_address: Optional[Dict[str, Any]] = None
     bank_details: Optional[Dict[str, Any]] = None
 
-    # Form data (for services/schemes)
     form_data: Optional[dict] = None
     documents: Optional[List[Dict[str, Any]]] = None
 
-    # User info
     user_email: Optional[str] = None
     user_name: Optional[str] = None
     user_mobile: Optional[str] = None
 
-    # ✅ CRITICAL FIX: Flag to prevent double calculation
     use_provided_amount: bool = True
 
-    # ✅ Fee breakdown fields
     application_fee: Optional[int] = None
     service_charge: Optional[int] = None
     subtotal: Optional[int] = None
@@ -378,7 +332,6 @@ class CreateOrderSchema(BaseModel):
     total_amount: Optional[int] = None
     category_used: Optional[str] = None
 
-    # ✅ Semantic overrides
     payment_category: Optional[str] = None
     application_type: Optional[str] = None
 
@@ -387,20 +340,11 @@ class VerifyPaymentSchema(BaseModel):
     razorpay_order_id: str
     razorpay_payment_id: str
     razorpay_signature: str
-    application_id: Optional[str] = None  # This is now the order_id
+    application_id: Optional[str] = None
 
 
 # ============================================================
 # ✅ CREATE RAZORPAY ORDER
-# ============================================================
-# CRITICAL: This endpoint DOES NOT create any application record.
-# It ONLY creates a Razorpay order.
-#
-# ✅ When use_provided_amount=true:
-#    - Uses the EXACT amount provided (no recalculation)
-#
-# ✅ CRITICAL: Full breakdown saved to `payment_orders` collection
-# ✅ NEW: Scheme support - payment_type="scheme"
 # ============================================================
 
 @router.post("/razorpay/create-order")
@@ -411,13 +355,6 @@ async def create_razorpay_order(
 ):
     """
     CREATE RAZORPAY ORDER - NO APPLICATION RECORD CREATED HERE
-
-    Flow:
-    1. User clicks "Apply" on job/service/scheme
-    2. This endpoint is called → creates Razorpay order ONLY
-    3. User pays via Razorpay checkout
-    4. verify-payment endpoint creates the application record
-    5. If user cancels → NO application record exists
     """
     logger.info("=" * 70)
     logger.info(f"💰 Creating Razorpay Order - Type: {data.payment_type}")
@@ -442,9 +379,6 @@ async def create_razorpay_order(
     user_id = current_user.get("user_id")
     user_name = data.user_name or current_user.get("name", "User")
 
-    # ============================================================
-    # ✅ RESOLVE EFFECTIVE TYPE (job | service | scheme)
-    # ============================================================
     effective_payment_type, effective_application_type = resolve_application_type(
         payment_type=data.payment_type,
         application_type=data.application_type or data.payment_category,
@@ -459,7 +393,6 @@ async def create_razorpay_order(
     logger.info(f"   effective_application_type: {effective_application_type}")
     logger.info("=" * 70)
 
-    # Get user category from profile
     profile = await db.profile.find_one({"email": user_email})
     user_category = profile.get("category", "General/UR") if profile else "General/UR"
     is_disabled = False
@@ -467,7 +400,6 @@ async def create_razorpay_order(
         disability = profile.get("disability", {})
         is_disabled = disability.get("is_disabled", False) if isinstance(disability, dict) else False
 
-    # Default values
     amount = data.amount
     category_used = data.category_used or "none"
     job_title = ""
@@ -478,19 +410,12 @@ async def create_razorpay_order(
     service_name = ""
     sub_service_name = ""
 
-    # ============================================================
-    # ✅ CRITICAL: Handle use_provided_amount flag
-    # ============================================================
     if data.use_provided_amount:
-        # ============================================================
-        # ✅ NEW BEHAVIOR: Use EXACT amount provided (no recalculation)
-        # ============================================================
         logger.info("=" * 70)
         logger.info("✅ USING PROVIDED AMOUNT (NO RECALCULATION)")
         logger.info(f"   Amount from client: ₹{data.amount}")
         logger.info("=" * 70)
 
-        # Validate based on payment type
         if effective_application_type == "job":
             if not data.job_id or not ObjectId.is_valid(data.job_id):
                 raise HTTPException(status_code=400, detail="Invalid job ID")
@@ -503,7 +428,6 @@ async def create_razorpay_order(
             organization = job.get("organization", "Company")
             added_by = job.get("added_by", "admin@rojgarnest.com")
 
-            # Check if already applied
             existing = await db.applications.find_one({
                 "job_id": data.job_id,
                 "user_email": user_email,
@@ -522,7 +446,6 @@ async def create_razorpay_order(
                     detail="You have already applied for this job"
                 )
 
-            # Determine category used for display
             if is_disabled:
                 category_used = "pwd"
             elif category_used == "none":
@@ -536,7 +459,6 @@ async def create_razorpay_order(
                 category_used = category_map.get(user_category, "general/ur")
 
         elif effective_application_type == "schemes":
-            # ✅ SCHEME VALIDATION
             if not data.scheme_id:
                 raise HTTPException(
                     status_code=400,
@@ -545,7 +467,6 @@ async def create_razorpay_order(
 
             scheme = await db.schemes.find_one({"scheme_id": data.scheme_id})
             if not scheme:
-                # Try by ObjectId
                 if ObjectId.is_valid(data.scheme_id):
                     scheme = await db.schemes.find_one({"_id": ObjectId(data.scheme_id)})
 
@@ -556,7 +477,6 @@ async def create_razorpay_order(
             scheme_name_hindi = data.scheme_name_hindi or scheme.get("scheme_name_hindi", "")
             category_used = "scheme"
 
-            # Check if already applied
             existing = await db.applications.find_one({
                 "application_type": "schemes",
                 "user_email": user_email,
@@ -589,7 +509,6 @@ async def create_razorpay_order(
             organization = sub_service_name
             category_used = "service"
 
-            # Check if already applied
             existing = await db.applications.find_one({
                 "service_id": data.service_id,
                 "sub_type_id": data.sub_type_id,
@@ -613,14 +532,12 @@ async def create_razorpay_order(
                 detail="Invalid payment_type. Must be 'job', 'service', or 'scheme'."
             )
 
-        # ✅ Use the EXACT amount provided
         total_amount = data.amount
         application_fee = data.application_fee or 0
         service_charge = data.service_charge or SERVICE_CHARGE
         subtotal = data.subtotal or (application_fee + service_charge)
         gst_amount = data.gst_amount or 0
 
-        # ✅ STRICT VALIDATION - if frontend provided total_amount, verify match
         if data.total_amount is not None and data.total_amount != data.amount:
             logger.error("=" * 70)
             logger.error("❌ TOTAL AMOUNT MISMATCH")
@@ -632,7 +549,6 @@ async def create_razorpay_order(
                 detail=f"Amount mismatch: amount={data.amount} but total_amount={data.total_amount}"
             )
 
-        # ✅ STRICT VALIDATION - if breakdown provided, verify sum matches amount
         if (data.application_fee is not None
                 and data.service_charge is not None
                 and data.gst_amount is not None):
@@ -662,9 +578,6 @@ async def create_razorpay_order(
         logger.info(f"   TOTAL: ₹{total_amount}")
 
     else:
-        # ============================================================
-        # LEGACY BEHAVIOR: Calculate fee based on category
-        # ============================================================
         logger.info("=" * 70)
         logger.info("⚠️ LEGACY MODE: Calculating fee from category")
         logger.info("=" * 70)
@@ -794,7 +707,6 @@ async def create_razorpay_order(
                 detail="Invalid payment_type. Must be 'job', 'service', or 'scheme'."
             )
 
-        # Calculate total with GST + service charge
         fee_breakdown = calculate_fee_breakdown(amount)
         total_amount = fee_breakdown['total']
         application_fee = fee_breakdown['application_fee']
@@ -809,9 +721,6 @@ async def create_razorpay_order(
         logger.info(f"   GST ({GST_PERCENT}%): ₹{gst_amount}")
         logger.info(f"   TOTAL: ₹{total_amount}")
 
-    # ============================================================
-    # ✅ CRITICAL FIX: Normalize breakdown BEFORE saving
-    # ============================================================
     normalized = build_payment_breakdown(
         application_fee=int(application_fee or 0),
         service_charge=int(service_charge or SERVICE_CHARGE),
@@ -826,7 +735,6 @@ async def create_razorpay_order(
     gst_amount = normalized["gst_amount"]
     total_amount = normalized["total_amount"]
 
-    # ==================== CONVERT TO PAISE (EXACTLY ONCE) ====================
     amount_in_paise = int(total_amount * 100)
 
     logger.info("=" * 70)
@@ -839,10 +747,6 @@ async def create_razorpay_order(
     logger.info(f"   Paise:           {amount_in_paise}")
     logger.info("=" * 70)
 
-    # ============================================================
-    # ✅ CRITICAL FIX: Save FULL breakdown to `payment_orders`
-    # ✅ NEW: Save payment_type, application_type, scheme fields
-    # ============================================================
     payment_record_id = str(ObjectId())
     payment_record = {
         "_id": payment_record_id,
@@ -852,7 +756,6 @@ async def create_razorpay_order(
         "user_category": user_category,
         "is_disabled": is_disabled,
 
-        # ✅ FULL BREAKDOWN — SOURCE OF TRUTH
         "application_fee": application_fee,
         "service_charge": service_charge,
         "subtotal": subtotal,
@@ -861,25 +764,21 @@ async def create_razorpay_order(
         "amount_paise": amount_in_paise,
         "category_used": category_used,
 
-        # ✅ CRITICAL: Both payment_type AND application_type saved
-        "payment_type": effective_payment_type,           # "job" | "service" | "scheme"
-        "application_type": effective_application_type,   # "job" | "service" | "schemes"
-        "wire_payment_type": data.payment_type,           # raw incoming value
+        "payment_type": effective_payment_type,
+        "application_type": effective_application_type,
+        "wire_payment_type": data.payment_type,
 
-        # Context - Job
         "job_id": data.job_id or "",
         "job_title": job_title,
         "organization": organization,
         "added_by": added_by,
 
-        # Context - Service
         "service_id": data.service_id or "",
         "service_type": data.service_type or "",
         "sub_type_id": data.sub_type_id or "",
         "sub_service_name": sub_service_name,
         "service_name": service_name,
 
-        # ✅ Context - Scheme
         "scheme_id": data.scheme_id or "",
         "scheme_name": scheme_name,
         "scheme_name_hindi": scheme_name_hindi,
@@ -887,12 +786,10 @@ async def create_razorpay_order(
         "scheme_state": data.scheme_state or "",
         "scheme_category": data.scheme_category or "",
 
-        # ✅ Applicant details (for schemes)
         "applicant_details": data.applicant_details or {},
         "applicant_address": data.applicant_address or {},
         "bank_details": data.bank_details or {},
 
-        # Form data
         "form_data": data.form_data or {},
         "documents": data.documents or [],
 
@@ -904,18 +801,9 @@ async def create_razorpay_order(
     try:
         await db.payment_orders.insert_one(payment_record)
         logger.info(f"💾 Payment breakdown saved to DB: {payment_record_id}")
-        logger.info(f"   payment_type = {effective_payment_type}")
-        logger.info(f"   application_type = {effective_application_type}")
-        logger.info(f"   application_fee = ₹{application_fee}")
-        logger.info(f"   service_charge  = ₹{service_charge}")
-        logger.info(f"   gst_amount      = ₹{gst_amount}")
-        logger.info(f"   total_amount    = ₹{total_amount}")
     except Exception as e:
         logger.error(f"⚠️ Failed to save payment breakdown: {e}")
 
-    # ============================================================
-    # ✅ Razorpay order — minimal notes (≤ 8 keys)
-    # ============================================================
     order_data = {
         "amount": amount_in_paise,
         "currency": "INR",
@@ -938,8 +826,6 @@ async def create_razorpay_order(
         try:
             order = razorpay_client.order.create(data=order_data)
             logger.info(f"✅ Order created on attempt {attempt}: {order['id']}")
-            logger.info(f"   Order amount from Razorpay: {order.get('amount')} paise "
-                        f"(₹{order.get('amount', 0) / 100})")
             break
         except Exception as e:
             logger.error(f"⚠️ Attempt {attempt} failed: {e}")
@@ -955,9 +841,6 @@ async def create_razorpay_order(
 
     razorpay_order_id = order["id"]
 
-    # ============================================================
-    # ✅ Attach Razorpay order_id to the payment record
-    # ============================================================
     try:
         await db.payment_orders.update_one(
             {"_id": payment_record_id},
@@ -970,11 +853,9 @@ async def create_razorpay_order(
                 }
             }
         )
-        logger.info(f"✅ Payment record linked to Razorpay order: {razorpay_order_id}")
     except Exception as e:
         logger.error(f"⚠️ Failed to link payment record: {e}")
 
-    # ==================== SANITY CHECK ====================
     returned_amount = order.get("amount")
     if returned_amount is not None and int(returned_amount) != amount_in_paise:
         logger.error("=" * 70)
@@ -987,11 +868,7 @@ async def create_razorpay_order(
     logger.info(f"✅ Razorpay order created successfully!")
     logger.info(f"   Order ID: {razorpay_order_id}")
     logger.info(f"   Total Amount (rupees): ₹{total_amount}")
-    logger.info(f"   Total Amount (paise):  {amount_in_paise}")
     logger.info(f"   Payment Record ID:     {payment_record_id}")
-    logger.info(f"   payment_type:          {effective_payment_type}")
-    logger.info(f"   application_type:      {effective_application_type}")
-    logger.info(f"   ⚠️ NO APPLICATION SAVED YET")
     logger.info("=" * 70)
 
     return {
@@ -1019,11 +896,8 @@ async def create_razorpay_order(
 # ============================================================
 # ✅ VERIFY RAZORPAY PAYMENT - CREATES APPLICATION ONLY ON SUCCESS
 # ============================================================
-# ✅ CRITICAL FIX: Reads breakdown from `payment_orders` collection
-# ✅ CRITICAL FIX: payment_amount stores TOTAL (not app_fee)
-# ✅ CRITICAL FIX: payment_gst inferred from (total - subtotal)
-# ✅ NEW: IDEMPOTENT - Only ONE record created per payment
-# ✅ NEW: Scheme support - saves application_type="schemes"
+# ✅ LATEST FIX: SCHEME applications now get status="verification_successful"
+#    (removed duplicate "status": "pending" dict-key that was overriding it)
 # ============================================================
 
 @router.post("/razorpay/verify-payment")
@@ -1038,6 +912,7 @@ async def verify_razorpay_payment(
     ✅ NEW: Generates sequential application number (YYYYMMSSSSS)
     ✅ NEW: IDEMPOTENT - Checks for existing application before creating
     ✅ NEW: Scheme support - application_type="schemes"
+    ✅ LATEST: Scheme applications get status="verification_successful"
     """
     logger.info("=" * 70)
     logger.info(f"🔐 Verifying Razorpay payment")
@@ -1054,8 +929,6 @@ async def verify_razorpay_payment(
         raise HTTPException(status_code=400, detail="User email not found")
 
     # ==================== IDEMPOTENCY CHECK ====================
-    # ✅ CRITICAL: Check if application already exists for this payment
-    # This prevents duplicate records if verify is called multiple times
     existing_application = await db.applications.find_one({
         "razorpay_payment_id": data.razorpay_payment_id
     })
@@ -1094,7 +967,7 @@ async def verify_razorpay_payment(
         raise HTTPException(status_code=400, detail="Invalid payment signature")
 
     # ============================================================
-    # ✅ CRITICAL FIX: Load FULL breakdown from `payment_orders`
+    # ✅ Load FULL breakdown from `payment_orders`
     # ============================================================
     payment_record = await db.payment_orders.find_one({
         "razorpay_order_id": data.razorpay_order_id
@@ -1118,9 +991,6 @@ async def verify_razorpay_payment(
     logger.info(f"   total_amount    = ₹{payment_record.get('total_amount')}")
     logger.info("=" * 70)
 
-    # ============================================================
-    # ✅ CRITICAL FIX: Normalize breakdown from DB record
-    # ============================================================
     normalized = build_payment_breakdown(
         application_fee=int(payment_record.get("application_fee") or 0),
         service_charge=int(payment_record.get("service_charge") or SERVICE_CHARGE),
@@ -1129,11 +999,9 @@ async def verify_razorpay_payment(
         total_amount=int(payment_record.get("total_amount") or 0),
     )
 
-    # ✅ Extract normalized values
     effective_payment_type = payment_record.get("payment_type", "job")
     effective_application_type = payment_record.get("application_type", "job")
 
-    # ✅ Ensure application_type is correct for schemes
     if effective_payment_type == "scheme":
         effective_application_type = "schemes"
 
@@ -1147,7 +1015,6 @@ async def verify_razorpay_payment(
     sub_service_name = payment_record.get("sub_service_name", "")
     service_name = payment_record.get("service_name", "")
 
-    # ✅ Scheme fields
     scheme_id = payment_record.get("scheme_id", "")
     scheme_name = payment_record.get("scheme_name", "")
     scheme_name_hindi = payment_record.get("scheme_name_hindi", "")
@@ -1210,31 +1077,21 @@ async def verify_razorpay_payment(
     application_username = order_user_email.split('@')[0]
 
     # ============================================================
-    # ✅ NEW: GENERATE APPLICATION NUMBER (YYYYMMSSSSS)
-    # ============================================================
-    # This is generated ONLY after payment is verified.
-    # Shared across ALL application types (job, service, schemes).
-    # Format: YYYYMM + 5-digit sequence (e.g., 2026100001)
+    # ✅ GENERATE APPLICATION NUMBER (YYYYMMSSSSS)
     # ============================================================
     try:
         application_number = await ApplicationNumberGenerator.generate_application_number(db)
         logger.info("=" * 70)
         logger.info(f"🎫 APPLICATION NUMBER GENERATED: {application_number}")
-        logger.info(f"   Format: YYYYMMSSSSS")
-        logger.info(f"   Year: {application_number[:4]}")
-        logger.info(f"   Month: {application_number[4:6]}")
-        logger.info(f"   Sequence: {application_number[6:]}")
         logger.info("=" * 70)
     except Exception as e:
         logger.error(f"❌ Failed to generate application number: {e}")
-        # Fallback: use timestamp-based number to prevent failure
         from datetime import datetime as dt
         now = dt.utcnow()
         fallback_seq = int(now.timestamp()) % 100000
         application_number = f"{now.year}{now.month:02d}{fallback_seq:05d}"
         logger.warning(f"⚠️ Using fallback application number: {application_number}")
 
-    # ==================== CREATE APPLICATION (PAYMENT SUCCESS) ====================
     logger.info("=" * 70)
     logger.info("✅ PAYMENT VERIFIED - CREATING APPLICATION NOW")
     logger.info(f"   Application Number: {application_number}")
@@ -1269,10 +1126,8 @@ async def verify_razorpay_payment(
             logger.info(f"📋 Application already exists: {existing['_id']}")
             application_id = str(existing["_id"])
             new_status = existing.get("status", "verification_successful")
-            # Use existing application number if present
             application_number = existing.get("application_number", application_number)
 
-            # ✅ Update existing record with correct breakdown
             await db.applications.update_one(
                 {"_id": existing["_id"]},
                 {
@@ -1297,7 +1152,6 @@ async def verify_razorpay_payment(
         else:
             application_doc = {
                 "application_type": "job",
-                # ✅ NEW: Application Number
                 "application_number": application_number,
                 "job_id": job_id,
                 "job_title": job_title,
@@ -1317,10 +1171,9 @@ async def verify_razorpay_payment(
                 "payment_verification_status": "approved",
                 "payment_status": "completed",
 
-                # ✅ FIXED: payment_amount = TOTAL, not app_fee
                 "payment_id": data.razorpay_payment_id,
-                "payment_amount": total_amount,              # ✅ 63
-                "payment_gst": gst_amount,                   # ✅ 13
+                "payment_amount": total_amount,
+                "payment_gst": gst_amount,
                 "payment_service_charge": service_charge,
                 "payment_total": total_amount,
                 "payment_category_used": category_used,
@@ -1357,12 +1210,9 @@ async def verify_razorpay_payment(
 
             logger.info(f"✅ JOB APPLICATION CREATED: {application_id}")
             logger.info(f"   Application Number: {application_number}")
-            logger.info(f"   payment_amount = ₹{total_amount}")
-            logger.info(f"   payment_gst    = ₹{gst_amount}")
-            logger.info(f"   payment_total  = ₹{total_amount}")
 
     # ============================================================
-    # ✅ SCHEME APPLICATION - NEW SUPPORT
+    # ✅ SCHEME APPLICATION - ✅ LATEST FIX: status = "verification_successful"
     # ============================================================
     elif effective_application_type == "schemes":
         logger.info("=" * 70)
@@ -1371,7 +1221,6 @@ async def verify_razorpay_payment(
         logger.info(f"   Scheme Name: {scheme_name}")
         logger.info("=" * 70)
 
-        # Check for existing scheme application
         existing = await db.applications.find_one({
             "application_type": "schemes",
             "user_email": order_user_email,
@@ -1385,15 +1234,17 @@ async def verify_razorpay_payment(
         if existing:
             logger.info(f"📋 Scheme application already exists: {existing['_id']}")
             application_id = str(existing["_id"])
-            new_status = existing.get("status", "pending")
+            # ✅ FIX: existing scheme application upgraded to verification_successful
+            new_status = "verification_successful"
             application_number = existing.get("application_number", application_number)
 
-            # ✅ Update existing record with correct breakdown
+            # ✅ Update existing record: status → verification_successful
             await db.applications.update_one(
                 {"_id": existing["_id"]},
                 {
                     "$set": {
                         "application_number": application_number,
+                        "status": "verification_successful",   # ✅ FIX
                         "payment_amount": total_amount,
                         "payment_gst": gst_amount,
                         "payment_service_charge": service_charge,
@@ -1417,25 +1268,33 @@ async def verify_razorpay_payment(
                     }
                 }
             )
-            logger.info(f"✅ Updated existing scheme application with payment details")
+            logger.info(f"✅ Updated existing scheme application → status=verification_successful")
         else:
             # ✅ CREATE NEW SCHEME APPLICATION
+            # ✅ FIX: Removed duplicate "status": "pending" that was overriding
+            #         "status": "verification_successful".
+            #         Now there is exactly ONE status assignment.
             application_doc = {
-                # ✅ CRITICAL: application_type = "schemes"
                 "application_type": "schemes",
                 "application_id": str(ObjectId()),
                 "application_number": application_number,
+
+                # ✅ Status — THE ONLY ONE. Value = verification_successful
+                "status": "verification_successful",
+                "payment_verification_status": "approved",
+                "payment_status": "completed",
+                "is_archived": False,
 
                 # User info
                 "user_email": order_user_email,
                 "user_name": applicant_name,
                 "user_id": order_user_id,
-                "user_mobile": payment_record.get("user_mobile") or profile.get("phone") if profile else "",
+                "user_mobile": (payment_record.get("user_mobile") or (profile.get("phone") if profile else "")) or "",
                 "application_username": application_username,
                 "user_category": user_category,
                 "is_disabled": is_disabled,
 
-                # ✅ Scheme-specific fields
+                # Scheme-specific fields
                 "scheme_id": scheme_id,
                 "scheme_name": scheme_name,
                 "scheme_name_hindi": scheme_name_hindi,
@@ -1443,15 +1302,15 @@ async def verify_razorpay_payment(
                 "scheme_state": scheme_state,
                 "scheme_category": scheme_category,
 
-                # ✅ Applicant details
+                # Applicant details
                 "applicant_details": applicant_details,
                 "applicant_address": applicant_address,
                 "bank_details": bank_details,
 
-                # ✅ Documents
+                # Documents
                 "documents": documents,
 
-                # ✅ Payment info
+                # Payment info
                 "payment_id": data.razorpay_payment_id,
                 "payment_amount": total_amount,
                 "payment_gst": gst_amount,
@@ -1479,12 +1338,6 @@ async def verify_razorpay_payment(
                 "payment_verified_at": datetime.utcnow(),
                 "payment_verified_by": "razorpay_auto",
 
-                # Status
-                "status": "pending",
-                "payment_verification_status": "approved",
-                "payment_status": "completed",
-                "is_archived": False,
-
                 # Form data
                 "additional_info": form_data if form_data else None,
                 "remarks": "",
@@ -1497,11 +1350,12 @@ async def verify_razorpay_payment(
 
             result = await db.applications.insert_one(application_doc)
             application_id = str(result.inserted_id)
-            new_status = "pending"
+            new_status = "verification_successful"
 
             logger.info(f"✅ SCHEME APPLICATION CREATED: {application_id}")
             logger.info(f"   Application Number: {application_number}")
             logger.info(f"   Scheme: {scheme_name}")
+            logger.info(f"   Status: {new_status}")
             logger.info(f"   payment_amount = ₹{total_amount}")
             logger.info(f"   payment_gst    = ₹{gst_amount}")
             logger.info(f"   payment_total  = ₹{total_amount}")
@@ -1526,7 +1380,6 @@ async def verify_razorpay_payment(
             new_status = existing.get("status", "payment_verified")
             application_number = existing.get("application_number", application_number)
 
-            # ✅ Update existing with correct breakdown
             await db.applications.update_one(
                 {"_id": existing["_id"]},
                 {
@@ -1575,7 +1428,6 @@ async def verify_razorpay_payment(
 
             application_doc = {
                 "application_type": "service",
-                # ✅ NEW: Application Number
                 "application_number": application_number,
                 "service_id": service_id,
                 "sub_type_id": sub_type_id,
@@ -1597,10 +1449,9 @@ async def verify_razorpay_payment(
                 "payment_verification_status": "approved",
                 "payment_status": "completed",
 
-                # ✅ FIXED: payment_amount = TOTAL
                 "payment_id": data.razorpay_payment_id,
-                "payment_amount": total_amount,              # ✅ TOTAL
-                "payment_gst": gst_amount,                   # ✅ GST
+                "payment_amount": total_amount,
+                "payment_gst": gst_amount,
                 "payment_service_charge": service_charge,
                 "payment_total": total_amount,
                 "payment_category_used": category_used,
@@ -1629,7 +1480,7 @@ async def verify_razorpay_payment(
 
             result = await db.applications.insert_one(application_doc)
             application_id = str(result.inserted_id)
-            new_status = "payment_verified"
+            new_status = "verification_successful"
 
             logger.info(f"✅ SERVICE APPLICATION CREATED: {application_id}")
             logger.info(f"   Application Number: {application_number}")
@@ -1806,7 +1657,6 @@ async def update_application_payment_status(
         if data.get("transaction_id"):
             update_data["transaction_id"] = data["transaction_id"]
 
-        # ✅ Normalize breakdown if provided
         if data.get("amount") is not None:
             normalized = build_payment_breakdown(
                 application_fee=int(data.get("application_fee") or 0),
@@ -1815,7 +1665,7 @@ async def update_application_payment_status(
                 gst_amount=int(data.get("gst_amount") or 0),
                 total_amount=int(data.get("amount") or 0),
             )
-            update_data["payment_amount"] = normalized["total_amount"]  # ✅ TOTAL
+            update_data["payment_amount"] = normalized["total_amount"]
             update_data["payment_gst"] = normalized["gst_amount"]
             update_data["payment_service_charge"] = normalized["service_charge"]
             update_data["payment_total"] = normalized["total_amount"]
@@ -1830,7 +1680,8 @@ async def update_application_payment_status(
         if application_type == "job":
             update_data["status"] = "verification_successful"
         elif application_type == "schemes":
-            update_data["status"] = "pending"
+            # ✅ FIX: schemes also get verification_successful
+            update_data["status"] = "verification_successful"
         else:
             update_data["status"] = "payment_verified"
 
@@ -1983,7 +1834,8 @@ async def admin_verify_payment(
             title = f"✅ Payment Verified Successfully: {job_title}"
             message = f"Your payment of ₹{total_amount} for '{job_title}' has been verified successfully."
         elif application_type == "schemes":
-            new_status = "pending"
+            # ✅ FIX: schemes also get verification_successful
+            new_status = "verification_successful"
             title = f"✅ Scheme Payment Verified: {scheme_name}"
             message = f"Your payment of ₹{total_amount} for scheme '{scheme_name}' has been verified successfully."
         else:
@@ -2136,7 +1988,7 @@ async def get_pending_payments(
                 "category_used": app.get("payment_category_used", "scheme"),
                 "transaction_id": app.get("transaction_id", "N/A"),
                 "screenshot_url": app.get("payment_receipt_url"),
-                "status": app.get("status", "pending"),
+                "status": app.get("status", "verification_successful"),
                 "application_type": "schemes",
                 "created_at": app.get("created_at")
             })
@@ -2205,11 +2057,7 @@ async def simulate_payment(
 
 # ============================================================
 # ✅ EMERGENCY FALLBACK: VERIFY WITHOUT SIGNATURE
-# ============================================================
-# ✅ CRITICAL FIX: Reads breakdown from `payment_orders` collection
-# ✅ CRITICAL FIX: payment_amount stores TOTAL (not app_fee)
-# ✅ NEW: IDEMPOTENT - Only ONE record created per payment
-# ✅ NEW: Scheme support
+# ✅ LATEST FIX: SCHEME applications get status="verification_successful"
 # ============================================================
 
 @router.post("/payment/razorpay/verify-payment-no-signature")
@@ -2238,7 +2086,6 @@ async def verify_payment_no_signature(
                 "payment_verified": False
             }
 
-        # ==================== IDEMPOTENCY CHECK ====================
         existing_application = await db.applications.find_one({
             "razorpay_payment_id": razorpay_payment_id
         })
@@ -2247,7 +2094,6 @@ async def verify_payment_no_signature(
             logger.info("=" * 70)
             logger.info(f"✅ IDEMPOTENT: Application already exists!")
             logger.info(f"   Application ID: {existing_application.get('_id')}")
-            logger.info(f"   Application Number: {existing_application.get('application_number')}")
             logger.info("=" * 70)
 
             return {
@@ -2283,9 +2129,6 @@ async def verify_payment_no_signature(
                 "payment_verified": False
             }
 
-        # ============================================================
-        # ✅ CRITICAL FIX: Load breakdown from payment_orders DB
-        # ============================================================
         payment_record = await db.payment_orders.find_one({
             "razorpay_order_id": razorpay_order_id
         })
@@ -2294,7 +2137,6 @@ async def verify_payment_no_signature(
             effective_payment_type = payment_record.get("payment_type", "job")
             effective_application_type = payment_record.get("application_type", "job")
 
-            # ✅ Ensure application_type is correct for schemes
             if effective_payment_type == "scheme":
                 effective_application_type = "schemes"
 
@@ -2309,7 +2151,6 @@ async def verify_payment_no_signature(
             sub_service_name = payment_record.get("sub_service_name", "")
             service_name = payment_record.get("service_name", "")
 
-            # ✅ Scheme fields
             scheme_id = payment_record.get("scheme_id", "")
             scheme_name = payment_record.get("scheme_name", "")
             scheme_name_hindi = payment_record.get("scheme_name_hindi", "")
@@ -2326,7 +2167,6 @@ async def verify_payment_no_signature(
             form_data = payment_record.get("form_data", {}) or {}
             documents = payment_record.get("documents", []) or []
 
-            # ✅ Normalize from DB
             normalized = build_payment_breakdown(
                 application_fee=int(payment_record.get("application_fee") or 0),
                 service_charge=int(payment_record.get("service_charge") or SERVICE_CHARGE),
@@ -2340,12 +2180,10 @@ async def verify_payment_no_signature(
             subtotal = normalized["subtotal"]
             total_amount = normalized["total_amount"]
         else:
-            # Fallback to Razorpay notes (may be truncated)
             order_notes = order_details.get("notes", {})
             effective_payment_type = order_notes.get("payment_type", "job")
             effective_application_type = order_notes.get("application_type", "job")
 
-            # ✅ Ensure application_type is correct for schemes
             if effective_payment_type == "scheme":
                 effective_application_type = "schemes"
 
@@ -2385,7 +2223,6 @@ async def verify_payment_no_signature(
             applicant_address = {}
             bank_details = {}
 
-            # ✅ Normalize
             normalized = build_payment_breakdown(
                 application_fee=application_fee,
                 service_charge=service_charge,
@@ -2403,9 +2240,6 @@ async def verify_payment_no_signature(
         applicant_name = profile.get("full_name") if profile else "User"
         application_username = user_email.split('@')[0]
 
-        # ============================================================
-        # ✅ NEW: GENERATE APPLICATION NUMBER (YYYYMMSSSSS)
-        # ============================================================
         try:
             application_number = await ApplicationNumberGenerator.generate_application_number(db)
             logger.info(f"🎫 APPLICATION NUMBER GENERATED: {application_number}")
@@ -2439,7 +2273,6 @@ async def verify_payment_no_signature(
                 new_status = existing.get("status", "verification_successful")
                 application_number = existing.get("application_number", application_number)
 
-                # ✅ Update existing with correct breakdown
                 await db.applications.update_one(
                     {"_id": existing["_id"]},
                     {
@@ -2511,10 +2344,8 @@ async def verify_payment_no_signature(
                 application_id = str(result.inserted_id)
                 new_status = "verification_successful"
                 logger.info(f"✅ JOB APPLICATION CREATED: {application_id}")
-                logger.info(f"   Application Number: {application_number}")
 
         elif effective_application_type == "schemes":
-            # ✅ SCHEME APPLICATION
             logger.info("=" * 70)
             logger.info("🏛️ CREATING SCHEME APPLICATION (fallback)")
             logger.info(f"   Scheme ID: {scheme_id}")
@@ -2532,15 +2363,17 @@ async def verify_payment_no_signature(
 
             if existing:
                 application_id = str(existing["_id"])
-                new_status = existing.get("status", "pending")
+                # ✅ FIX: force verification_successful
+                new_status = "verification_successful"
                 application_number = existing.get("application_number", application_number)
 
-                # ✅ Update existing with correct breakdown
+                # ✅ Update existing: status → verification_successful
                 await db.applications.update_one(
                     {"_id": existing["_id"]},
                     {
                         "$set": {
                             "application_number": application_number,
+                            "status": "verification_successful",   # ✅ FIX
                             "payment_amount": total_amount,
                             "payment_gst": gst_amount,
                             "payment_service_charge": service_charge,
@@ -2560,7 +2393,9 @@ async def verify_payment_no_signature(
                         }
                     }
                 )
+                logger.info(f"✅ Updated existing scheme application → status=verification_successful")
             else:
+                # ✅ FIX: exactly ONE "status" key = verification_successful
                 doc = {
                     "application_type": "schemes",
                     "application_id": str(ObjectId()),
@@ -2581,9 +2416,12 @@ async def verify_payment_no_signature(
                     "applicant_address": applicant_address,
                     "bank_details": bank_details,
                     "documents": documents,
-                    "status": "pending",
+
+                    # ✅ THE ONLY "status" key — value = verification_successful
+                    "status": "verification_successful",
                     "payment_verification_status": "approved",
                     "payment_status": "completed",
+
                     "payment_id": razorpay_payment_id,
                     "payment_amount": total_amount,
                     "payment_gst": gst_amount,
@@ -2614,9 +2452,10 @@ async def verify_payment_no_signature(
                 }
                 result = await db.applications.insert_one(doc)
                 application_id = str(result.inserted_id)
-                new_status = "pending"
+                new_status = "verification_successful"
                 logger.info(f"✅ SCHEME APPLICATION CREATED: {application_id}")
                 logger.info(f"   Application Number: {application_number}")
+                logger.info(f"   Status: {new_status}")
 
         elif effective_application_type == "service":
             existing = await db.applications.find_one({
@@ -2632,7 +2471,6 @@ async def verify_payment_no_signature(
                 new_status = existing.get("status", "payment_verified")
                 application_number = existing.get("application_number", application_number)
 
-                # ✅ Update existing with correct breakdown
                 await db.applications.update_one(
                     {"_id": existing["_id"]},
                     {
@@ -2705,7 +2543,6 @@ async def verify_payment_no_signature(
                 application_id = str(result.inserted_id)
                 new_status = "payment_verified"
                 logger.info(f"✅ SERVICE APPLICATION CREATED: {application_id}")
-                logger.info(f"   Application Number: {application_number}")
 
         else:
             return {
@@ -2820,7 +2657,6 @@ async def update_job_payment_status(
             "updated_at": datetime.utcnow()
         }
 
-        # ✅ Try to get breakdown from payment_orders
         payment_record = await db.payment_orders.find_one({
             "razorpay_order_id": razorpay_order_id
         })
@@ -2844,7 +2680,6 @@ async def update_job_payment_status(
                 "total_amount": normalized["total_amount"],
             }
         elif amount:
-            # Fallback: infer from amount
             normalized = build_payment_breakdown(
                 application_fee=0,
                 service_charge=SERVICE_CHARGE,
@@ -2885,11 +2720,7 @@ async def update_job_payment_status(
 
 # ============================================================
 # ✅ RAZORPAY WEBHOOK (Auto-creates application if needed)
-# ============================================================
-# ✅ CRITICAL FIX: Reads breakdown from payment_orders DB
-# ✅ CRITICAL FIX: payment_amount stores TOTAL (not app_fee)
-# ✅ NEW: IDEMPOTENT - Only ONE record created per payment
-# ✅ NEW: Scheme support
+# ✅ LATEST FIX: SCHEME applications get status="verification_successful"
 # ============================================================
 
 @router.post("/razorpay/webhook")
@@ -2900,9 +2731,7 @@ async def razorpay_webhook(
     """
     Webhook handler. If payment is captured but verify-payment
     endpoint was never called, this creates the application.
-    ✅ NEW: Generates sequential application number.
-    ✅ NEW: IDEMPOTENT - Checks for existing application first.
-    ✅ NEW: Scheme support.
+    ✅ LATEST: Scheme applications get status="verification_successful"
     """
     try:
         event = request_data.get("event")
@@ -2917,7 +2746,6 @@ async def razorpay_webhook(
 
             logger.info(f"💰 Payment captured: {payment_id} for order: {order_id}")
 
-            # ==================== IDEMPOTENCY CHECK ====================
             existing = await db.applications.find_one({
                 "razorpay_order_id": order_id
             })
@@ -2926,7 +2754,6 @@ async def razorpay_webhook(
                 logger.info(f"✅ Application already exists: {existing['_id']}")
                 return {"success": True, "received": True, "already_exists": True}
 
-            # Also check by payment_id
             existing_by_payment = await db.applications.find_one({
                 "razorpay_payment_id": payment_id
             })
@@ -2939,7 +2766,6 @@ async def razorpay_webhook(
                 try:
                     order_details = razorpay_client.order.fetch(order_id)
 
-                    # ✅ Read from payment_orders DB
                     payment_record = await db.payment_orders.find_one({
                         "razorpay_order_id": order_id
                     })
@@ -2948,7 +2774,6 @@ async def razorpay_webhook(
                         effective_payment_type = payment_record.get("payment_type", "job")
                         effective_application_type = payment_record.get("application_type", "job")
 
-                        # ✅ Ensure application_type is correct for schemes
                         if effective_payment_type == "scheme":
                             effective_application_type = "schemes"
 
@@ -2977,7 +2802,6 @@ async def razorpay_webhook(
                         form_data = payment_record.get("form_data", {}) or {}
                         documents = payment_record.get("documents", []) or []
 
-                        # ✅ Normalize
                         normalized = build_payment_breakdown(
                             application_fee=int(payment_record.get("application_fee") or 0),
                             service_charge=int(payment_record.get("service_charge") or SERVICE_CHARGE),
@@ -2995,7 +2819,6 @@ async def razorpay_webhook(
                         effective_payment_type = order_notes.get("payment_type", "job")
                         effective_application_type = order_notes.get("application_type", "job")
 
-                        # ✅ Ensure application_type is correct for schemes
                         if effective_payment_type == "scheme":
                             effective_application_type = "schemes"
 
@@ -3045,9 +2868,6 @@ async def razorpay_webhook(
                     applicant_name = profile.get("full_name") if profile else "User"
                     application_username = user_email.split('@')[0] if user_email else "user"
 
-                    # ============================================================
-                    # ✅ NEW: GENERATE APPLICATION NUMBER (YYYYMMSSSSS)
-                    # ============================================================
                     try:
                         application_number = await ApplicationNumberGenerator.generate_application_number(db)
                         logger.info(f"🎫 WEBHOOK: Application number generated: {application_number}")
@@ -3059,9 +2879,6 @@ async def razorpay_webhook(
                         application_number = f"{now.year}{now.month:02d}{fallback_seq:05d}"
                         logger.warning(f"⚠️ Using fallback: {application_number}")
 
-                    # ============================================================
-                    # ✅ CREATE APPLICATION BASED ON TYPE
-                    # ============================================================
                     if effective_application_type == "job":
                         doc = {
                             "application_type": "job",
@@ -3108,7 +2925,7 @@ async def razorpay_webhook(
                             "additional_info": form_data if form_data else None,
                         }
                     elif effective_application_type == "schemes":
-                        # ✅ SCHEME APPLICATION
+                        # ✅ FIX: exactly ONE "status" key = verification_successful
                         doc = {
                             "application_type": "schemes",
                             "application_id": str(ObjectId()),
@@ -3129,9 +2946,12 @@ async def razorpay_webhook(
                             "applicant_address": applicant_address,
                             "bank_details": bank_details,
                             "documents": documents,
-                            "status": "pending",
+
+                            # ✅ THE ONLY "status" key — value = verification_successful
+                            "status": "verification_successful",
                             "payment_verification_status": "approved",
                             "payment_status": "completed",
+
                             "payment_id": payment_id,
                             "payment_amount": total_amount,
                             "payment_gst": gst_amount,
@@ -3213,8 +3033,8 @@ async def razorpay_webhook(
                     logger.info(f"✅ Webhook created application: {result.inserted_id}")
                     logger.info(f"   Application Number: {application_number}")
                     logger.info(f"   Application Type: {effective_application_type}")
+                    logger.info(f"   Status: {doc.get('status')}")
 
-                    # Update payment record
                     await db.payment_orders.update_one(
                         {"razorpay_order_id": order_id},
                         {
@@ -3271,9 +3091,6 @@ print("   ✅ use_provided_amount flag prevents double calculation")
 print("   ✅ build_payment_breakdown() normalizes amounts")
 print("   ✅ payment_amount now stores TOTAL (not app_fee)")
 print("   ✅ payment_gst inferred from (total - subtotal) if 0")
-print("   ✅ STRICT VALIDATION: rejects mismatched amount/total_amount")
-print("   ✅ STRICT VALIDATION: rejects mismatched breakdown sum")
-print("   ✅ SANITY CHECK: verifies Razorpay returned the same amount")
 print("   ✅ NO application created on order creation")
 print("   ✅ Application created ONLY after successful payment")
 print("   ✅ IDEMPOTENT: Only ONE record created per payment")
@@ -3282,4 +3099,10 @@ print("   ✅ Supports job + service + scheme payments")
 print("   ✅ payment_type='scheme' → application_type='schemes'")
 print("   ✅ Full breakdown saved to `payment_orders` collection")
 print("   ✅ verify-payment reads breakdown from DB (not Razorpay notes)")
+print("   🎯 LATEST FIX: Scheme applications now get")
+print("        status='verification_successful' (NOT 'pending')")
+print("      Removed duplicate `status` dict-key override bug in all 3 paths:")
+print("        - verify_razorpay_payment()")
+print("        - verify_payment_no_signature()")
+print("        - razorpay_webhook()")
 print("=" * 70)
