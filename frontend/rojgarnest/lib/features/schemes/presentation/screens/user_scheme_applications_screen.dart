@@ -21,6 +21,18 @@
 //         - Rejection reason (if rejected)
 //         - View Payment Receipt button
 // ✅ NEW: Payment status badge shown on LIST card too
+// ✅ ✅ ✅ NEW FIX (2026-10-22): PAYMENT STATUS NOW SHOWS "VERIFIED"
+//         - `_SchemePaymentHelper.paymentStatus()` now checks Razorpay /
+//           transaction IDs BEFORE the main `status` field. Scheme apps
+//           often have main status "pending" even after payment success,
+//           so the old logic wrongly showed "PENDING" on the payment card.
+//         - Also reads all scheme-specific DB keys:
+//             payment_status, payment_verified, payment_verified_at,
+//             amount, payment_amount, transaction_id,
+//             razorpay_payment_id, razorpay_order_id,
+//             payment_receipt_url, payment_category_used
+// ✅ ✅ ✅ NEW FIX (2026-10-22): PAYMENT INFORMATION CARD now reads
+//         from all real scheme DB keys with sensible fallbacks.
 // ✅ FULLY WORKING: All lines included — no skips
 // ============================================================
 
@@ -80,15 +92,105 @@ class _ApplicationNumberResolver {
 
 // ============================================================================
 // ✅ HELPER — Payment status (mirrors service screen)
+// ✅ FIXED: Razorpay / transaction IDs are checked BEFORE main status.
+//         Scheme apps often have main status "pending" even after
+//         payment success — so this is what was causing "PENDING" to show.
 // ============================================================================
 class _SchemePaymentHelper {
   static String _norm(dynamic v) => (v ?? '').toString().trim().toLowerCase();
 
+  static bool _isNonEmpty(dynamic v) {
+    if (v == null) return false;
+    if (v is bool) return v; // handled elsewhere
+    final s = v.toString().trim();
+    if (s.isEmpty) return false;
+    final l = s.toLowerCase();
+    return l != 'null' &&
+        l != 'undefined' &&
+        l != 'n/a' &&
+        l != 'na' &&
+        l != '-' &&
+        l != 'none' &&
+        l != 'false' &&
+        l != '0';
+  }
+
   /// Returns: 'approved' | 'pending' | 'rejected' | 'not_submitted'
   static String paymentStatus(Map<String, dynamic> app) {
-    // 1) Main status first
-    final mainStatus = _norm(app['status']);
+    // ============================================================
+    // ✅ STEP 1 (NEW): Razorpay / transaction IDs — HIGHEST PRIORITY
+    // ------------------------------------------------------------
+    // Scheme applications almost ALWAYS have `status: "pending"`
+    // even after successful payment. The presence of a Razorpay
+    // payment ID or transaction ID is the strongest proof that
+    // payment was actually completed.
+    // ============================================================
+    final razorpayId = _norm(app['razorpay_payment_id']);
+    final razorpayOrder = _norm(app['razorpay_order_id']);
+    final transactionId = _norm(app['transaction_id']);
+    final paymentId = _norm(app['payment_id']);
 
+    final hasRazorpay = _isNonEmpty(razorpayId) ||
+        _isNonEmpty(razorpayOrder) ||
+        _isNonEmpty(transactionId);
+
+    // ✅ Explicit payment-status fields (highest-priority signal)
+    final paymentStatus = _norm(app['payment_status']);
+    final paymentVerificationStatus =
+        _norm(app['payment_verification_status']);
+
+    // If there is an explicit rejection signal, honour it first.
+    const rejectedTokens = {
+      'rejected',
+      'failed',
+      'declined',
+      'cancelled',
+      'payment_rejected',
+    };
+    if (rejectedTokens.contains(paymentStatus)) return 'rejected';
+    if (rejectedTokens.contains(paymentVerificationStatus)) return 'rejected';
+    final mainStatusNorm = _norm(app['status']);
+    if (rejectedTokens.contains(mainStatusNorm)) return 'rejected';
+    if (mainStatusNorm == 'verification_rejected' ||
+        mainStatusNorm == 'update_rejected' ||
+        mainStatusNorm == 'payment_rejected') {
+      return 'rejected';
+    }
+
+    // ✅ If an explicit "paid / verified / captured / success" status
+    //    exists → VERIFIED (regardless of main status field).
+    const paidTokens = {
+      'paid',
+      'captured',
+      'settled',
+      'success',
+      'successful',
+      'verified',
+      'approved',
+      'completed',
+      'payment_verified',
+      'verification_successful',
+    };
+    if (paidTokens.contains(paymentStatus)) return 'approved';
+    if (paidTokens.contains(paymentVerificationStatus)) return 'approved';
+
+    // ✅ Explicit boolean flags
+    if (app['payment_verified'] == true ||
+        app['payment_verified'] == 'true' ||
+        app['is_paid'] == true ||
+        app['is_paid'] == 'true' ||
+        app['payment_success'] == true) {
+      return 'approved';
+    }
+
+    // ✅ Razorpay / transaction ID present → payment clearly completed.
+    if (hasRazorpay || _isNonEmpty(paymentId)) {
+      return 'approved';
+    }
+
+    // ============================================================
+    // ✅ STEP 2: MAIN STATUS — now only as a secondary signal
+    // ============================================================
     const mainApproved = {
       'payment_verified',
       'verification_successful',
@@ -107,65 +209,32 @@ class _SchemePaymentHelper {
       'pending_admin_review',
       'update_application',
     };
-    if (mainApproved.contains(mainStatus)) return 'approved';
-
-    const mainRejected = {
-      'verification_rejected',
-      'payment_rejected',
-      'rejected',
-      'update_rejected',
-    };
-    if (mainRejected.contains(mainStatus)) return 'rejected';
+    if (mainApproved.contains(mainStatusNorm)) return 'approved';
 
     const mainPending = {
       'payment_pending',
       'pending_verification',
       'pending',
+      'draft',
     };
-    if (mainPending.contains(mainStatus)) return 'pending';
-
-    // 2) payment_verification_status
-    final pvs = _norm(app['payment_verification_status']);
-    if ([
-      'approved', 'verified', 'success', 'completed',
-      'paid', 'captured', 'settled'
-    ].contains(pvs)) {
-      return 'approved';
-    }
-    if (['rejected', 'failed', 'declined', 'cancelled'].contains(pvs)) {
-      return 'rejected';
-    }
-    if ([
-      'pending', 'pending_verification', 'under_review',
-      'created', 'processing'
-    ].contains(pvs)) {
+    if (mainPending.contains(mainStatusNorm)) {
+      // Still pending — no Razorpay ID, no payment status yet
       return 'pending';
     }
 
-    // 3) payment_status
-    final ps = _norm(app['payment_status']);
-    if ([
-      'approved', 'verified', 'success', 'completed',
-      'paid', 'captured', 'settled'
-    ].contains(ps)) {
-      return 'approved';
-    }
-    if (['rejected', 'failed', 'declined', 'cancelled'].contains(ps)) {
-      return 'rejected';
-    }
-    if (['pending', 'created', 'processing', 'initiated'].contains(ps)) {
-      return 'pending';
-    }
-
-    // 4) Razorpay fallback
-    final razorpayId = _norm(app['razorpay_payment_id']);
-    final paymentId = _norm(app['payment_id']);
-    final transactionId = _norm(app['transaction_id']);
-    if (razorpayId.isNotEmpty ||
-        paymentId.isNotEmpty ||
-        transactionId.isNotEmpty) {
-      return 'approved';
-    }
+    // ============================================================
+    // ✅ STEP 3: Fall back to explicit pending payment statuses
+    // ============================================================
+    const pendingTokens = {
+      'pending',
+      'pending_verification',
+      'under_review',
+      'created',
+      'processing',
+      'initiated',
+    };
+    if (pendingTokens.contains(paymentStatus)) return 'pending';
+    if (pendingTokens.contains(paymentVerificationStatus)) return 'pending';
 
     return 'not_submitted';
   }
@@ -809,7 +878,7 @@ class _UserSchemeApplicationsScreenState
     final statusColor = _getStatusColor(status);
     final statusLabel = _getStatusLabelHindi(status);
 
-    // ✅ Payment status badge
+    // ✅ Payment status badge (now reads Razorpay/transaction IDs FIRST)
     final paymentStatusText = _SchemePaymentHelper.displayPaymentStatus(app);
     final paymentStatusColor = _SchemePaymentHelper.paymentStatusColor(app);
 
@@ -1178,6 +1247,9 @@ class _UserSchemeApplicationsScreenState
 // SCREEN 2: SCHEME APPLICATION DETAIL (RENDERED INLINE)
 // ✅ All original fixes preserved
 // ✅ NEW: Payment Information card (mirrors service screen)
+// ✅ ✅ ✅ NEW FIX (2026-10-22): Payment Information now reads
+//         ALL real scheme DB keys so "VERIFIED" + amount + Razorpay ID
+//         are shown correctly instead of "PENDING".
 // ============================================================================
 
 class _SchemeApplicationDetailView extends StatefulWidget {
@@ -1832,7 +1904,9 @@ class _SchemeApplicationDetailViewState
                                 const SizedBox(height: 14),
                                 _buildBankCard(),
                                 const SizedBox(height: 14),
-                                // ✅ NEW: Payment Information card
+                                // ✅ FIXED: Payment Information card now
+                                //           shows VERIFIED when Razorpay /
+                                //           transaction IDs are present.
                                 _buildPaymentInformationCard(),
                                 const SizedBox(height: 14),
                                 _buildAdminDocumentsCard(),
@@ -2248,7 +2322,20 @@ class _SchemeApplicationDetailViewState
   }
 
   // ============================================================
-  // ✅ NEW: PAYMENT INFORMATION CARD (mirrors service screen)
+  // ✅✅✅ FIXED: PAYMENT INFORMATION CARD
+  // ------------------------------------------------------------
+  // Now reads ALL real scheme DB keys with fallbacks:
+  //   - payment_amount → amount → total_amount
+  //   - razorpay_payment_id → transaction_id → payment_id
+  //   - razorpay_order_id
+  //   - payment_category_used → category_used → "scheme"
+  //   - payment_verified_at → payment_date → created_at
+  //   - payment_receipt_url → screenshot_url → receipt_url
+  //   - payment_rejection_reason → verification_notes
+  // ------------------------------------------------------------
+  // `_SchemePaymentHelper.paymentStatus()` now checks Razorpay /
+  // transaction IDs FIRST, so it correctly reports "VERIFIED"
+  // instead of "PENDING".
   // ============================================================
   Widget _buildPaymentInformationCard() {
     final app = _app;
@@ -2257,6 +2344,7 @@ class _SchemeApplicationDetailViewState
     final paymentStatusText = _SchemePaymentHelper.displayPaymentStatus(app);
     final paymentStatusColor = _SchemePaymentHelper.paymentStatusColor(app);
 
+    // ✅ Transaction ID — prefer Razorpay payment ID
     final transactionId = (
       app['razorpay_payment_id'] ??
       app['transaction_id'] ??
@@ -2264,32 +2352,49 @@ class _SchemeApplicationDetailViewState
       'N/A'
     ).toString();
 
+    // ✅ Amount — prefer payment_amount, fallback to amount/total_amount
     final paymentAmount =
-        app['payment_amount'] ?? app['payment_total'] ?? app['amount'];
+        app['payment_amount'] ??
+        app['amount'] ??
+        app['total_amount'] ??
+        app['payment_total'];
 
+    // ✅ Category
     final paymentCategory = (
       app['payment_category_used'] ??
+      app['category_used'] ??
       app['payment_method'] ??
-      'N/A'
+      'scheme'
     ).toString().toUpperCase();
 
+    // ✅ Verified/paid date
     final verifiedAt = app['payment_verified_at'] ??
-        app['paid_at'] ??
+        app['payment_date'] ??
         app['transaction_date'] ??
+        app['paid_at'] ??
         app['applied_at'];
 
     final verifiedAtStr =
         verifiedAt != null ? _formatDate(verifiedAt.toString()) : 'N/A';
 
+    // ✅ Receipt — prefer payment_receipt_url, then screenshot_url
     final receiptUrl = app['payment_receipt_url'] ??
         app['screenshot_url'] ??
         app['receipt_url'];
 
+    // ✅ Rejection reason
     final rejectionReason = app['payment_rejection_reason'] ??
         app['verification_notes'] ??
         '';
 
+    // ✅ Razorpay order ID
     final razorpayOrderId = app['razorpay_order_id']?.toString() ?? '';
+
+    // ✅ Scheme-specific fee breakdown (optional, only if present)
+    final applicationFee = app['application_fee'];
+    final serviceCharge = app['service_charge'];
+    final gstAmount = app['gst_amount'];
+    final subtotal = app['subtotal'];
 
     return _buildCard(
       title: 'भुगतान जानकारी',
@@ -2311,6 +2416,19 @@ class _SchemeApplicationDetailViewState
         _buildRow('श्रेणी / Category', paymentCategory),
         if (razorpayOrderId.isNotEmpty)
           _buildRow('Razorpay Order', razorpayOrderId, isMono: true),
+
+        // ✅ Optional fee breakdown (only if the scheme actually had fees)
+        if (applicationFee != null && (applicationFee as num) > 0) ...[
+          const Divider(height: 20),
+          _buildRow(
+            'Application Fee',
+            '₹$applicationFee',
+          ),
+          if (serviceCharge != null)
+            _buildRow('Service Charge', '₹$serviceCharge'),
+          if (gstAmount != null) _buildRow('GST', '₹$gstAmount'),
+          if (subtotal != null) _buildRow('Subtotal', '₹$subtotal'),
+        ],
 
         // Rejection reason (if any)
         if (paymentStatusKey == 'rejected' && rejectionReason.isNotEmpty) ...[
