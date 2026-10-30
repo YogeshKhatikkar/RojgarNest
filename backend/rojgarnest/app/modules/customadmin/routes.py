@@ -1,4 +1,10 @@
 # app/modules/customadmin/routes.py - COMPLETE FIXED VERSION
+# ✅ FIXED: POST /jobs respects is_draft → no forced status='open'
+# ✅ FIXED: PUT /jobs/{job_id} uses $set MERGE → no tab data loss between saves
+# ✅ FIXED: upload-advertisement accepts job_id → updates existing draft
+# ✅ FIXED: upload-advertisement respects is_draft → no notifications on draft save
+# ✅ FIXED: Removed duplicate final-submit-with-document definition
+# ✅ FIXED: Draft path returns _id at top level for reliable Flutter capture
 # ✅ FIXED: Added application_type query parameter to /applications endpoint
 # ✅ FIXED: get_db() is sync — removed all 'await get_db()' calls
 # ✅ Full Job CRUD Operations
@@ -29,12 +35,14 @@ from app.core.services.cloudinary import (
     upload_private_file,
     delete_from_cloudinary
 )
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from app.core.services.cloudinary import upload_advertisement_file
+from app.core.database import get_database
+from app.core.security import get_current_admin_user
 
-logger = logging.getLogger(__name__)
-
-# ✅ ROUTER MUST BE DEFINED AT TOP LEVEL
 router = APIRouter()
 
+logger = logging.getLogger(__name__)
 
 # ============================================================
 # DEPENDENCY HELPERS
@@ -147,6 +155,9 @@ async def get_customadmin_job_detail(
     return await service.get_job_detail(job_id, admin_email)
 
 
+# ============================================================
+# ✅ FIXED: POST /jobs — respects is_draft
+# ============================================================
 @router.post("/jobs")
 async def add_customadmin_job(
     job_data: dict = Body(...),
@@ -155,18 +166,27 @@ async def add_customadmin_job(
     user=Depends(custom_admin_required),
     db=Depends(get_db)
 ):
-    """Add a new job posting."""
+    """
+    ✅ Create job OR save draft.
+
+    ✅ FIX: If `is_draft=true` (or `status="draft"`) is in the payload
+       (which is what Flutter sends during tab-wise draft saves), we
+       DO NOT force status to "open", we DO NOT send notifications, and
+       we DO save the record as a draft, returning the new `_id`.
+    """
     admin_email = await _get_admin_email(user, db)
     if not admin_email:
         raise HTTPException(status_code=400, detail="Admin email not found")
 
-    # Add tracking fields
-    job_data["added_by"] = admin_email
-    job_data["created_at"] = datetime.utcnow().isoformat()
-    job_data["updated_at"] = datetime.utcnow().isoformat()
-    job_data["status"] = "open"
+    is_draft = (
+        job_data.get("is_draft") is True
+        or job_data.get("status") == "draft"
+    )
 
-    # Set defaults
+    # Common defaults
+    job_data["added_by"] = admin_email
+    job_data["created_at"] = datetime.utcnow()
+    job_data["updated_at"] = datetime.utcnow()
     job_data.setdefault("geolocation", [0, 0])
     job_data.setdefault("required_skills", [])
     job_data.setdefault("nice_to_have_skills", [])
@@ -181,17 +201,47 @@ async def add_customadmin_job(
     job_data.setdefault("job_type", "private")
     job_data.setdefault("color_type", "blue")
 
-    # Handle apply with us
+    if is_draft:
+        # ─── DRAFT PATH ─────────────────────────────────────
+        job_data["status"] = "draft"
+        job_data["is_draft"] = True
+        job_data.setdefault("post_name", "Untitled Draft")
+        job_data.setdefault("organization", "Not Specified")
+        job_data.setdefault("category", "IT")
+        job_data.setdefault("is_deleted", False)
+        job_data.setdefault("is_archived", False)
+
+        result = await db.job.insert_one(job_data)
+        new_id = str(result.inserted_id)
+
+        logger.info(f"✅ CustomAdmin Draft created: {new_id}")
+
+        return {
+            "success": True,
+            "job_id": new_id,
+            "_id": new_id,
+            "is_draft": True,
+            "status": "draft",
+            "message": "Draft created successfully",
+        }
+
+    # ─── PUBLISH PATH (existing behaviour) ───────────────
+    job_data["status"] = "open"
+    job_data["is_draft"] = False
+
     apply_url = job_data.get("apply_with_us_url")
     if apply_url and str(apply_url).strip() and str(apply_url).strip() != '#':
         job_data["has_apply_with_us"] = True
 
-    logger.info(f"✅ Custom Admin adding job - Email: {admin_email}")
+    logger.info(f"✅ Custom Admin adding job — Email: {admin_email}")
     logger.info(f"📝 Job: {job_data.get('post_name')}")
 
     return await service.add_job(job_data, admin_email, background_tasks)
 
 
+# ============================================================
+# ✅ FIXED: PUT /jobs/{job_id} — uses $set MERGE
+# ============================================================
 @router.put("/jobs/{job_id}")
 async def update_customadmin_job(
     job_id: str,
@@ -200,7 +250,25 @@ async def update_customadmin_job(
     user=Depends(custom_admin_required),
     db=Depends(get_db)
 ):
-    """Update existing job."""
+    """
+    ✅ FIXED: Update existing job using $set MERGE.
+
+    Why this matters:
+      Flutter's `_saveCurrentTab()` sends the FULL accumulated payload
+      from all 8 tabs on every save. With `$set`, we guarantee:
+        - Every field present in `job_data` gets written/overwritten.
+        - Fields NOT present (i.e., untouched tabs) remain intact.
+
+      This is the single most important fix for single-record,
+      tab-wise saving. A `replace_one` would wipe untouched tabs.
+    """
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job ID")
+
+    existing = await db.job.find_one({"_id": ObjectId(job_id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Job not found")
+
     admin_email = await _get_admin_email(user, db)
     if not admin_email:
         raise HTTPException(status_code=400, detail="Admin email not found")
@@ -210,11 +278,49 @@ async def update_customadmin_job(
     if user_role == "custom_admin":
         user_role = "customadmin"
 
-    # Add tracking
-    job_data["updated_at"] = datetime.utcnow()
-    job_data["last_updated_by"] = admin_email
+    # Permission check
+    if existing.get("added_by") != admin_email and user_role != "superadmin":
+        raise HTTPException(status_code=403, detail="Access denied")
 
-    return await service.update_job(job_id, job_data, admin_email)
+    # ─── Build $set patch ────────────────────────────────────
+    patch = {k: v for k, v in job_data.items() if k not in ("_id", "created_at", "added_by")}
+
+    # Always stamp update metadata
+    patch["updated_at"] = datetime.utcnow()
+    patch["last_updated_by"] = admin_email
+
+    # Draft-aware status handling — never auto-publish a draft via PUT,
+    # and never let a status collision silently un-publish a job.
+    incoming_status = patch.get("status")
+    incoming_is_draft = patch.get("is_draft")
+    if incoming_is_draft is True:
+        patch["status"] = "draft"
+    elif incoming_is_draft is False and incoming_status == "open":
+        patch["status"] = "open"
+    # Else: leave existing status untouched.
+
+    # ─── Merge via find_one_and_update ───────────────────────
+    updated = await db.job.find_one_and_update(
+        {"_id": ObjectId(job_id)},
+        {"$set": patch},
+        return_document=True,
+    )
+
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update job")
+
+    updated["_id"] = str(updated["_id"])
+    for f in ("created_at", "updated_at", "published_at", "final_submitted_at"):
+        if updated.get(f) and isinstance(updated[f], datetime):
+            updated[f] = updated[f].isoformat()
+
+    logger.info(f"✅ CustomAdmin Job {job_id} merged via $set ({len(patch)} fields)")
+
+    return {
+        "success": True,
+        "message": "Job updated successfully",
+        "data": updated,
+    }
 
 
 @router.delete("/jobs/{job_id}")
@@ -244,16 +350,13 @@ async def publish_customadmin_job(
 
     admin_email = await _get_admin_email(user, db)
 
-    # Find job
     job = await db.job.find_one({"_id": ObjectId(job_id)})
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # Permission check
     if job.get("added_by") != admin_email:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Check if already published
     if job.get("status") == "open" and not job.get("is_draft", True):
         return {
             "success": True,
@@ -262,7 +365,6 @@ async def publish_customadmin_job(
             "status": "open"
         }
 
-    # Update job status
     await db.job.update_one(
         {"_id": ObjectId(job_id)},
         {
@@ -275,11 +377,9 @@ async def publish_customadmin_job(
         }
     )
 
-    # Get updated job
     updated_job = await db.job.find_one({"_id": ObjectId(job_id)})
     updated_job["_id"] = str(updated_job["_id"])
 
-    # Send notifications (customadmin publishes → exclude admin role)
     if background_tasks:
         await central_notification.notify_new_job(
             updated_job,
@@ -299,133 +399,192 @@ async def publish_customadmin_job(
 
 
 # ============================================================
-# UPLOAD ADVERTISEMENT ENDPOINT
+# ✅ FIXED: upload-advertisement — supports UPDATE of existing draft
 # ============================================================
-
 @router.post("/jobs/upload-advertisement")
 async def customadmin_upload_advertisement(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     job_data: str = Form(...),
+    job_id: Optional[str] = Form(None),          # ✅ NEW
+    is_update: Optional[str] = Form(None),       # ✅ NEW
     user=Depends(custom_admin_required),
     db=Depends(get_db)
 ):
-    """CustomAdmin upload job advertisement."""
+    """
+    ✅ GUARANTEED SINGLE-RECORD OPERATION (CustomAdmin)
+    Same resolution order as admin version.
+    """
     admin_email = await _get_admin_email(user, db)
 
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Advertisement file is required")
 
-    logger.info("=" * 60)
-    logger.info(f"📤 CustomAdmin Upload Advertisement")
-    logger.info(f"   Admin: {admin_email}")
-    logger.info(f"   File: {file.filename}")
-    logger.info("=" * 60)
-
     MAX_FILE_SIZE = 50 * 1024 * 1024
-
     file_content = await file.read()
     file_size = len(file_content)
     await file.seek(0)
 
     if file_size > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File too large. Max: {MAX_FILE_SIZE // (1024*1024)}MB, "
-                   f"Your file: {file_size // (1024*1024)}MB"
-        )
+        raise HTTPException(status_code=413, detail="File too large")
 
     try:
         job_dict = json.loads(job_data)
-        job_dict["added_by"] = admin_email
-        job_dict["created_at"] = datetime.utcnow().isoformat()
-        job_dict["updated_at"] = datetime.utcnow().isoformat()
-        job_dict["status"] = "open"
-        job_dict["required_skills"] = job_dict.get("required_skills", [])
+
+        # ✅ RESOLUTION STEP 1: explicit form field
+        resolved_id = (job_id or "").strip() or None
+
+        # ✅ RESOLUTION STEP 2: keys inside payload
+        if not resolved_id:
+            resolved_id = (
+                str(job_dict.pop("job_id", "") or "").strip()
+                or str(job_dict.pop("application_id", "") or "").strip()
+                or str(job_dict.pop("draft_id", "") or "").strip()
+                or str(job_dict.pop("_id", "") or "").strip()
+                or None
+            )
+        else:
+            job_dict.pop("job_id", None)
+            job_dict.pop("application_id", None)
+            job_dict.pop("draft_id", None)
+            job_dict.pop("_id", None)
+
+        # ✅ RESOLUTION STEP 3: match by title+org (drafts)
+        if not resolved_id:
+            title = (job_dict.get("post_name") or "").strip()
+            org = (job_dict.get("organization") or "").strip()
+            if title and title not in ("Untitled Draft", "Untitled Job", ""):
+                candidate = await db.job.find_one({
+                    "added_by": admin_email,
+                    "post_name": title,
+                    "organization": org,
+                    "status": "draft",
+                    "is_deleted": {"$ne": True},
+                })
+                if candidate:
+                    resolved_id = str(candidate["_id"])
+
+        is_draft = (
+            job_dict.get("is_draft") is True
+            or job_dict.get("status") == "draft"
+        )
+
+        job_dict.setdefault("post_name", "Untitled Job")
+        job_dict.setdefault("organization", "Not Specified")
+        job_dict.setdefault("post_date", datetime.utcnow().strftime("%Y-%m-%d"))
+        job_dict.setdefault("job_type", "private")
         job_dict.setdefault("color_type", "blue")
+        job_dict.setdefault("required_skills", [])
+        job_dict.setdefault("multiple_posts", [])
+        job_dict.setdefault("is_deleted", False)
+        job_dict.setdefault("is_archived", False)
 
-        apply_url = job_dict.get("apply_with_us_url")
-        if apply_url and str(apply_url).strip() and str(apply_url).strip() != '#':
-            job_dict["has_apply_with_us"] = True
+        job_dict["added_by"] = admin_email
+        job_dict["updated_at"] = datetime.utcnow()
 
-        use_current_location = job_dict.get("use_current_location", False)
+        if is_draft:
+            job_dict["status"] = "draft"
+            job_dict["is_draft"] = True
+        else:
+            job_dict["status"] = "open"
+            job_dict["is_draft"] = False
 
-        if use_current_location:
+        if job_dict.get("use_current_location", False):
             from app.models.job_model import get_admin_current_location
             admin_location = await get_admin_current_location(admin_email, db)
             if admin_location:
                 job_dict["job_location"] = admin_location
-                logger.info(f"📍 Using admin's current location: {admin_location.get('location_name')}")
 
-        result = await db.job.insert_one(job_dict)
-        job_id = str(result.inserted_id)
+        # ✅ UPDATE or INSERT
+        action = "created"
+        if resolved_id and ObjectId.is_valid(resolved_id):
+            existing = await db.job.find_one({"_id": ObjectId(resolved_id)})
+            if not existing:
+                raise HTTPException(status_code=404, detail="Job not found")
+            if existing.get("added_by") != admin_email:
+                raise HTTPException(status_code=403, detail="Access denied")
 
-        logger.info(f"📝 Job created with ID: {job_id}")
+            job_id_resolved = resolved_id
+            job_dict.pop("created_at", None)
+            await db.job.update_one(
+                {"_id": ObjectId(job_id_resolved)},
+                {"$set": job_dict},
+            )
+            action = "updated"
+        else:
+            job_dict["created_at"] = datetime.utcnow()
+            result = await db.job.insert_one(job_dict)
+            job_id_resolved = str(result.inserted_id)
+            action = "created"
+
+        logger.info(f"📝 CustomAdmin {action} job {job_id_resolved}")
 
         upload_result = await upload_private_file(
             file=file,
             folder="jobs/advertisements",
-            job_id=job_id,
+            job_id=job_id_resolved,
             organization=job_dict.get("organization", "company"),
-            post_name=job_dict.get("post_name", "job")
+            post_name=job_dict.get("post_name", "job"),
         )
-
-        update_data = {
-            "advertisement_url": upload_result["url"],
-            "advertisement_download_url": upload_result["download_url"],
-            "advertisement_name": file.filename,
-            "advertisement_storage": upload_result.get("storage", "cloudinary"),
-            "advertisement_public_id": upload_result.get("public_id"),
-            "advertisement_resource_type": upload_result.get("resource_type", "raw"),
-            "advertisement_is_public": False,
-            "advertisement_is_pdf": upload_result.get("is_pdf", False),
-            "advertisement_folder_path": upload_result.get("folder_path"),
-            "advertisement_file_size": file_size,
-            "has_advertisement_file": True,
-        }
 
         await db.job.update_one(
-            {"_id": ObjectId(job_id)},
-            {"$set": update_data}
+            {"_id": ObjectId(job_id_resolved)},
+            {"$set": {
+                "advertisement_url": upload_result["url"],
+                "advertisement_download_url": upload_result["download_url"],
+                "advertisement_name": file.filename,
+                "advertisement_storage": upload_result.get("storage", "cloudinary"),
+                "advertisement_public_id": upload_result.get("public_id"),
+                "advertisement_resource_type": upload_result.get("resource_type", "raw"),
+                "advertisement_is_public": False,
+                "advertisement_is_pdf": upload_result.get("is_pdf", False),
+                "advertisement_folder_path": upload_result.get("folder_path"),
+                "advertisement_file_size": file_size,
+                "has_advertisement_file": True,
+            }},
         )
 
-        logger.info(f"✅ Job {job_id} updated with advertisement")
-
-        job_doc = await db.job.find_one({"_id": ObjectId(job_id)})
-
-        publisher_role = user.get("role", "customadmin").lower()
-        if publisher_role == "custom_admin":
-            publisher_role = "customadmin"
-
-        await central_notification.notify_new_job(
-            job_doc,
-            background_tasks,
-            publisher_role=publisher_role
-        )
+        if not is_draft:
+            job_doc = await db.job.find_one({"_id": ObjectId(job_id_resolved)})
+            publisher_role = (user.get("role") or "customadmin").lower()
+            if publisher_role == "custom_admin":
+                publisher_role = "customadmin"
+            await central_notification.notify_new_job(
+                job_doc, background_tasks, publisher_role=publisher_role,
+            )
 
         return {
             "success": True,
-            "message": "Job added successfully with private advertisement",
-            "job_id": job_id,
-            "job_title": job_dict.get('post_name'),
+            "message": (
+                "Draft saved successfully with advertisement"
+                if is_draft
+                else "Job published successfully with advertisement"
+            ),
+            "job_id": job_id_resolved,
+            "_id": job_id_resolved,
+            "action": action,
+            "job_title": job_dict.get("post_name"),
+            "is_draft": is_draft,
+            "status": "draft" if is_draft else "open",
             "advertisement_url": upload_result["url"],
             "advertisement_download_url": upload_result["download_url"],
             "file_size_kb": file_size // 1024,
-            "is_pdf": upload_result.get("is_pdf", False)
+            "is_pdf": upload_result.get("is_pdf", False),
         }
 
     except json.JSONDecodeError as e:
-        logger.error(f"JSON decode error: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Upload error: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to add job: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed: {e}")
 
 
 # ============================================================
-# ✅ APPLICATION MANAGEMENT ENDPOINTS (FIXED - supports all types)
+# ✅ APPLICATION MANAGEMENT ENDPOINTS (FIXED — supports all types)
 # ============================================================
 
 @router.get("/applications")
@@ -522,7 +681,6 @@ async def update_customadmin_application_status(
         display_title = job.get("post_name", "Job")
         color_type = job.get("color_type", "blue")
     else:
-        # For schemes/services, use the app's own title fields
         display_title = (
             application.get("scheme_name") or
             application.get("service_name") or
@@ -890,6 +1048,10 @@ async def customadmin_submit_document(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
+# ============================================================
+# ✅ FIXED: ONLY ONE definition of final-submit-with-document.
+#    The previous file had TWO — FastAPI silently ignored the second.
+# ============================================================
 @router.post("/applications/{application_id}/final-submit-with-document")
 async def customadmin_final_submit_with_document(
     application_id: str,
@@ -1394,12 +1556,9 @@ async def customadmin_verify_payment(
         }
 
 
-
 # ============================================================
-# ✅ APPEND TO: app/modules/customadmin/routes.py
+# SCHEMES — thin wrappers (delegate to schemes router)
 # ============================================================
-# These thin wrappers let the customadmin frontend keep working
-# even if it accidentally calls /customadmin/... instead of /schemes/...
 
 @router.post("/applications/{application_id}/review-with-document")
 async def customadmin_scheme_review_with_document(
@@ -1415,27 +1574,6 @@ async def customadmin_scheme_review_with_document(
     """
     from app.modules.schemes.routes import scheme_review_with_document
     return await scheme_review_with_document(
-        application_id=application_id,
-        file=file,
-        notes=notes,
-        db=db,
-        current_user=user,
-    )
-
-
-@router.post("/applications/{application_id}/final-submit-with-document")
-async def customadmin_scheme_final_submit_with_document(
-    application_id: str,
-    file: UploadFile = File(...),
-    notes: str = Form(""),
-    user=Depends(custom_admin_required),
-    db=Depends(get_db),
-):
-    """
-    CustomAdmin wrapper — delegates to the schemes router logic.
-    """
-    from app.modules.schemes.routes import scheme_final_submit_with_document
-    return await scheme_final_submit_with_document(
         application_id=application_id,
         file=file,
         notes=notes,
@@ -1460,12 +1598,95 @@ async def customadmin_scheme_documents(
         current_user=user,
     )
 
+
+
+@router.post("/jobs/{job_id}/upload-advertisement")
+async def upload_advertisement_to_existing_job(
+    job_id: str,
+    file: UploadFile = File(...),
+    job_data: str = Form(...),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """
+    ✅ Upload an advertisement file and UPDATE the EXISTING job record.
+    This does NOT create a new job.
+
+    Used by the 8-tab Add/Edit Job wizard when the user clicks
+    'Publish Job' or 'Save Changes' on the final tab.
+    """
+    db = get_database()
+
+    # ------------------------------------------------------------
+    # 1. Verify the job exists
+    # ------------------------------------------------------------
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job id")
+
+    existing = await db.job.find_one({"_id": ObjectId(job_id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # ------------------------------------------------------------
+    # 2. Parse the incoming job_data JSON
+    # ------------------------------------------------------------
+    try:
+        parsed_data = json.loads(job_data)
+        if not isinstance(parsed_data, dict):
+            raise ValueError("job_data must be a JSON object")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid job_data: {e}")
+
+    # ------------------------------------------------------------
+    # 3. Upload the file to Cloudinary
+    # ------------------------------------------------------------
+    try:
+        upload = await upload_advertisement_file(file, job_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
+
+    # ------------------------------------------------------------
+    # 4. Merge upload metadata into the payload
+    # ------------------------------------------------------------
+    filename = upload["filename"] or ""
+    parsed_data.update({
+        "advertisement_url": upload["secure_url"],
+        "advertisement_public_id": upload["public_id"],
+        "advertisement_filename": filename,
+        "advertisement_is_pdf": filename.lower().endswith(".pdf"),
+        "advertisement_is_public": False,
+        "updated_at": datetime.utcnow().isoformat(),
+        "last_updated_by": current_user.get("email", ""),
+    })
+
+    # ------------------------------------------------------------
+    # 5. $set-merge into the SAME record — no new record created
+    # ------------------------------------------------------------
+    parsed_data.pop("_id", None)   # never overwrite _id
+    await db.job.update_one(
+        {"_id": ObjectId(job_id)},
+        {"$set": parsed_data},
+    )
+
+    return {
+        "success": True,
+        "job_id": job_id,
+        "advertisement_url": upload["secure_url"],
+        "advertisement_public_id": upload["public_id"],
+        "message": "Advertisement uploaded and job updated",
+    }
+
+
 # ============================================================
 # END OF FILE
 # ============================================================
 
-print("✅ Custom Admin Routes Loaded - Full Job CRUD + Application Management")
-print("   ✅ FIXED: application_type query param added to /applications endpoint")
+print("✅ Custom Admin Routes Loaded")
+print("   ✅ FIXED: POST /jobs respects is_draft (no forced status='open')")
+print("   ✅ FIXED: PUT /jobs/{id} merges via $set (no tab data loss)")
+print("   ✅ FIXED: upload-advertisement updates existing draft via job_id")
+print("   ✅ FIXED: upload-advertisement respects is_draft (no notify on draft)")
+print("   ✅ FIXED: Removed duplicate final-submit-with-document definition")
+print("   ✅ FIXED: application_type query param on /applications")
 print("   ✅ Job CRUD: Add, Get, Update, Delete, Publish")
 print("   ✅ Application Management: job + service + schemes")
 print("   ✅ Document Upload: Review, Final Submit")

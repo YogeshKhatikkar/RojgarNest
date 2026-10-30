@@ -8,6 +8,16 @@ from app.db.connection import get_db
 from .schema import UserFilterSchema, PromoteToAdminSchema, BulkActionSchema
 from .service import SuperAdminService
 from app.modules.superadmin.AI.ai_routes import router as superadmin_ai_router
+from datetime import datetime
+from bson import ObjectId
+from app.modules.jobs.schema import ApplicationStatusUpdateSchema
+# app/modules/admin/routes.py — ADD this endpoint
+import json
+from bson import ObjectId
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from app.core.services.cloudinary import upload_advertisement_file
+from app.core.database import get_database
+from app.core.security import get_current_admin_user
 
 router = APIRouter()
 
@@ -206,8 +216,79 @@ async def superadmin_home(user=Depends(role_required("superadmin"))):
     }
 
 
-# Add missing imports
-from bson import ObjectId
-from app.modules.jobs.schema import ApplicationStatusUpdateSchema
 
+@router.post("/jobs/{job_id}/upload-advertisement")
+async def upload_advertisement_to_existing_job(
+    job_id: str,
+    file: UploadFile = File(...),
+    job_data: str = Form(...),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """
+    ✅ Upload an advertisement file and UPDATE the EXISTING job record.
+    This does NOT create a new job.
+
+    Used by the 8-tab Add/Edit Job wizard when the user clicks
+    'Publish Job' or 'Save Changes' on the final tab.
+    """
+    db = get_database()
+
+    # ------------------------------------------------------------
+    # 1. Verify the job exists
+    # ------------------------------------------------------------
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job id")
+
+    existing = await db.job.find_one({"_id": ObjectId(job_id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # ------------------------------------------------------------
+    # 2. Parse the incoming job_data JSON
+    # ------------------------------------------------------------
+    try:
+        parsed_data = json.loads(job_data)
+        if not isinstance(parsed_data, dict):
+            raise ValueError("job_data must be a JSON object")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid job_data: {e}")
+
+    # ------------------------------------------------------------
+    # 3. Upload the file to Cloudinary
+    # ------------------------------------------------------------
+    try:
+        upload = await upload_advertisement_file(file, job_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
+
+    # ------------------------------------------------------------
+    # 4. Merge upload metadata into the payload
+    # ------------------------------------------------------------
+    filename = upload["filename"] or ""
+    parsed_data.update({
+        "advertisement_url": upload["secure_url"],
+        "advertisement_public_id": upload["public_id"],
+        "advertisement_filename": filename,
+        "advertisement_is_pdf": filename.lower().endswith(".pdf"),
+        "advertisement_is_public": False,
+        "updated_at": datetime.utcnow().isoformat(),
+        "last_updated_by": current_user.get("email", ""),
+    })
+
+    # ------------------------------------------------------------
+    # 5. $set-merge into the SAME record — no new record created
+    # ------------------------------------------------------------
+    parsed_data.pop("_id", None)   # never overwrite _id
+    await db.job.update_one(
+        {"_id": ObjectId(job_id)},
+        {"$set": parsed_data},
+    )
+
+    return {
+        "success": True,
+        "job_id": job_id,
+        "advertisement_url": upload["secure_url"],
+        "advertisement_public_id": upload["public_id"],
+        "message": "Advertisement uploaded and job updated",
+    }
 print("✅ SuperAdmin Routes Loaded - AUTH DELETION DISABLED (Soft Delete Only)")

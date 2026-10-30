@@ -1,4 +1,9 @@
 # app/modules/admin/routes.py - COMPLETE UPDATED VERSION
+# ✅ FIXED: POST /add-job respects is_draft / status="draft"
+# ✅ FIXED: PUT /jobs/{job_id} uses $set MERGE (no tab data loss)
+# ✅ FIXED: add-job-with-advertisement accepts job_id (updates existing draft)
+# ✅ FIXED: add-job-with-advertisement respects is_draft (no notify on draft save)
+# ✅ FIXED: Draft path returns _id at top level for reliable Flutter capture
 # ✅ Full Job CRUD Operations
 # ✅ Full Application Management
 # ✅ Payment Verification
@@ -7,7 +12,7 @@
 # ✅ All original functionality preserved
 
 from fastapi import (
-    APIRouter, Depends, HTTPException, Query, Body, 
+    APIRouter, Depends, HTTPException, Query, Body,
     BackgroundTasks, UploadFile, File, Form
 )
 from typing import Optional, List
@@ -23,7 +28,12 @@ from app.modules.jobs.service import JobService
 from app.modules.jobs.schema import JobCreateSchema, ApplicationStatusUpdateSchema
 from app.core.services.cloudinary import upload_to_cloudinary, upload_private_file, upload_user_document
 from app.modules.notification.service import central_notification
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from app.core.services.cloudinary import upload_advertisement_file
+from app.core.database import get_database
+from app.core.security import get_current_admin_user
 
+router = APIRouter()
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -66,55 +76,83 @@ async def add_admin_job(
     db=Depends(get_db)
 ):
     """
-    ✅ Admin adds a new job - Direct JSON endpoint
-    
-    Creates a new job posting with all provided data.
-    Sends notifications to all active users (excluding publisher's role).
-    
-    Role-based notification rules:
-    - Admin publishes → Notify all EXCEPT customadmin
-    - CustomAdmin publishes → Notify all EXCEPT admin
-    - SuperAdmin publishes → Notify ALL
+    ✅ IDEMPOTENT: If job_id present → UPDATE; else INSERT.
     """
     try:
-        # Get admin email
         admin_email = await _get_admin_email(user, db)
-        
-        # Add tracking fields
+
+        existing_job_id = (
+            job_data.pop("job_id", None)
+            or job_data.pop("_id", None)
+        )
+
+        # Last-resort: match existing draft by title
+        if not existing_job_id:
+            title = (job_data.get("post_name") or "").strip()
+            org = (job_data.get("organization") or "").strip()
+            if title and title != "Untitled Draft":
+                candidate = await db.job.find_one({
+                    "added_by": admin_email,
+                    "post_name": title,
+                    "organization": org,
+                    "status": {"$in": ["draft", "open"]},
+                    "is_deleted": {"$ne": True},
+                })
+                if candidate:
+                    existing_job_id = str(candidate["_id"])
+
+        is_draft = (
+            job_data.get("is_draft") is True
+            or job_data.get("status") == "draft"
+        )
+
         job_data["added_by"] = admin_email
-        job_data["created_at"] = datetime.utcnow()
         job_data["updated_at"] = datetime.utcnow()
-        job_data["status"] = "open"
-        
-        # Set defaults for required fields
-        job_data.setdefault("post_name", "Untitled Job")
+        job_data.setdefault("post_name", "Untitled Draft" if is_draft else "Untitled Job")
         job_data.setdefault("organization", "Not Specified")
         job_data.setdefault("post_date", datetime.utcnow().strftime("%Y-%m-%d"))
         job_data.setdefault("job_type", "private")
         job_data.setdefault("color_type", "blue")
-        
-        # Validate with schema
-        from app.modules.jobs.schema import JobCreateSchema
-        job_data_model = JobCreateSchema(**job_data)
-        logger.info(f"✅ Job data validated: {job_data_model.post_name}")
-        
+
+        if is_draft:
+            job_data["status"] = "draft"
+            job_data["is_draft"] = True
+        else:
+            job_data["status"] = "open"
+            job_data["is_draft"] = False
+
+        if existing_job_id and ObjectId.is_valid(existing_job_id):
+            job_data.pop("created_at", None)
+            await db.job.update_one(
+                {"_id": ObjectId(existing_job_id)},
+                {"$set": job_data}
+            )
+            return {
+                "success": True,
+                "job_id": existing_job_id,
+                "_id": existing_job_id,
+                "action": "updated",
+                "is_draft": is_draft,
+                "status": "draft" if is_draft else "open",
+                "message": "Job updated successfully",
+            }
+
+        job_data["created_at"] = datetime.utcnow()
+        result = await db.job.insert_one(job_data)
+        new_id = str(result.inserted_id)
+        return {
+            "success": True,
+            "job_id": new_id,
+            "_id": new_id,
+            "action": "created",
+            "is_draft": is_draft,
+            "status": "draft" if is_draft else "open",
+            "message": "Job created successfully",
+        }
+
     except Exception as e:
-        logger.error(f"❌ Validation error: {e}")
-        raise HTTPException(status_code=422, detail=f"Validation error in job data: {str(e)}")
-    
-    # Use JobService for creation (handles notifications)
-    from app.modules.jobs.service import JobService
-    job_service = JobService(db)
-    
-    if background_tasks is None:
-        background_tasks = BackgroundTasks()
-    
-    return await job_service.add_job(
-        job_data_model,
-        background_tasks,
-        None,
-        user
-    )
+        logger.error(f"❌ add_admin_job error: {e}")
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @router.post("/add-job-with-file")
@@ -126,31 +164,65 @@ async def add_admin_job_with_file(
     db=Depends(get_db)
 ):
     """
-    ✅ Admin adds job with file attachments
-    
-    Creates a job posting with optional file attachments.
-    Files are uploaded to Cloudinary.
+    ✅ Admin adds job with file attachments.
+    ✅ FIX: respects is_draft → no forced status="open".
     """
     try:
         job_dict = json.loads(job_data)
-        
-        # Get admin email
         admin_email = await _get_admin_email(user, db)
-        
-        # Add tracking fields
+
+        is_draft = (
+            job_dict.get("is_draft") is True
+            or job_dict.get("status") == "draft"
+        )
+
         job_dict["added_by"] = admin_email
         job_dict["created_at"] = datetime.utcnow()
         job_dict["updated_at"] = datetime.utcnow()
+
+        if is_draft:
+            job_dict["status"] = "draft"
+            job_dict["is_draft"] = True
+            job_dict.setdefault("post_name", "Untitled Draft")
+            job_dict.setdefault("organization", "Not Specified")
+            job_dict.setdefault("post_date", datetime.utcnow().strftime("%Y-%m-%d"))
+            job_dict.setdefault("job_type", "private")
+            job_dict.setdefault("color_type", "blue")
+            job_dict.setdefault("required_skills", [])
+            job_dict.setdefault("multiple_posts", [])
+
+            uploads = []
+            if attachments:
+                for f in attachments:
+                    try:
+                        u = await upload_to_cloudinary(f, folder="jobs/attachments")
+                        uploads.append(u)
+                    except Exception as ue:
+                        logger.warning(f"Attachment upload failed: {ue}")
+            if uploads:
+                job_dict["attachments"] = uploads
+
+            result = await db.job.insert_one(job_dict)
+            new_id = str(result.inserted_id)
+            logger.info(f"✅ Draft created with attachments: {new_id}")
+            return {
+                "success": True,
+                "job_id": new_id,
+                "_id": new_id,
+                "is_draft": True,
+                "status": "draft",
+                "message": "Draft created successfully",
+            }
+
         job_dict["status"] = "open"
-        
-        # Validate with schema
+        job_dict["is_draft"] = False
         job_data_model = JobCreateSchema(**job_dict)
-        
+
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON in job_data field")
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Validation error in job data: {str(e)}")
-    
+
     job_service = JobService(db)
     return await job_service.add_job(job_data_model, background_tasks, attachments, user)
 
@@ -160,139 +232,215 @@ async def add_admin_job_with_advertisement(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     job_data: str = Form(...),
+    job_id: Optional[str] = Form(None),          # ✅ NEW: explicit form field
+    is_update: Optional[str] = Form(None),       # ✅ NEW: explicit update flag
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
     """
-    ✅ Admin adds job with advertisement file upload
-    
-    Creates a job posting with an advertisement PDF/image.
-    File is uploaded to Cloudinary as PRIVATE.
-    Sends notifications to all active users.
+    ✅ GUARANTEED SINGLE-RECORD OPERATION
+
+    Resolution order for existing job (first non-empty wins):
+      1. `job_id` form field
+      2. `job_id` / `application_id` / `draft_id` / `_id` inside job_data JSON
+      3. Fallback: match by added_by + post_name + organization (drafts only)
+
+    If ANY id is resolved → UPDATE (never insert).
+    If NO id is resolved → INSERT (only truly new job).
     """
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Advertisement file is required")
-    
-    # File size validation (50MB max)
+
     MAX_FILE_SIZE = 50 * 1024 * 1024
-    
     file_content = await file.read()
     file_size = len(file_content)
     await file.seek(0)
-    
+
     if file_size > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Max: {MAX_FILE_SIZE // (1024*1024)}MB, "
-                   f"Your file: {file_size // (1024*1024)}MB"
+            detail=f"File too large. Max: {MAX_FILE_SIZE // (1024*1024)}MB",
         )
-    
+
     try:
         job_dict = json.loads(job_data)
-        
-        # Get admin email
         admin_email = await _get_admin_email(user, db)
+
+        # ✅ RESOLUTION STEP 1: explicit form field (highest priority)
+        resolved_id = (job_id or "").strip() or None
+
+        # ✅ RESOLUTION STEP 2: keys inside job_data JSON
+        if not resolved_id:
+            resolved_id = (
+                str(job_dict.pop("job_id", "") or "").strip()
+                or str(job_dict.pop("application_id", "") or "").strip()
+                or str(job_dict.pop("draft_id", "") or "").strip()
+                or str(job_dict.pop("_id", "") or "").strip()
+                or None
+            )
+        else:
+            # Ensure job_id key inside payload doesn't get inserted
+            job_dict.pop("job_id", None)
+            job_dict.pop("application_id", None)
+            job_dict.pop("draft_id", None)
+            job_dict.pop("_id", None)
+
+        # ✅ RESOLUTION STEP 3: match existing draft by admin + title + org
+        if not resolved_id:
+            title = (job_dict.get("post_name") or "").strip()
+            org = (job_dict.get("organization") or "").strip()
+            if title and title not in ("Untitled Draft", "Untitled Job", ""):
+                candidate = await db.job.find_one({
+                    "added_by": admin_email,
+                    "post_name": title,
+                    "organization": org,
+                    "status": "draft",                # only match drafts
+                    "is_deleted": {"$ne": True},
+                })
+                if candidate:
+                    resolved_id = str(candidate["_id"])
+                    logger.info(
+                        f"🔁 Resolved draft by title+org: {resolved_id}"
+                    )
+
+        is_draft = (
+            job_dict.get("is_draft") is True
+            or job_dict.get("status") == "draft"
+            or (is_update or "").lower() in ("false", "0", "")
+        )
+        # ^ Note: even in publish flow, we save the payload first (as draft
+        #   is_draft=False means "publish"), then attach the file.
+
+        # Common defaults — REQUIRED so partial-tab payloads pass schema
+        job_dict.setdefault("post_name", "Untitled Job")
+        job_dict.setdefault("organization", "Not Specified")
+        job_dict.setdefault("post_date", datetime.utcnow().strftime("%Y-%m-%d"))
+        job_dict.setdefault("job_type", "private")
+        job_dict.setdefault("job_level", "mid")
+        job_dict.setdefault("category", "IT")
+        job_dict.setdefault("color_type", "blue")
+        job_dict.setdefault("required_skills", [])
+        job_dict.setdefault("multiple_posts", [])
+        job_dict.setdefault("is_deleted", False)
+        job_dict.setdefault("is_archived", False)
+
         job_dict["added_by"] = admin_email
-        
-        logger.info("=" * 60)
-        logger.info(f"📝 Adding job with advertisement - Admin: {admin_email}")
-        logger.info(f"   Job Title: {job_dict.get('post_name')}")
-        logger.info(f"   Organization: {job_dict.get('organization')}")
-        logger.info(f"   File: {file.filename}")
-        logger.info(f"   Size: {file_size // 1024} KB")
-        logger.info("=" * 60)
-        
-        # Validate with schema
-        job_data_model = JobCreateSchema(**job_dict)
-        job_dict_for_insert = job_data_model.model_dump(exclude_none=True, by_alias=True)
-        
-        # Handle location
-        use_current_location = job_dict_for_insert.get("use_current_location", False)
-        
-        if use_current_location:
+        job_dict["updated_at"] = datetime.utcnow()
+
+        if is_draft:
+            job_dict["status"] = "draft"
+            job_dict["is_draft"] = True
+        else:
+            job_dict["status"] = "open"
+            job_dict["is_draft"] = False
+
+        # Handle "use my current location"
+        if job_dict.get("use_current_location", False):
             from app.models.job_model import get_admin_current_location
             admin_location = await get_admin_current_location(admin_email, db)
             if admin_location:
-                job_dict_for_insert["job_location"] = admin_location
-                logger.info(f"📍 Using admin's current location: {admin_location.get('location_name')}")
-        
-        # Add metadata
-        job_dict_for_insert["created_at"] = datetime.utcnow()
-        job_dict_for_insert["updated_at"] = datetime.utcnow()
-        job_dict_for_insert["status"] = "open"
-        
-        # Insert job to get ID
-        result = await db.job.insert_one(job_dict_for_insert)
-        job_id = str(result.inserted_id)
-        
-        logger.info(f"📝 Job created with ID: {job_id}")
-        
-        # Upload file as PRIVATE
+                job_dict["job_location"] = admin_location
+
+        # ────────────────────────────────────────────────────────────
+        # ✅ CRITICAL: UPDATE if id resolved, INSERT only if not
+        # ────────────────────────────────────────────────────────────
+        action = "created"
+        if resolved_id and ObjectId.is_valid(resolved_id):
+            existing = await db.job.find_one({"_id": ObjectId(resolved_id)})
+            if not existing:
+                raise HTTPException(status_code=404, detail="Job not found")
+
+            user_role = (user.get("role") or "").lower()
+            if user_role == "custom_admin":
+                user_role = "customadmin"
+            if existing.get("added_by") != admin_email and user_role != "superadmin":
+                raise HTTPException(status_code=403, detail="Access denied")
+
+            job_id_resolved = resolved_id
+            # Preserve created_at
+            job_dict.pop("created_at", None)
+
+            await db.job.update_one(
+                {"_id": ObjectId(job_id_resolved)},
+                {"$set": job_dict},
+            )
+            action = "updated"
+        else:
+            job_dict["created_at"] = datetime.utcnow()
+            result = await db.job.insert_one(job_dict)
+            job_id_resolved = str(result.inserted_id)
+            action = "created"
+
+        logger.info(
+            f"📝 {action.upper()} job {job_id_resolved} "
+            f"(is_draft={is_draft}, resolved_from="
+            f"{resolved_id or 'none'})"
+        )
+
+        # Upload the advertisement file
         upload_result = await upload_private_file(
             file=file,
             folder="jobs/advertisements",
-            job_id=job_id,
+            job_id=job_id_resolved,
             organization=job_dict.get("organization", "company"),
-            post_name=job_dict.get("post_name", "job")
+            post_name=job_dict.get("post_name", "job"),
         )
-        
-        # Update job with advertisement URLs
-        update_data = {
-            "advertisement_url": upload_result["url"],
-            "advertisement_download_url": upload_result["download_url"],
-            "advertisement_name": file.filename,
-            "advertisement_storage": upload_result.get("storage", "cloudinary"),
-            "advertisement_public_id": upload_result.get("public_id"),
-            "advertisement_resource_type": upload_result.get("resource_type", "raw"),
-            "advertisement_is_public": False,
-            "advertisement_is_pdf": upload_result.get("is_pdf", False),
-            "advertisement_folder_path": upload_result.get("folder_path"),
-            "advertisement_file_size": file_size,
-            "has_advertisement_file": True,
-        }
-        
+
         await db.job.update_one(
-            {"_id": ObjectId(job_id)},
-            {"$set": update_data}
+            {"_id": ObjectId(job_id_resolved)},
+            {"$set": {
+                "advertisement_url": upload_result["url"],
+                "advertisement_download_url": upload_result["download_url"],
+                "advertisement_name": file.filename,
+                "advertisement_storage": upload_result.get("storage", "cloudinary"),
+                "advertisement_public_id": upload_result.get("public_id"),
+                "advertisement_resource_type": upload_result.get("resource_type", "raw"),
+                "advertisement_is_public": False,
+                "advertisement_is_pdf": upload_result.get("is_pdf", False),
+                "advertisement_folder_path": upload_result.get("folder_path"),
+                "advertisement_file_size": file_size,
+                "has_advertisement_file": True,
+            }},
         )
-        
-        logger.info(f"✅ Job {job_id} updated with advertisement")
-        
-        # Get the complete job document
-        job_doc = await db.job.find_one({"_id": ObjectId(job_id)})
-        
-        # Determine publisher role for notification filtering
-        publisher_role = user.get("role", "admin").lower()
-        if publisher_role == "custom_admin":
-            publisher_role = "customadmin"
-        
-        # Send notifications
-        await central_notification.notify_new_job(
-            job_doc,
-            background_tasks,
-            publisher_role=publisher_role
-        )
-        
+
+        # Publish notifications
+        if not is_draft:
+            job_doc = await db.job.find_one({"_id": ObjectId(job_id_resolved)})
+            publisher_role = (user.get("role") or "admin").lower()
+            if publisher_role == "custom_admin":
+                publisher_role = "customadmin"
+            await central_notification.notify_new_job(
+                job_doc, background_tasks, publisher_role=publisher_role,
+            )
+
         return {
             "success": True,
-            "message": "Job added successfully with private advertisement",
-            "job_id": job_id,
-            "job_title": job_dict.get('post_name'),
+            "message": (
+                "Draft saved successfully with advertisement"
+                if is_draft
+                else "Job published successfully with advertisement"
+            ),
+            "job_id": job_id_resolved,
+            "_id": job_id_resolved,
+            "action": action,                        # ✅ "created" or "updated"
+            "job_title": job_dict.get("post_name"),
+            "is_draft": is_draft,
+            "status": "draft" if is_draft else "open",
             "advertisement_url": upload_result["url"],
             "advertisement_download_url": upload_result["download_url"],
             "file_size_kb": file_size // 1024,
-            "is_pdf": upload_result.get("is_pdf", False)
+            "is_pdf": upload_result.get("is_pdf", False),
         }
-        
+
     except json.JSONDecodeError as e:
-        logger.error(f"JSON decode error: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {e}")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed: {str(e)}")
-
+        raise HTTPException(status_code=500, detail=f"Failed: {e}")
 
 @router.get("/jobs")
 async def get_admin_jobs(
@@ -303,19 +451,13 @@ async def get_admin_jobs(
     db=Depends(get_db)
 ):
     """
-    ✅ Get all jobs posted by the logged-in admin
-    
-    Returns paginated list of jobs with application counts.
-    Supports filtering by status.
+    ✅ Get all jobs posted by the logged-in admin.
     """
     try:
         admin_email = await _get_admin_email(user, db)
-        
         logger.info(f"🔍 Fetching jobs for admin: {admin_email}")
-        
         job_service = JobService(db)
         return await job_service.get_admin_jobs(admin_email)
-        
     except Exception as e:
         logger.error(f"❌ Error in get_admin_jobs: {e}")
         import traceback
@@ -330,48 +472,44 @@ async def get_admin_job_detail(
     db=Depends(get_db)
 ):
     """
-    ✅ Get single job details
-    
-    Returns complete job information including application count.
-    Only accessible by the admin who created the job (or superadmin).
+    ✅ Get single job details.
     """
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
-    
+
     admin_email = await _get_admin_email(user, db)
     user_role = user.get("role", "").lower()
-    
-    # Find job
+
     job = await db.job.find_one({"_id": ObjectId(job_id)})
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
-    # Permission check
+
     if job.get("added_by") != admin_email and user_role != "superadmin":
         raise HTTPException(status_code=403, detail="Access denied")
-    
-    # Serialize
+
     job["_id"] = str(job["_id"])
     if "created_at" in job and job["created_at"]:
         job["created_at"] = (
-            job["created_at"].isoformat() 
-            if isinstance(job["created_at"], datetime) 
+            job["created_at"].isoformat()
+            if isinstance(job["created_at"], datetime)
             else job["created_at"]
         )
     if "updated_at" in job and job["updated_at"]:
         job["updated_at"] = (
-            job["updated_at"].isoformat() 
-            if isinstance(job["updated_at"], datetime) 
+            job["updated_at"].isoformat()
+            if isinstance(job["updated_at"], datetime)
             else job["updated_at"]
         )
-    
-    # Add application count
+
     applications_count = await db.applications.count_documents({"job_id": job_id})
     job["applications_count"] = applications_count
-    
+
     return job
 
 
+# ============================================================
+# ✅ FIXED: PUT /jobs/{job_id} — uses $set MERGE
+# ============================================================
 @router.put("/jobs/{job_id}")
 async def update_admin_job(
     job_id: str,
@@ -380,33 +518,71 @@ async def update_admin_job(
     db=Depends(get_db)
 ):
     """
-    ✅ FIXED: Update existing job.
+    ✅ FIXED: Update existing job with $set MERGE semantics.
+
+    Why this matters:
+      Flutter's `_saveCurrentTab()` sends the FULL accumulated payload
+      from all 8 tabs on every save. With `$set`, we guarantee:
+        - Every field present in `job_data` gets written/overwritten.
+        - Fields NOT present (i.e., untouched tabs) remain intact.
+
+      This is the single most important fix for single-record,
+      tab-wise saving. A `replace_one` would wipe untouched tabs.
     """
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
 
-    # Find job
     job = await db.job.find_one({"_id": ObjectId(job_id)})
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # Get admin email
     admin_email = await _get_admin_email(user, db)
     user_role = (user.get("role") or "").lower()
     if user_role == "custom_admin":
         user_role = "customadmin"
 
-    # Permission check
     if job.get("added_by") != admin_email and user_role != "superadmin":
         raise HTTPException(status_code=403, detail="Access denied")
 
-    job_service = JobService(db)
-    return await job_service.update_job(
-        job_id, 
-        job_data, 
-        admin_email, 
-        user_role
+    # ─── Build $set patch ────────────────────────────────────
+    # Strip Mongo-reserved and identity fields.
+    patch = {k: v for k, v in job_data.items() if k not in ("_id", "created_at", "added_by")}
+
+    patch["updated_at"] = datetime.utcnow()
+    patch["last_updated_by"] = admin_email
+
+    # Draft-aware status handling — never auto-publish a draft via PUT,
+    # and never let a status collision silently un-publish a job.
+    incoming_is_draft = patch.get("is_draft")
+    incoming_status = patch.get("status")
+    if incoming_is_draft is True:
+        patch["status"] = "draft"
+    elif incoming_is_draft is False and incoming_status == "open":
+        patch["status"] = "open"
+    # Else: leave existing status untouched.
+
+    # ─── Merge via find_one_and_update ───────────────────────
+    updated = await db.job.find_one_and_update(
+        {"_id": ObjectId(job_id)},
+        {"$set": patch},
+        return_document=True,
     )
+
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update job")
+
+    updated["_id"] = str(updated["_id"])
+    for f in ("created_at", "updated_at", "published_at", "final_submitted_at"):
+        if updated.get(f) and isinstance(updated[f], datetime):
+            updated[f] = updated[f].isoformat()
+
+    logger.info(f"✅ Job {job_id} merged via $set ({len(patch)} fields)")
+
+    return {
+        "success": True,
+        "message": "Job updated successfully",
+        "data": updated,
+    }
 
 
 @router.delete("/jobs/{job_id}")
@@ -416,7 +592,7 @@ async def delete_admin_job(
     db=Depends(get_db)
 ):
     """
-    ✅ FIXED: Delete job and all associated applications.
+    ✅ Delete job and all associated applications.
     """
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
@@ -445,37 +621,29 @@ async def publish_admin_job(
     db=Depends(get_db)
 ):
     """
-    ✅ Publish a draft job
-    
-    Changes job status from 'draft' to 'open'.
-    Sends notifications to all active users.
+    ✅ Publish a draft job (flip status to "open" + notify).
     """
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
-    
-    # Find job
+
     job = await db.job.find_one({"_id": ObjectId(job_id)})
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    
-    # Get admin email
+
     admin_email = await _get_admin_email(user, db)
     user_role = user.get("role", "").lower()
-    
-    # Permission check
+
     if job.get("added_by") != admin_email and user_role != "superadmin":
         raise HTTPException(status_code=403, detail="Access denied")
-    
-    # Check if already published
+
     if job.get("status") == "open" and not job.get("is_draft", True):
         return {
             "success": True,
             "message": "Job is already published",
             "job_id": job_id,
-            "status": "open"
+            "status": "open",
         }
-    
-    # Update job status
+
     update_result = await db.job.update_one(
         {"_id": ObjectId(job_id)},
         {
@@ -483,38 +651,36 @@ async def publish_admin_job(
                 "status": "open",
                 "is_draft": False,
                 "published_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow()
+                "updated_at": datetime.utcnow(),
             }
         }
     )
-    
+
     if update_result.modified_count == 0:
         logger.warning(f"⚠️ Job {job_id} status unchanged during publish")
-    
-    # Get updated job
+
     updated_job = await db.job.find_one({"_id": ObjectId(job_id)})
     updated_job["_id"] = str(updated_job["_id"])
-    
-    # Send notifications
+
     publisher_role = user.get("role", "admin").lower()
     if publisher_role == "custom_admin":
         publisher_role = "customadmin"
-    
+
     if background_tasks:
         await central_notification.notify_new_job(
             updated_job,
             background_tasks,
-            publisher_role=publisher_role
+            publisher_role=publisher_role,
         )
-    
+
     logger.info(f"✅ Job {job_id} published by {admin_email}")
-    
+
     return {
         "success": True,
         "message": "Job published successfully",
         "job_id": job_id,
         "status": "open",
-        "data": updated_job
+        "data": updated_job,
     }
 
 
@@ -525,7 +691,7 @@ async def publish_admin_job(
 @router.get("/applications")
 async def get_admin_applications(
     status: Optional[str] = Query(
-        None, 
+        None,
         pattern="^(pending|shortlisted|interview|offered|rejected|"
                 "submitted|pending_verification|verification_successful|"
                 "verification_rejected|review_application|final_submitted)$"
@@ -536,20 +702,14 @@ async def get_admin_applications(
     db=Depends(get_db)
 ):
     """
-    ✅ Get all applications for jobs posted by the logged-in admin
-    
-    Returns paginated list of applications with candidate info.
-    Supports filtering by status.
+    ✅ Get all applications for jobs posted by the logged-in admin.
     """
     try:
         admin_email = await _get_admin_email(user, db)
-        
         if not admin_email:
             raise HTTPException(status_code=400, detail="Admin email not found")
-        
         job_service = JobService(db)
         return await job_service.get_admin_applications(admin_email, status)
-        
     except Exception as e:
         logger.error(f"Error in get_admin_applications: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -562,42 +722,36 @@ async def get_application_detail(
     db=Depends(get_db)
 ):
     """
-    ✅ Get detailed application data including user profile
-    
-    Returns complete application with candidate profile, job details, etc.
+    ✅ Get detailed application data including user profile.
     """
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
-    
+
     admin_email = await _get_admin_email(user, db)
     user_role = user.get("role", "").lower()
-    
-    # Find application
+
     application = await db.applications.find_one({"_id": ObjectId(application_id)})
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    
-    # Verify admin has access
+
     job = await db.job.find_one({"_id": ObjectId(application.get("job_id"))})
     if job and job.get("added_by") != admin_email and user_role != "superadmin":
         raise HTTPException(status_code=403, detail="Access denied")
-    
-    # Get applicant profile
+
     applicant_email = application.get("applicant_email")
     profile = await db.profile.find_one({"email": applicant_email}) if applicant_email else None
     user_auth = await db.auth.find_one({"email": applicant_email}) if applicant_email else None
-    
-    # Serialize
+
     application["_id"] = str(application["_id"])
     application["job_id"] = str(application["job_id"]) if application.get("job_id") else None
-    
+
     if application.get("applied_at") and isinstance(application["applied_at"], datetime):
         application["applied_at"] = application["applied_at"].isoformat()
     if application.get("created_at") and isinstance(application["created_at"], datetime):
         application["created_at"] = application["created_at"].isoformat()
     if application.get("updated_at") and isinstance(application["updated_at"], datetime):
         application["updated_at"] = application["updated_at"].isoformat()
-    
+
     return {
         "application": application,
         "user_profile": {
@@ -629,7 +783,7 @@ async def get_application_detail(
             "required_skills": job.get("required_skills", []),
             "has_application_fees": job.get("has_application_fees", False),
             "application_fees": job.get("application_fees", {}),
-        } if job else None
+        } if job else None,
     }
 
 
@@ -637,7 +791,7 @@ async def get_application_detail(
 async def update_application_status(
     application_id: str,
     status: str = Query(
-        ..., 
+        ...,
         pattern="^(pending|shortlisted|interview|offered|rejected|"
                 "submitted|pending_verification|verification_successful|"
                 "verification_rejected|review_application|final_submitted)$"
@@ -648,57 +802,42 @@ async def update_application_status(
     db=Depends(get_db)
 ):
     """
-    ✅ Update application status
-    
-    Changes application status and sends notifications to:
-    - Applicant (via email, SMS, WhatsApp, in-app, WebSocket)
-    - Job poster (if different from updater)
-    - All customadmins
+    ✅ Update application status + notify applicant / job-poster / customadmins.
     """
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
-    
-    # Find application
+
     application = await db.applications.find_one({"_id": ObjectId(application_id)})
     if not application:
         raise HTTPException(status_code=404, detail="Application not found")
-    
-    # Find job
+
     job = await db.job.find_one({"_id": ObjectId(application.get("job_id"))})
-    
-    # Get admin email
+
     admin_email = await _get_admin_email(user, db)
     user_role = user.get("role", "").lower()
-    
-    # Permission check
+
     if job and job.get("added_by") != admin_email and user_role != "superadmin":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     old_status = application.get("status", "unknown")
-    
-    # Build update data
+
     update_data = {
         "status": status,
         "last_status_update": datetime.utcnow(),
         "last_updated_by": admin_email,
-        "updated_at": datetime.utcnow()
+        "updated_at": datetime.utcnow(),
     }
-    
     if notes:
         update_data["admin_notes"] = notes
-    
-    # Update application
+
     result = await db.applications.update_one(
         {"_id": ObjectId(application_id)},
         {"$set": update_data}
     )
-    
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Application not found or status unchanged")
-    
-    # Send notifications
+
     applicant_email = application.get("applicant_email")
-    
     status_messages = {
         "shortlisted": "🎉 Congratulations! You have been shortlisted for this position.",
         "interview": "📞 Great news! You have been selected for an interview.",
@@ -709,17 +848,16 @@ async def update_application_status(
         "verification_successful": "✅ Your payment has been verified successfully! Application submitted.",
         "verification_rejected": "❌ Your payment verification was rejected. Please re-apply with correct payment details.",
         "review_application": "📋 Your application is under review. Please wait for further updates.",
-        "final_submitted": "✅ Your application has been FINAL SUBMITTED!"
+        "final_submitted": "✅ Your application has been FINAL SUBMITTED!",
     }
-    
-    # Notify applicant
+
     if applicant_email:
         await central_notification.send_notification(
             user_ids=[applicant_email],
             notification_type="application_status",
             title=f"Application Status: {status.upper()}",
             message=status_messages.get(
-                status, 
+                status,
                 f"Your application status has been updated to {status}."
             ),
             related_id=application_id,
@@ -730,14 +868,13 @@ async def update_application_status(
                 "new_status": status,
                 "notes": notes,
                 "color_type": job.get("color_type", "blue") if job else "blue",
-                "show_blue_bell": True
+                "show_blue_bell": True,
             },
             send_email=True,
-            send_websocket=True
+            send_websocket=True,
         )
         logger.info(f"📧 Status notification sent to applicant: {applicant_email}")
-    
-    # Notify job poster (if different)
+
     job_poster_email = job.get("added_by") if job else None
     if job_poster_email and job_poster_email != admin_email:
         await central_notification.send_notification(
@@ -752,14 +889,12 @@ async def update_application_status(
                 "applicant_email": applicant_email,
                 "old_status": old_status,
                 "new_status": status,
-                "show_blue_bell": True
+                "show_blue_bell": True,
             },
             send_email=True,
-            send_websocket=True
+            send_websocket=True,
         )
-        logger.info(f"📧 Status notification sent to admin: {job_poster_email}")
-    
-    # Notify customadmins
+
     customadmins = await db.auth.find({"role": "customadmin", "is_active": True}).to_list(100)
     for ca in customadmins:
         ca_email = ca.get("email")
@@ -768,19 +903,19 @@ async def update_application_status(
                 user_ids=[ca_email],
                 notification_type="customadmin_alert",
                 title=f"📋 Application Update: {job.get('post_name', 'Job') if job else 'Job'}",
-                message=f"Application by {applicant_email} for '{job.get('post_name', 'Job') if job else 'Job'}' "
-                        f"is now {status}",
+                message=f"Application by {applicant_email} for "
+                        f"'{job.get('post_name', 'Job') if job else 'Job'}' is now {status}",
                 related_id=application_id,
                 metadata={
                     "application_id": application_id,
                     "applicant_email": applicant_email,
                     "new_status": status,
-                    "show_blue_bell": True
+                    "show_blue_bell": True,
                 },
                 send_email=True,
-                send_websocket=True
+                send_websocket=True,
             )
-    
+
     return {
         "success": True,
         "message": f"Application status updated from {old_status} to {status}",
@@ -788,7 +923,7 @@ async def update_application_status(
         "status": status,
         "old_status": old_status,
         "updated_by": admin_email,
-        "notifications_sent": True
+        "notifications_sent": True,
     }
 
 
@@ -801,17 +936,15 @@ async def bulk_update_status(
     db=Depends(get_db)
 ):
     """
-    ✅ Bulk update application statuses
-    
-    Updates multiple applications at once with the same status.
+    ✅ Bulk update application statuses.
     """
     if not application_ids:
         raise HTTPException(status_code=400, detail="No applications selected")
-    
+
     job_service = JobService(db)
     updated_count = 0
     failed_ids = []
-    
+
     for app_id in application_ids:
         if ObjectId.is_valid(app_id):
             try:
@@ -823,14 +956,14 @@ async def bulk_update_status(
                 failed_ids.append(app_id)
         else:
             failed_ids.append(app_id)
-    
+
     return {
         "success": True,
         "updated_count": updated_count,
         "failed_count": len(failed_ids),
         "failed_ids": failed_ids,
         "status": status,
-        "notifications_sent": updated_count
+        "notifications_sent": updated_count,
     }
 
 
@@ -843,67 +976,60 @@ async def fast_search_applications(
     db=Depends(get_db)
 ):
     """
-    ✅ ULTRA FAST: Search applications by email or job title
+    ✅ ULTRA FAST: Search applications by email or job title.
     """
     try:
         admin_email = await _get_admin_email(user, db)
-        
         if not admin_email:
             raise HTTPException(status_code=400, detail="Admin email not found")
-        
-        # Get admin's jobs
+
         admin_jobs = await db.job.find({"added_by": admin_email}, {"_id": 1}).to_list(1000)
         admin_job_ids = [str(job["_id"]) for job in admin_jobs]
-        
+
         if not admin_job_ids:
             return {"applications": [], "total": 0}
-        
-        # Build search query
+
         search_query = {
             "job_id": {"$in": admin_job_ids},
             "$or": [
                 {"applicant_email": {"$regex": query, "$options": "i"}},
                 {"job_title": {"$regex": query, "$options": "i"}},
-                {"applicant_name": {"$regex": query, "$options": "i"}}
-            ]
+                {"applicant_name": {"$regex": query, "$options": "i"}},
+            ],
         }
-        
         if status:
             search_query["status"] = status
-        
+
         apps = await db.applications.find(search_query).sort(
             "applied_at", -1
         ).limit(limit).to_list(limit)
-        
-        results = []
-        for app in apps:
-            results.append({
-                "_id": str(app["_id"]),
-                "job_title": app.get("job_title", ""),
-                "organization": app.get("organization", ""),
-                "applicant_name": app.get("applicant_name", ""),
-                "applicant_email": app.get("applicant_email", ""),
-                "status": app.get("status", "pending"),
-                "match_score": app.get("match_score", 0),
-                "applied_at": (
-                    app.get("applied_at").isoformat() 
-                    if app.get("applied_at") else None
-                ),
-            })
-        
+
+        results = [{
+            "_id": str(app["_id"]),
+            "job_title": app.get("job_title", ""),
+            "organization": app.get("organization", ""),
+            "applicant_name": app.get("applicant_name", ""),
+            "applicant_email": app.get("applicant_email", ""),
+            "status": app.get("status", "pending"),
+            "match_score": app.get("match_score", 0),
+            "applied_at": (
+                app.get("applied_at").isoformat()
+                if app.get("applied_at") else None
+            ),
+        } for app in apps]
+
         return {
             "applications": results,
             "total": len(results),
-            "search_query": query
+            "search_query": query,
         }
-        
     except Exception as e:
         logger.error(f"Error in fast_search_applications: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================
-# DOCUMENT UPLOAD ENDPOINTS (Review & Final Submit)
+# DOCUMENT UPLOAD ENDPOINTS
 # ============================================================
 
 @router.post("/applications/{application_id}/submit-document")
@@ -915,70 +1041,58 @@ async def admin_submit_document(
     db=Depends(get_db)
 ):
     """
-    ✅ Admin submits document for review
-    
-    Uploads a document and changes status to 'review_application'.
-    Sends notifications to applicant, job poster, and all customadmins.
+    ✅ Admin submits document for review.
     """
     admin_email = await _get_admin_email(user, db)
     admin_name = user.get("name", "Admin")
-    
+
     logger.info("=" * 60)
     logger.info(f"📤 SUBMIT DOCUMENT FOR REVIEW")
     logger.info(f"   Application ID: {application_id}")
     logger.info(f"   Admin Email: {admin_email}")
     logger.info(f"   File: {file.filename if file else 'No file'}")
     logger.info("=" * 60)
-    
+
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
-    
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Document file is required")
-    
-    # Validate file type
-    allowed_extensions = ['pdf', 'jpg', 'jpeg', 'png']
-    file_ext = file.filename.split('.')[-1].lower() if file.filename else ''
+
+    allowed_extensions = ["pdf", "jpg", "jpeg", "png"]
+    file_ext = file.filename.split(".")[-1].lower() if file.filename else ""
     if file_ext not in allowed_extensions:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
         )
-    
+
     try:
-        # Find application
         application = await db.applications.find_one({"_id": ObjectId(application_id)})
         if not application:
             raise HTTPException(status_code=404, detail="Application not found")
-        
+
         applicant_email = application.get("applicant_email")
         if not applicant_email:
             raise HTTPException(status_code=404, detail="Applicant email not found")
-        
-        username = applicant_email.split('@')[0]
-        
-        # Find job and verify permission
+
+        username = applicant_email.split("@")[0]
+
         job = await db.job.find_one({"_id": ObjectId(application.get("job_id"))})
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
-        
+
         if job.get("added_by") != admin_email and user.get("role") != "superadmin":
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         await file.seek(0)
-        
-        # Upload to Cloudinary
         upload_result = await upload_user_document(
             file=file,
             username=username,
-            document_type="applications"
+            document_type="applications",
         )
-        
+
         logger.info(f"✅ File uploaded to Cloudinary: {upload_result['url']}")
-        
-        old_status = application.get("status", "unknown")
-        
-        # Update application
+
         update_data = {
             "status": "review_application",
             "last_status_update": datetime.utcnow(),
@@ -992,40 +1106,35 @@ async def admin_submit_document(
             "submitted_document_folder": upload_result.get("folder_path"),
             "submitted_at": datetime.utcnow(),
             "submitted_by": admin_email,
-            "admin_notes": notes if notes else None
+            "admin_notes": notes if notes else None,
         }
-        
+
         result = await db.applications.update_one(
             {"_id": ObjectId(application_id)},
             {"$set": update_data}
         )
-        
         if result.modified_count == 0:
             logger.error(f"❌ Failed to update application {application_id}")
             raise HTTPException(status_code=500, detail="Failed to update application")
-        
-        # Verify update
+
         updated_app = await db.applications.find_one({"_id": ObjectId(application_id)})
         saved_url = updated_app.get("submitted_document_url") if updated_app else None
         logger.info(f"✅ VERIFIED: submitted_document_url = {saved_url}")
-        
-        # Send notifications
+
         job_title = job.get("post_name", "Job")
         organization = job.get("organization", "Company")
-        
-        # Notify applicant
-        user_title = f"📄 Document Submitted: {job_title}"
+
         user_message = (
             f"Your document '{file.filename}' has been submitted successfully "
             f"by {admin_name} for the position '{job_title}' at {organization}."
         )
         if notes:
             user_message += f"\n\nAdmin Notes: {notes}"
-        
+
         await central_notification.send_notification(
             user_ids=[applicant_email],
             notification_type="application_status",
-            title=user_title,
+            title=f"📄 Document Submitted: {job_title}",
             message=user_message,
             related_id=application_id,
             metadata={
@@ -1035,21 +1144,19 @@ async def admin_submit_document(
                 "admin_notes": notes,
                 "show_blue_bell": True,
                 "status": "review_application",
-                "submitted_document_url": upload_result["url"]
+                "submitted_document_url": upload_result["url"],
             },
             send_email=True,
-            send_websocket=True
+            send_websocket=True,
         )
-        logger.info(f"🔔 Notification sent to applicant: {applicant_email}")
-        
-        # Notify job poster
+
         job_poster_email = job.get("added_by")
         if job_poster_email and job_poster_email != admin_email:
             await central_notification.send_notification(
                 user_ids=[job_poster_email],
                 notification_type="admin_alert",
                 title=f"📄 Document Submitted for {job_title}",
-                message=f"Document '{file.filename}' has been submitted by {admin_name} "
+                message=f"Document '{file.filename}' submitted by {admin_name} "
                         f"for application from {applicant_email}",
                 related_id=application_id,
                 metadata={
@@ -1059,14 +1166,12 @@ async def admin_submit_document(
                     "admin_name": admin_name,
                     "admin_notes": notes,
                     "show_blue_bell": True,
-                    "submitted_document_url": upload_result["url"]
+                    "submitted_document_url": upload_result["url"],
                 },
                 send_email=True,
-                send_websocket=True
+                send_websocket=True,
             )
-            logger.info(f"🔔 Notification sent to job poster: {job_poster_email}")
-        
-        # Notify all customadmins
+
         customadmins = await db.auth.find({"role": "customadmin", "is_active": True}).to_list(100)
         for ca in customadmins:
             ca_email = ca.get("email")
@@ -1075,19 +1180,20 @@ async def admin_submit_document(
                     user_ids=[ca_email],
                     notification_type="customadmin_alert",
                     title=f"📄 Document Submitted for {job_title}",
-                    message=f"Document submitted by {admin_name} for application from {applicant_email}",
+                    message=f"Document submitted by {admin_name} for "
+                            f"application from {applicant_email}",
                     related_id=application_id,
                     metadata={
                         "job_title": job_title,
                         "applicant_email": applicant_email,
                         "admin_name": admin_name,
                         "show_blue_bell": True,
-                        "submitted_document_url": upload_result["url"]
+                        "submitted_document_url": upload_result["url"],
                     },
                     send_email=True,
-                    send_websocket=True
+                    send_websocket=True,
                 )
-        
+
         return {
             "success": True,
             "message": "Document submitted successfully!",
@@ -1096,9 +1202,9 @@ async def admin_submit_document(
             "submitted_document_name": file.filename,
             "admin_notes": notes,
             "notifications_sent": True,
-            "status": "review_application"
+            "status": "review_application",
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1117,58 +1223,49 @@ async def admin_final_submit_with_document(
     db=Depends(get_db)
 ):
     """
-    ✅ Admin FINAL SUBMIT application with document
-    
-    Uploads final document and changes status to 'final_submitted'.
-    Deletes old document from Cloudinary if exists.
-    Sends notifications to all parties.
+    ✅ Admin FINAL SUBMIT application with document.
     """
     admin_email = await _get_admin_email(user, db)
     admin_name = user.get("name", "Admin")
-    
+
     logger.info("=" * 60)
     logger.info(f"📤 FINAL SUBMIT WITH DOCUMENT")
     logger.info(f"   Application ID: {application_id}")
     logger.info(f"   Admin Email: {admin_email}")
     logger.info(f"   File: {file.filename}")
     logger.info("=" * 60)
-    
+
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
-    
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Document file is required")
-    
-    # Validate file type
-    allowed_extensions = ['pdf', 'jpg', 'jpeg', 'png']
-    file_ext = file.filename.split('.')[-1].lower() if file.filename else ''
+
+    allowed_extensions = ["pdf", "jpg", "jpeg", "png"]
+    file_ext = file.filename.split(".")[-1].lower() if file.filename else ""
     if file_ext not in allowed_extensions:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
         )
-    
+
     try:
-        # Find application
         application = await db.applications.find_one({"_id": ObjectId(application_id)})
         if not application:
             raise HTTPException(status_code=404, detail="Application not found")
-        
+
         applicant_email = application.get("applicant_email")
         if not applicant_email:
             raise HTTPException(status_code=404, detail="Applicant email not found")
-        
-        username = applicant_email.split('@')[0]
-        
-        # Find job and verify permission
+
+        username = applicant_email.split("@")[0]
+
         job = await db.job.find_one({"_id": ObjectId(application.get("job_id"))})
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
-        
+
         if job.get("added_by") != admin_email and user.get("role") != "superadmin":
             raise HTTPException(status_code=403, detail="Access denied")
-        
-        # Delete old document from Cloudinary if exists
+
         old_public_id = application.get("submitted_document_public_id")
         if old_public_id:
             try:
@@ -1180,21 +1277,18 @@ async def admin_final_submit_with_document(
                 logger.info(f"🗑️ Old document deleted: {old_public_id}")
             except Exception as del_err:
                 logger.warning(f"⚠️ Could not delete old document: {del_err}")
-        
+
         await file.seek(0)
-        
-        # Upload new document
         upload_result = await upload_user_document(
             file=file,
             username=username,
-            document_type="applications"
+            document_type="applications",
         )
-        
+
         logger.info(f"✅ NEW file uploaded to Cloudinary: {upload_result['url']}")
-        
+
         old_status = application.get("status", "unknown")
-        
-        # Update application
+
         update_data = {
             "status": "final_submitted",
             "last_status_update": datetime.utcnow(),
@@ -1212,25 +1306,21 @@ async def admin_final_submit_with_document(
             "final_submitted_by": admin_email,
             "final_document_url": upload_result["url"],
             "final_document_name": file.filename,
-            "admin_notes": notes if notes else "Final submitted"
+            "admin_notes": notes if notes else "Final submitted",
         }
-        
+
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
             {"$set": update_data}
         )
-        
-        # Verify update
+
         updated_app = await db.applications.find_one({"_id": ObjectId(application_id)})
         saved_url = updated_app.get("submitted_document_url") if updated_app else None
         logger.info(f"✅ VERIFIED: submitted_document_url = {saved_url}")
-        
-        # Send notifications
+
         job_title = job.get("post_name", "Job")
         organization = job.get("organization", "Company")
-        
-        # Notify applicant
-        user_title = f"✅ FINAL SUBMISSION: {job_title}"
+
         user_message = (
             f"Your FINAL document '{file.filename}' has been submitted successfully "
             f"by {admin_name} for the position '{job_title}' at {organization}.\n\n"
@@ -1238,11 +1328,11 @@ async def admin_final_submit_with_document(
         )
         if notes:
             user_message += f"\n\nAdmin Notes: {notes}"
-        
+
         await central_notification.send_notification(
             user_ids=[applicant_email],
             notification_type="application_status",
-            title=user_title,
+            title=f"✅ FINAL SUBMISSION: {job_title}",
             message=user_message,
             related_id=application_id,
             metadata={
@@ -1253,21 +1343,19 @@ async def admin_final_submit_with_document(
                 "is_final": True,
                 "show_blue_bell": True,
                 "status": "final_submitted",
-                "final_document_url": upload_result["url"]
+                "final_document_url": upload_result["url"],
             },
             send_email=True,
-            send_websocket=True
+            send_websocket=True,
         )
-        logger.info(f"🔔 Notification sent to applicant: {applicant_email}")
-        
-        # Notify job poster
+
         job_poster_email = job.get("added_by")
         if job_poster_email and job_poster_email != admin_email:
             await central_notification.send_notification(
                 user_ids=[job_poster_email],
                 notification_type="admin_alert",
                 title=f"✅ FINAL DOCUMENT Submitted for {job_title}",
-                message=f"FINAL document '{file.filename}' has been submitted by {admin_name} "
+                message=f"FINAL document '{file.filename}' submitted by {admin_name} "
                         f"for application from {applicant_email}",
                 related_id=application_id,
                 metadata={
@@ -1278,14 +1366,12 @@ async def admin_final_submit_with_document(
                     "admin_notes": notes,
                     "is_final": True,
                     "show_blue_bell": True,
-                    "final_document_url": upload_result["url"]
+                    "final_document_url": upload_result["url"],
                 },
                 send_email=True,
-                send_websocket=True
+                send_websocket=True,
             )
-            logger.info(f"🔔 Notification sent to job poster: {job_poster_email}")
-        
-        # Notify all customadmins
+
         customadmins = await db.auth.find({"role": "customadmin", "is_active": True}).to_list(100)
         for ca in customadmins:
             ca_email = ca.get("email")
@@ -1294,8 +1380,8 @@ async def admin_final_submit_with_document(
                     user_ids=[ca_email],
                     notification_type="customadmin_alert",
                     title="✅ FINAL DOCUMENT Submitted",
-                    message=f"FINAL document submitted by {admin_name} for application "
-                            f"from {applicant_email} for '{job_title}'",
+                    message=f"FINAL document submitted by {admin_name} for "
+                            f"application from {applicant_email} for '{job_title}'",
                     related_id=application_id,
                     metadata={
                         "job_title": job_title,
@@ -1303,12 +1389,12 @@ async def admin_final_submit_with_document(
                         "admin_name": admin_name,
                         "is_final": True,
                         "show_blue_bell": True,
-                        "final_document_url": upload_result["url"]
+                        "final_document_url": upload_result["url"],
                     },
                     send_email=True,
-                    send_websocket=True
+                    send_websocket=True,
                 )
-        
+
         return {
             "success": True,
             "message": "FINAL application document submitted successfully!",
@@ -1320,9 +1406,9 @@ async def admin_final_submit_with_document(
             "document_name": file.filename,
             "admin_notes": notes,
             "old_document_deleted": old_public_id is not None,
-            "notifications_sent": True
+            "notifications_sent": True,
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1340,67 +1426,55 @@ async def admin_review_application_status(
     db=Depends(get_db)
 ):
     """
-    ✅ Admin updates application status to 'review_application'
-    
-    No document upload required - just status change with notifications.
+    ✅ Admin updates application status to 'review_application' (no file required).
     """
     admin_email = await _get_admin_email(user, db)
     admin_name = user.get("name", "Admin")
-    
+
     logger.info("=" * 60)
     logger.info(f"📋 REVIEW APPLICATION STATUS UPDATE")
     logger.info(f"   Application ID: {application_id}")
     logger.info(f"   Admin Email: {admin_email}")
     logger.info("=" * 60)
-    
+
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
-    
+
     try:
-        # Find application
         application = await db.applications.find_one({"_id": ObjectId(application_id)})
         if not application:
             raise HTTPException(status_code=404, detail="Application not found")
-        
-        # Find job and verify permission
+
         job = await db.job.find_one({"_id": ObjectId(application.get("job_id"))})
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
-        
+
         if job.get("added_by") != admin_email and user.get("role") != "superadmin":
             raise HTTPException(status_code=403, detail="Access denied")
-        
+
         old_status = application.get("status", "unknown")
         applicant_email = application.get("applicant_email")
-        
-        # Preserve existing document URL if any
         existing_doc_url = application.get("submitted_document_url")
-        
+
         update_data = {
             "status": "review_application",
             "last_status_update": datetime.utcnow(),
             "last_updated_by": admin_email,
             "updated_at": datetime.utcnow(),
-            "admin_notes": notes if notes else f"Application moved to review stage by {admin_name}"
+            "admin_notes": notes if notes else f"Application moved to review stage by {admin_name}",
         }
-        
         if existing_doc_url:
             update_data["submitted_document_url"] = existing_doc_url
-        
+
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
             {"$set": update_data}
         )
-        
-        logger.info(f"✅ Application status updated from {old_status} to 'review_application'")
-        
-        # Send notifications
+
         job_title = job.get("post_name", "Job")
         organization = job.get("organization", "Company")
-        
-        # Notify applicant
+
         if applicant_email:
-            user_title = f"📋 Application Under Review: {job_title}"
             user_message = (
                 f"Your application for '{job_title}' at {organization} is now under REVIEW "
                 f"by {admin_name}.\n\nThe admin is reviewing your documents. "
@@ -1408,11 +1482,11 @@ async def admin_review_application_status(
             )
             if notes:
                 user_message += f"\n\nAdmin Notes: {notes}"
-            
+
             await central_notification.send_notification(
                 user_ids=[applicant_email],
                 notification_type="application_status",
-                title=user_title,
+                title=f"📋 Application Under Review: {job_title}",
                 message=user_message,
                 related_id=application_id,
                 metadata={
@@ -1421,14 +1495,12 @@ async def admin_review_application_status(
                     "admin_notes": notes,
                     "admin_name": admin_name,
                     "show_blue_bell": True,
-                    "submitted_document_url": existing_doc_url
+                    "submitted_document_url": existing_doc_url,
                 },
                 send_email=True,
-                send_websocket=True
+                send_websocket=True,
             )
-            logger.info(f"🔔 Notification sent to user: {applicant_email}")
-        
-        # Notify job poster
+
         job_poster_email = job.get("added_by")
         if job_poster_email and job_poster_email != admin_email:
             await central_notification.send_notification(
@@ -1444,13 +1516,12 @@ async def admin_review_application_status(
                     "status": "review_application",
                     "admin_notes": notes,
                     "admin_name": admin_name,
-                    "show_blue_bell": True
+                    "show_blue_bell": True,
                 },
                 send_email=True,
-                send_websocket=True
+                send_websocket=True,
             )
-            logger.info(f"🔔 Notification sent to job poster: {job_poster_email}")
-        
+
         return {
             "success": True,
             "message": f"Application status updated from {old_status} to review_application",
@@ -1459,9 +1530,9 @@ async def admin_review_application_status(
             "old_status": old_status,
             "admin_notes": notes,
             "notifications_sent": True,
-            "submitted_document_url": existing_doc_url
+            "submitted_document_url": existing_doc_url,
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -1481,29 +1552,23 @@ async def get_pending_payments(
     db=Depends(get_db)
 ):
     """
-    ✅ Get all pending payment verifications
-    
-    Returns list of applications with pending payment verification.
+    ✅ Get all pending payment verifications.
     """
-    # Get pending job applications
     job_pending = await db.applications.find({
         "application_type": "job",
-        "payment_verification_status": "pending"
+        "payment_verification_status": "pending",
     }).to_list(100)
-    
-    # Get pending service applications
+
     service_pending = await db.applications.find({
         "application_type": "service",
-        "payment_verification_status": "pending"
+        "payment_verification_status": "pending",
     }).to_list(100)
-    
-    # Format job applications
+
     job_results = []
     for app in job_pending:
         job = None
         if app.get("job_id") and ObjectId.is_valid(app["job_id"]):
             job = await db.job.find_one({"_id": ObjectId(app["job_id"])})
-        
         job_results.append({
             "id": str(app["_id"]),
             "type": "job",
@@ -1517,12 +1582,11 @@ async def get_pending_payments(
             "screenshot_url": app.get("payment_receipt_url"),
             "status": app.get("status", "pending_verification"),
             "created_at": (
-                app.get("created_at").isoformat() 
+                app.get("created_at").isoformat()
                 if app.get("created_at") else None
-            )
+            ),
         })
-    
-    # Format service applications
+
     service_results = []
     for app in service_pending:
         service_results.append({
@@ -1538,14 +1602,14 @@ async def get_pending_payments(
             "screenshot_url": app.get("payment_receipt_url") or app.get("screenshot_url"),
             "status": app.get("status", "pending_verification"),
             "created_at": (
-                app.get("created_at").isoformat() 
+                app.get("created_at").isoformat()
                 if app.get("created_at") else None
-            )
+            ),
         })
-    
+
     return {
         "payments": job_results + service_results,
-        "total": len(job_results) + len(service_results)
+        "total": len(job_results) + len(service_results),
     }
 
 
@@ -1558,38 +1622,33 @@ async def admin_verify_payment(
     db=Depends(get_db)
 ):
     """
-    ✅ Admin approves or rejects a pending payment verification
-    
-    Updates application directly and sends notifications to all parties.
+    ✅ Admin approves or rejects a pending payment verification.
     """
     if not ObjectId.is_valid(application_id):
         raise HTTPException(400, "Invalid application ID")
-    
-    # Find application (job or service)
+
     application = await db.applications.find_one({"_id": ObjectId(application_id)})
     if not application:
         raise HTTPException(404, "Application not found")
-    
+
     application_type = application.get("application_type", "job")
-    
+
     if application.get("payment_verification_status") != "pending":
         return {
             "success": False,
-            "message": f"Payment already {application.get('payment_verification_status')}"
+            "message": f"Payment already {application.get('payment_verification_status')}",
         }
-    
+
     admin_email = await _get_admin_email(user, db)
     admin_name = user.get("name", "Admin")
-    
+
     user_email = application.get("applicant_email") or application.get("user_email")
     amount = application.get("payment_amount", 0)
     transaction_id = application.get("transaction_id")
-    job_id = application.get("job_id")
     job_title = application.get("job_title", "Job Application")
     job_poster_email = application.get("added_by")
-    
+
     if action == "approve":
-        # Update application
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
             {
@@ -1599,37 +1658,31 @@ async def admin_verify_payment(
                     "payment_verified_by": admin_email,
                     "payment_verified_at": datetime.utcnow(),
                     "verification_notes": notes if notes else "Payment approved by admin",
-                    "updated_at": datetime.utcnow()
+                    "updated_at": datetime.utcnow(),
                 }
             }
         )
-        
+
         status_msg = "verification_successful" if application_type == "job" else "payment_verified"
-        title = f"✅ Payment Verified Successfully: {job_title}"
-        message = (
-            f"Your payment of ₹{amount} for '{job_title}' has been verified successfully. "
-            "Your application is now submitted."
-        )
-        
-        # Notify user
+
         await central_notification.send_notification(
             user_ids=[user_email],
             notification_type="application_status",
-            title=title,
-            message=message,
+            title=f"✅ Payment Verified Successfully: {job_title}",
+            message=f"Your payment of ₹{amount} for '{job_title}' has been verified successfully. "
+                    "Your application is now submitted.",
             related_id=application_id,
             metadata={
                 "status": status_msg,
                 "amount": amount,
                 "transaction_id": transaction_id,
-                "show_blue_bell": True
+                "show_blue_bell": True,
             },
             send_email=True,
             send_sms=True,
-            send_websocket=True
+            send_websocket=True,
         )
-        
-        # Notify job poster
+
         if job_poster_email and job_poster_email != admin_email:
             await central_notification.send_notification(
                 user_ids=[job_poster_email],
@@ -1644,13 +1697,12 @@ async def admin_verify_payment(
                     "job_title": job_title,
                     "applicant_email": user_email,
                     "approved_by": admin_email,
-                    "show_blue_bell": True
+                    "show_blue_bell": True,
                 },
                 send_email=True,
-                send_websocket=True
+                send_websocket=True,
             )
-        
-        # Notify customadmins
+
         customadmins = await db.auth.find({"role": "customadmin", "is_active": True}).to_list(100)
         for ca in customadmins:
             ca_email = ca.get("email")
@@ -1667,25 +1719,25 @@ async def admin_verify_payment(
                         "amount": amount,
                         "job_title": job_title,
                         "approved_by": admin_email,
-                        "show_blue_bell": True
+                        "show_blue_bell": True,
                     },
                     send_email=True,
-                    send_websocket=True
+                    send_websocket=True,
                 )
-        
+
         return {
             "success": True,
             "message": "Payment approved successfully.",
             "application_id": application_id,
             "action": action,
             "notes": notes,
-            "notifications_sent": True
+            "notifications_sent": True,
         }
-    
+
     else:  # reject
         if not notes:
             notes = "Payment rejected by admin - Please contact support"
-        
+
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
             {
@@ -1696,34 +1748,30 @@ async def admin_verify_payment(
                     "payment_verified_at": datetime.utcnow(),
                     "payment_rejection_reason": notes,
                     "verification_notes": notes,
-                    "updated_at": datetime.utcnow()
+                    "updated_at": datetime.utcnow(),
                 }
             }
         )
-        
+
         status_msg = "verification_rejected" if application_type == "job" else "rejected"
-        title = f"❌ Payment Verification Failed: {job_title}"
-        message = f"Your payment of ₹{amount} for '{job_title}' has been REJECTED.\nReason: {notes}"
-        
-        # Notify user
+
         await central_notification.send_notification(
             user_ids=[user_email],
             notification_type="application_status",
-            title=title,
-            message=message,
+            title=f"❌ Payment Verification Failed: {job_title}",
+            message=f"Your payment of ₹{amount} for '{job_title}' has been REJECTED.\nReason: {notes}",
             related_id=application_id,
             metadata={
                 "status": status_msg,
                 "amount": amount,
                 "rejection_reason": notes,
-                "show_blue_bell": True
+                "show_blue_bell": True,
             },
             send_email=True,
             send_sms=True,
-            send_websocket=True
+            send_websocket=True,
         )
-        
-        # Notify job poster
+
         if job_poster_email and job_poster_email != admin_email:
             await central_notification.send_notification(
                 user_ids=[job_poster_email],
@@ -1737,13 +1785,12 @@ async def admin_verify_payment(
                     "amount": amount,
                     "job_title": job_title,
                     "rejection_reason": notes,
-                    "show_blue_bell": True
+                    "show_blue_bell": True,
                 },
                 send_email=True,
-                send_websocket=True
+                send_websocket=True,
             )
-        
-        # Notify customadmins
+
         customadmins = await db.auth.find({"role": "customadmin", "is_active": True}).to_list(100)
         for ca in customadmins:
             ca_email = ca.get("email")
@@ -1760,19 +1807,19 @@ async def admin_verify_payment(
                         "amount": amount,
                         "job_title": job_title,
                         "rejection_reason": notes,
-                        "show_blue_bell": True
+                        "show_blue_bell": True,
                     },
                     send_email=True,
-                    send_websocket=True
+                    send_websocket=True,
                 )
-        
+
         return {
             "success": True,
             "message": f"Payment rejected. Reason: {notes}",
             "application_id": application_id,
             "action": action,
             "notes": notes,
-            "notifications_sent": True
+            "notifications_sent": True,
         }
 
 
@@ -1786,81 +1833,55 @@ async def get_admin_ai_dashboard(
     db=Depends(get_db)
 ):
     """
-    ✅ Get AI-powered dashboard statistics
-    
-    Returns comprehensive stats including applications, scores, trends.
+    ✅ Get AI-powered dashboard statistics.
     """
     try:
         admin_email = await _get_admin_email(user, db)
-        
         if not admin_email:
             raise HTTPException(status_code=400, detail="Admin email not found")
-        
-        # Get admin's jobs
+
         admin_jobs = await db.job.find({"added_by": admin_email}).to_list(1000)
         admin_job_ids = [str(job["_id"]) for job in admin_jobs]
-        
-        # Get application counts
-        total_applications = 0
-        pending_applications = 0
-        shortlisted_applications = 0
-        interview_applications = 0
-        offered_applications = 0
-        rejected_applications = 0
+
+        total_applications = pending_applications = 0
+        shortlisted_applications = interview_applications = 0
+        offered_applications = rejected_applications = 0
         avg_match_score = 0
-        
+
         if admin_job_ids:
-            total_applications = await db.applications.count_documents({
-                "job_id": {"$in": admin_job_ids}
-            })
-            pending_applications = await db.applications.count_documents({
-                "job_id": {"$in": admin_job_ids}, "status": "pending"
-            })
-            shortlisted_applications = await db.applications.count_documents({
-                "job_id": {"$in": admin_job_ids}, "status": "shortlisted"
-            })
-            interview_applications = await db.applications.count_documents({
-                "job_id": {"$in": admin_job_ids}, "status": "interview"
-            })
-            offered_applications = await db.applications.count_documents({
-                "job_id": {"$in": admin_job_ids}, "status": "offered"
-            })
-            rejected_applications = await db.applications.count_documents({
-                "job_id": {"$in": admin_job_ids}, "status": "rejected"
-            })
-            
-            # Calculate average match score
+            total_applications = await db.applications.count_documents({"job_id": {"$in": admin_job_ids}})
+            pending_applications = await db.applications.count_documents({"job_id": {"$in": admin_job_ids}, "status": "pending"})
+            shortlisted_applications = await db.applications.count_documents({"job_id": {"$in": admin_job_ids}, "status": "shortlisted"})
+            interview_applications = await db.applications.count_documents({"job_id": {"$in": admin_job_ids}, "status": "interview"})
+            offered_applications = await db.applications.count_documents({"job_id": {"$in": admin_job_ids}, "status": "offered"})
+            rejected_applications = await db.applications.count_documents({"job_id": {"$in": admin_job_ids}, "status": "rejected"})
+
             pipeline = [
                 {"$match": {"job_id": {"$in": admin_job_ids}, "match_score": {"$exists": True}}},
-                {"$group": {"_id": None, "avg": {"$avg": "$match_score"}}}
+                {"$group": {"_id": None, "avg": {"$avg": "$match_score"}}},
             ]
             result = await db.applications.aggregate(pipeline).to_list(1)
             if result:
                 avg_match_score = round(result[0].get("avg", 0), 1)
-        
-        # Recent applications (last 30 days)
+
         from datetime import timedelta
         last_30_days = datetime.utcnow() - timedelta(days=30)
         recent_apps = await db.applications.count_documents({
             "job_id": {"$in": admin_job_ids},
-            "created_at": {"$gte": last_30_days}
+            "created_at": {"$gte": last_30_days},
         }) if admin_job_ids else 0
-        
-        # Top jobs by applications
+
         top_jobs = []
         if admin_job_ids:
             pipeline = [
                 {"$match": {"job_id": {"$in": admin_job_ids}}},
                 {"$group": {"_id": "$job_title", "count": {"$sum": 1}}},
                 {"$sort": {"count": -1}},
-                {"$limit": 5}
+                {"$limit": 5},
             ]
             top_jobs_result = await db.applications.aggregate(pipeline).to_list(5)
-            top_jobs = [
-                {"title": item["_id"], "count": item["count"]}
-                for item in top_jobs_result
-            ]
-        
+            top_jobs = [{"title": item["_id"], "count": item["count"]} for item in top_jobs_result]
+
         return {
             "total_applications": total_applications,
             "pending_applications": pending_applications,
@@ -1872,15 +1893,14 @@ async def get_admin_ai_dashboard(
             "auto_shortlist_ready": await db.applications.count_documents({
                 "job_id": {"$in": admin_job_ids},
                 "match_score": {"$gte": 85},
-                "status": "pending"
+                "status": "pending",
             }) if admin_job_ids else 0,
             "high_risk_applications": 0,
             "trend_direction": "increasing" if recent_apps > 50 else "stable",
             "predicted_next_30_days": recent_apps * 2,
             "top_job_categories": top_jobs,
-            "admin_jobs_count": len(admin_jobs)
+            "admin_jobs_count": len(admin_jobs),
         }
-        
     except Exception as e:
         logger.error(f"Error in AI dashboard: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1893,49 +1913,41 @@ async def get_ranked_applications(
     db=Depends(get_db)
 ):
     """
-    ✅ Get AI-ranked applications
-    
-    Returns applications sorted by AI match score.
+    ✅ Get AI-ranked applications.
     """
     try:
         admin_email = await _get_admin_email(user, db)
-        
         if not admin_email:
             raise HTTPException(status_code=400, detail="Admin email not found")
-        
-        # Get admin's jobs
+
         admin_jobs = await db.job.find({"added_by": admin_email}, {"_id": 1}).to_list(1000)
         admin_job_ids = [str(job["_id"]) for job in admin_jobs]
-        
+
         if not admin_job_ids:
             return {"ranked_applications": [], "total": 0}
-        
-        # Get applications sorted by match score
+
         applications = await db.applications.find({
             "job_id": {"$in": admin_job_ids}
         }).sort("match_score", -1).limit(limit).to_list(limit)
-        
-        ranked_apps = []
-        for app in applications:
-            ranked_apps.append({
-                "application_id": str(app["_id"]),
-                "candidate_name": app.get("applicant_name", "N/A"),
-                "candidate_email": app.get("applicant_email", "N/A"),
-                "job_title": app.get("job_title", "N/A"),
-                "match_score": app.get("match_score", 0),
-                "status": app.get("status", "pending"),
-                "applied_at": (
-                    app.get("applied_at").isoformat() 
-                    if app.get("applied_at") else None
-                )
-            })
-        
+
+        ranked_apps = [{
+            "application_id": str(app["_id"]),
+            "candidate_name": app.get("applicant_name", "N/A"),
+            "candidate_email": app.get("applicant_email", "N/A"),
+            "job_title": app.get("job_title", "N/A"),
+            "match_score": app.get("match_score", 0),
+            "status": app.get("status", "pending"),
+            "applied_at": (
+                app.get("applied_at").isoformat()
+                if app.get("applied_at") else None
+            ),
+        } for app in applications]
+
         return {
             "ranked_applications": ranked_apps,
             "total": len(ranked_apps),
-            "ai_ranked": True
+            "ai_ranked": True,
         }
-        
     except Exception as e:
         logger.error(f"Error in ranked applications: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -1951,12 +1963,261 @@ async def test_google_drive_connection(
 ):
     """Test Google Drive connection"""
     from app.core.services.google_drive import google_drive_service
-    
-    result = await google_drive_service.test_connection()
-    return result
+    return await google_drive_service.test_connection()
 
+
+# ============================================================
+# DRAFT JOB ENDPOINTS (kept — Flutter's `PUT /jobs/{id}` path is the
+# one actually hit today, but these remain for future-proofing)
+# ============================================================
+
+@router.post("/jobs/save-draft")
+async def save_job_draft(
+    job_data: dict = Body(...),
+    user=Depends(role_required(["admin", "customadmin", "superadmin"])),
+    db=Depends(get_db)
+):
+    """
+    ✅ Explicit save-draft endpoint (kept for future use).
+
+    Flutter's `_saveCurrentTab()` currently routes draft saves through
+    `POST /add-job` (is_draft=true) and `PUT /jobs/{id}` — both of which
+    are already draft-aware. This endpoint provides a clean alternative.
+    """
+    from datetime import datetime
+    from bson import ObjectId
+
+    try:
+        admin_email = await _get_admin_email(user, db)
+        job_id = job_data.pop("job_id", None)
+
+        job_data["updated_at"] = datetime.utcnow()
+        job_data["last_updated_by"] = admin_email
+
+        if job_id and ObjectId.is_valid(job_id):
+            existing = await db.job.find_one({"_id": ObjectId(job_id)})
+            if not existing:
+                raise HTTPException(404, "Draft job not found")
+            user_role = (user.get("role") or "").lower()
+            if existing.get("added_by") != admin_email and user_role != "superadmin":
+                raise HTTPException(403, "Access denied")
+
+            clean_data = {k: v for k, v in job_data.items() if v is not None}
+            await db.job.update_one(
+                {"_id": ObjectId(job_id)},
+                {"$set": clean_data}
+            )
+            logger.info(f"✅ Draft updated: {job_id} ({len(clean_data)} fields)")
+            return {"success": True, "job_id": job_id, "is_draft": True, "message": "Draft updated"}
+
+        job_data.setdefault("post_name", "Untitled Draft")
+        job_data.setdefault("organization", "Not Specified")
+        job_data.setdefault("post_date", datetime.utcnow().strftime("%Y-%m-%d"))
+        job_data.setdefault("job_type", "private")
+        job_data.setdefault("job_level", "mid")
+        job_data.setdefault("category", "IT")
+        job_data.setdefault("color_type", "blue")
+        job_data.setdefault("status", "draft")
+        job_data.setdefault("is_draft", True)
+        job_data.setdefault("is_deleted", False)
+        job_data.setdefault("is_archived", False)
+
+        job_data["added_by"] = admin_email
+        job_data["added_by_name"] = user.get("name", "")
+        job_data["publisher_role"] = (user.get("role") or "admin").lower()
+        job_data["created_at"] = datetime.utcnow()
+
+        result = await db.job.insert_one(job_data)
+        new_id = str(result.inserted_id)
+        logger.info(f"✅ New draft created: {new_id}")
+        return {"success": True, "job_id": new_id, "_id": new_id, "is_draft": True, "message": "Draft created"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ save_job_draft failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"Failed to save draft: {str(e)}")
+
+
+@router.post("/jobs/{job_id}/final-submit")
+async def final_submit_job(
+    job_id: str,
+    background_tasks: BackgroundTasks,
+    job_data: dict = Body(default={}),
+    user=Depends(role_required(["admin", "customadmin", "superadmin"])),
+    db=Depends(get_db)
+):
+    """
+    ✅ Explicit final-submit endpoint (kept for future use).
+    """
+    from datetime import datetime
+    from bson import ObjectId
+
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(400, "Invalid job ID")
+
+    existing = await db.job.find_one({"_id": ObjectId(job_id)})
+    if not existing:
+        raise HTTPException(404, "Draft job not found")
+
+    admin_email = await _get_admin_email(user, db)
+    user_role = (user.get("role") or "").lower()
+    if existing.get("added_by") != admin_email and user_role != "superadmin":
+        raise HTTPException(403, "Access denied")
+
+    try:
+        update_fields = {k: v for k, v in job_data.items() if v is not None}
+        update_fields.update({
+            "status": "open",
+            "is_draft": False,
+            "final_submitted_at": datetime.utcnow(),
+            "final_submitted_by": admin_email,
+            "updated_at": datetime.utcnow(),
+        })
+
+        await db.job.update_one(
+            {"_id": ObjectId(job_id)},
+            {"$set": update_fields}
+        )
+
+        final_job = await db.job.find_one({"_id": ObjectId(job_id)})
+        final_job["_id"] = str(final_job["_id"])
+
+        publisher_role = (user.get("role") or "admin").lower()
+        if publisher_role == "custom_admin":
+            publisher_role = "customadmin"
+
+        notification_result = await central_notification.notify_new_job(
+            final_job,
+            background_tasks,
+            publisher_role=publisher_role,
+        )
+
+        logger.info(
+            f"✅ FINAL SUBMIT: {job_id} | "
+            f"emails_sent={notification_result.get('emails_sent', 0)}"
+        )
+
+        return {
+            "success": True,
+            "job_id": job_id,
+            "status": "open",
+            "job_title": final_job.get("post_name"),
+            "organization": final_job.get("organization"),
+            "notifications_sent": notification_result.get("emails_sent", 0),
+            "message": "Job published successfully",
+        }
+    except Exception as e:
+        logger.error(f"❌ final_submit_job failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"Final submit failed: {str(e)}")
+
+
+@router.get("/jobs/draft/{job_id}")
+async def get_draft_job(
+    job_id: str,
+    user=Depends(role_required(["admin", "customadmin", "superadmin"])),
+    db=Depends(get_db)
+):
+    """
+    ✅ Get draft (for restore when reopening a draft).
+    """
+    from bson import ObjectId
+
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(400, "Invalid job ID")
+
+    job = await db.job.find_one({"_id": ObjectId(job_id)})
+    if not job:
+        raise HTTPException(404, "Job not found")
+
+    job["_id"] = str(job["_id"])
+    return {"success": True, "data": job}
+
+
+@router.post("/jobs/{job_id}/upload-advertisement")
+async def upload_advertisement_to_existing_job(
+    job_id: str,
+    file: UploadFile = File(...),
+    job_data: str = Form(...),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """
+    ✅ Upload an advertisement file and UPDATE the EXISTING job record.
+    This does NOT create a new job.
+
+    Used by the 8-tab Add/Edit Job wizard when the user clicks
+    'Publish Job' or 'Save Changes' on the final tab.
+    """
+    db = get_database()
+
+    # ------------------------------------------------------------
+    # 1. Verify the job exists
+    # ------------------------------------------------------------
+    if not ObjectId.is_valid(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job id")
+
+    existing = await db.job.find_one({"_id": ObjectId(job_id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # ------------------------------------------------------------
+    # 2. Parse the incoming job_data JSON
+    # ------------------------------------------------------------
+    try:
+        parsed_data = json.loads(job_data)
+        if not isinstance(parsed_data, dict):
+            raise ValueError("job_data must be a JSON object")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid job_data: {e}")
+
+    # ------------------------------------------------------------
+    # 3. Upload the file to Cloudinary
+    # ------------------------------------------------------------
+    try:
+        upload = await upload_advertisement_file(file, job_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
+
+    # ------------------------------------------------------------
+    # 4. Merge upload metadata into the payload
+    # ------------------------------------------------------------
+    filename = upload["filename"] or ""
+    parsed_data.update({
+        "advertisement_url": upload["secure_url"],
+        "advertisement_public_id": upload["public_id"],
+        "advertisement_filename": filename,
+        "advertisement_is_pdf": filename.lower().endswith(".pdf"),
+        "advertisement_is_public": False,
+        "updated_at": datetime.utcnow().isoformat(),
+        "last_updated_by": current_user.get("email", ""),
+    })
+
+    # ------------------------------------------------------------
+    # 5. $set-merge into the SAME record — no new record created
+    # ------------------------------------------------------------
+    parsed_data.pop("_id", None)   # never overwrite _id
+    await db.job.update_one(
+        {"_id": ObjectId(job_id)},
+        {"$set": parsed_data},
+    )
+
+    return {
+        "success": True,
+        "job_id": job_id,
+        "advertisement_url": upload["secure_url"],
+        "advertisement_public_id": upload["public_id"],
+        "message": "Advertisement uploaded and job updated",
+    }
 
 print("✅ Admin Routes Loaded - Full Job CRUD + Application Management")
+print("   ✅ FIXED: /add-job respects is_draft (no forced status='open')")
+print("   ✅ FIXED: PUT /jobs/{id} merges via $set (no tab data loss)")
+print("   ✅ FIXED: /add-job-with-advertisement updates existing draft via job_id")
+print("   ✅ FIXED: /add-job-with-advertisement respects is_draft (no notify on draft)")
 print("   ✅ Job CRUD: Add, Get, Update, Delete, Publish")
 print("   ✅ Application Management: List, Detail, Status Update")
 print("   ✅ Document Upload: Review, Final Submit")

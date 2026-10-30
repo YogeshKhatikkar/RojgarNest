@@ -11,6 +11,8 @@ from typing import Dict, Any, Optional, List
 from fastapi import UploadFile
 import time
 import re
+import cloudinary.uploader
+
 
 from app.core.config.settings import settings
 
@@ -695,6 +697,50 @@ async def upload_user_document(
         logger.error(f"❌ Cloudinary upload failed: {e}")
         raise Exception(f"Cloudinary upload failed: {str(e)}")
 
+
+
+async def upload_advertisement_file(file: UploadFile, job_id: str) -> dict:
+    """
+    Upload a job advertisement file to Cloudinary.
+    Returns: {
+        "secure_url": str,
+        "public_id": str,
+        "filename": str,
+        "resource_type": str,
+        "format": str,
+    }
+    """
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    base_name = (file.filename or "advertisement").rsplit(".", 1)[0]
+    public_id = f"rojgarnest/jobs/advertisements/{timestamp}_{job_id}_{base_name}"
+
+    contents = await file.read()
+
+    # Detect resource type
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower()
+    if ext == "pdf":
+        resource_type = "raw"   # PDFs → raw
+    elif ext in ("jpg", "jpeg", "png", "webp"):
+        resource_type = "image"
+    else:
+        resource_type = "raw"
+
+    result = cloudinary.uploader.upload(
+        contents,
+        public_id=public_id,
+        resource_type=resource_type,
+        type="authenticated",   # PRIVATE — matches your existing flow
+        folder="rojgarnest/jobs/advertisements",
+        overwrite=True,
+    )
+
+    return {
+        "secure_url": result.get("secure_url"),
+        "public_id": result.get("public_id"),
+        "filename": file.filename,
+        "resource_type": result.get("resource_type"),
+        "format": result.get("format"),
+    }
 
 logger.info("=" * 60)
 logger.info("✅ Cloudinary service ready")

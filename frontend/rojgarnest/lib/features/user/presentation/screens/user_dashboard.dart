@@ -8,17 +8,22 @@
 // ✅ ApplicationDetailScreen shows in right panel
 // ✅ SchemeDetailScreen / SchemeListScreen / UserSchemeApplicationsScreen embedded
 //
-// ✅✅✅ NEW (this build) — FULL PAYMENT TRACKING:
-//   DashboardStats model now includes:
+// ✅✅✅ FULL PAYMENT TRACKING:
+//   DashboardStats model includes:
 //     - jobPaymentReceived / jobPaymentPending
 //     - servicePaymentReceived / servicePaymentPending
 //     - schemePaymentReceived / schemePaymentPending
 //     - totals: overall total/pending/approved/rejected/payment_received
-//   Each application card now shows:
+//   Each application card shows:
 //     - Total count
 //     - Pending / Approved / Rejected chips
-//     - ✅ Payment Received chip (NEW)
-//   Cache saves & restores all new fields.
+//     - ✅ Payment Received chip
+//
+// ✅✅✅ THIS BUILD — QUICK ACTIONS CLEANED:
+//   - ❌ Removed "Saved Jobs" quick action
+//   - ❌ Removed "AI Insights" quick action
+//   - ✅ Grid now shows 6 actions (3-column layout, 2 clean rows)
+//   - ✅ SavedJobsScreen import + _goToSavedJobs() retained (still reachable via sidebar/other flows)
 // ---------------------------------------------------------------
 
 import 'dart:convert';
@@ -783,6 +788,7 @@ class _UserDashboardState extends State<UserDashboard> {
     });
   }
 
+  // ✅ NOTE: Retained for sidebar / external use — no longer in Quick Actions
   void _goToSavedJobs() {
     _closeDrawerIfOpen();
     Navigator.push(
@@ -1984,6 +1990,8 @@ class _UserDashboardState extends State<UserDashboard> {
 
   // ============================================================
   // QUICK ACTIONS GRID
+  // ✅ REMOVED: "Saved Jobs" and "AI Insights"
+  // ✅ 6 actions, 3-column layout (2 clean rows)
   // ============================================================
   Widget _buildQuickActionsGrid() {
     final actions = [
@@ -2001,18 +2009,6 @@ class _UserDashboardState extends State<UserDashboard> {
           setState(() {
             selectedMenu = UserMenuType.resume;
             selectedResumeSubMenu = ResumeSubMenu.buildResume;
-            _clearAllDetailViews();
-          });
-        },
-      ),
-      _QuickAction(
-        title: 'AI Insights',
-        icon: Icons.auto_awesome,
-        color: const Color(0xFFFF6588),
-        onTap: () {
-          setState(() {
-            selectedMenu = UserMenuType.ai;
-            selectedAISubMenu = AISubMenu.dashboard;
             _clearAllDetailViews();
           });
         },
@@ -2046,12 +2042,6 @@ class _UserDashboardState extends State<UserDashboard> {
         icon: Icons.account_balance,
         color: const Color(0xFF059669),
         onTap: _goToBrowseSchemes,
-      ),
-      _QuickAction(
-        title: 'Saved Jobs',
-        icon: Icons.bookmark,
-        color: const Color(0xFF0891B2),
-        onTap: _goToSavedJobs,
       ),
       _QuickAction(
         title: 'Support',
@@ -2088,8 +2078,8 @@ class _UserDashboardState extends State<UserDashboard> {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
-            childAspectRatio: 0.9,
+            crossAxisCount: 3,
+            childAspectRatio: 1.0,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
           ),
@@ -2132,7 +2122,7 @@ class _UserDashboardState extends State<UserDashboard> {
                       child: Text(
                         action.title,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: Colors.grey.shade800,
                         ),

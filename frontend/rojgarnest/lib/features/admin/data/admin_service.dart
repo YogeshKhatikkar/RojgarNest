@@ -233,4 +233,46 @@ class AdminService {
       throw _err(e);
     }
   }
+
+
+  // ============================================================
+// ✅ DRAFT JOB METHODS
+// ============================================================
+static Future<Map<String, dynamic>> saveJobDraft(
+  Map<String, dynamic> jobData,
+) async {
+  try {
+    final res = await DioClient.dio.post(
+      "$_base/jobs/save-draft",
+      data: jobData,
+    );
+    return _unwrap(res.data);
+  } on DioException catch (e) {
+    throw _err(e);
+  }
+}
+
+static Future<Map<String, dynamic>> finalSubmitJob(
+  String jobId,
+  Map<String, dynamic> jobData,
+) async {
+  try {
+    final res = await DioClient.dio.post(
+      "$_base/jobs/$jobId/final-submit",
+      data: jobData,
+    );
+    return _unwrap(res.data);
+  } on DioException catch (e) {
+    throw _err(e);
+  }
+}
+
+static Future<Map<String, dynamic>> getDraftJob(String jobId) async {
+  try {
+    final res = await DioClient.dio.get("$_base/jobs/draft/$jobId");
+    return _unwrap(res.data);
+  } on DioException catch (e) {
+    throw _err(e);
+  }
+}
 }
