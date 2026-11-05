@@ -10,6 +10,12 @@ services:
     deploy:
       resources:
         limits: { memory: 2G }
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/rojgarnext --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   redis:
     image: redis:7.4-alpine
@@ -18,6 +24,11 @@ services:
     volumes:
       - redis_data:/data
     networks: [rojgarnext_net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   backend:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-org}/rojgarnext-backend:${IMAGE_TAG:-latest}
@@ -30,7 +41,15 @@ services:
       ENVIRONMENT: production
     volumes:
       - backend_uploads:/app/uploads
+      - backend_secure:/app/secure
+      - backend_models:/app/models
+      - backend_logs:/app/logs
     networks: [rojgarnext_net]
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     deploy:
       replicas: 3
       update_config:
@@ -50,11 +69,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 60s
 
   frontend:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-org}/rojgarnext-frontend:${IMAGE_TAG:-latest}
     restart: always
     networks: [rojgarnext_net]
+    depends_on:
+      - backend
     deploy:
       replicas: 2
       resources:
@@ -70,8 +92,15 @@ services:
       - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
       - certbot_conf:/etc/letsencrypt
       - certbot_www:/var/www/certbot
-    depends_on: [backend, frontend]
+    depends_on:
+      - backend
+      - frontend
     networks: [rojgarnext_net]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   certbot:
     image: certbot/certbot:latest
@@ -86,6 +115,9 @@ volumes:
   mongo_data:
   redis_data:
   backend_uploads:
+  backend_secure:
+  backend_models:
+  backend_logs:
   certbot_www:
   certbot_conf:
 
