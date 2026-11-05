@@ -1,7 +1,7 @@
 ================================================================================
 ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-10-30 06:57:10
+Generated: 2026-11-05 19:27:51
 Source: E:\yogesh\website\rojgarnest\frontend
 Total Files: 152
 Total Size: 3.9 MB
@@ -24036,8 +24036,8 @@ class _JobMatchScoreWidgetState extends State<JobMatchScoreWidget> {
 
 ================================================================================
 [  64/ 152] 🎯 rojgarnest/lib/features/jobs/presentation/screens/add_job_screen.dart
-📏 SIZE: 270.4 KB
-🕐 MODIFIED: 2026-10-29 21:58:38
+📏 SIZE: 271.3 KB
+🕐 MODIFIED: 2026-10-30 07:14:42
 ================================================================================
 
 // lib/features/jobs/presentation/screens/add_job_screen.dart
@@ -24059,6 +24059,9 @@ class _JobMatchScoreWidgetState extends State<JobMatchScoreWidget> {
 //             backend bugs are surfaced immediately
 //           - _isPublished flag blocks any late _saveCurrentTab() call from
 //             overwriting status back to 'draft'
+// ✅ FINAL FIX: `tab_7_saved: true` is now explicitly set in the
+//             `_publishJob` method, ensuring the last tab's saved flag
+//             is correctly stored in the database upon final publication.
 // ✅ Everything else from the previous version is preserved.
 
 import 'dart:convert';
@@ -26627,6 +26630,16 @@ class _AddJobScreenState extends State<AddJobScreen>
       final Map<String, dynamic> finalJobData = {
         "status": "open",
         "is_draft": false,
+        // ✅ FINAL FIX: Explicitly mark ALL tabs as saved on publish.
+        // This ensures tab_7_saved (and all others) are TRUE in the DB.
+        "tab_0_saved": true,
+        "tab_1_saved": true,
+        "tab_2_saved": true,
+        "tab_3_saved": true,
+        "tab_4_saved": true,
+        "tab_5_saved": true,
+        "tab_6_saved": true,
+        "tab_7_saved": true,
         ..._buildFullPayload(),
       };
 
@@ -26755,6 +26768,15 @@ class _AddJobScreenState extends State<AddJobScreen>
 
       // ✅ STEP 2: Build updated payload from ALL tabs
       final Map<String, dynamic> updatedJobData = {
+        // ✅ FINAL FIX: Ensure ALL tabs are marked saved on final update too.
+        "tab_0_saved": true,
+        "tab_1_saved": true,
+        "tab_2_saved": true,
+        "tab_3_saved": true,
+        "tab_4_saved": true,
+        "tab_5_saved": true,
+        "tab_6_saved": true,
+        "tab_7_saved": true,
         ..._buildFullPayload(),
       };
 
@@ -116415,5 +116437,5 @@ flutter:
 🎉 EXPORT COMPLETED!
 ================================================================================
 Total Files: 152
-Generated: 2026-10-30 06:57:11
+Generated: 2026-11-05 19:27:52
 ================================================================================

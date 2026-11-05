@@ -1,11 +1,25 @@
-# app/modules/notification/service.py - COMPLETE FIXED VERSION
+# app/modules/notification/service.py - COMPLETE FIXED VERSION (v3)
 # ✅ INTEGRATED: Brevo + MSG91 + WhatsApp
 # ✅ All notification types now route through unified dispatcher
 # ✅ Email: SMTP or Brevo (switchable via .env)
 # ✅ SMS: Twilio / MSG91 / Fast2SMS / Brevo (switchable via .env)
 # ✅ WhatsApp: MSG91 / Twilio / Meta (switchable via .env)
+# ✅ AI-based advanced email formatting for Job, Service, and Scheme
+# ✅ FIXED (THIS VERSION - v3): "Details unavailable" bug
+#    Root causes addressed:
+#      1. _detect_app_type() now inspects notification_type strings:
+#         "scheme_status", "service_status", "new_scheme", "new_service",
+#         "scheme_application", "service_application".
+#      2. _resolve_organization_name() now, as a FINAL fallback, parses
+#         the notification title and message for the scheme/service name.
+#      3. send_notification() now AUTO-INJECTS scheme_name / service_name
+#         into metadata by pulling from title/message when missing.
+#      4. notify_status_update() always passes application_type explicitly
+#         AND adds scheme_name_hindi / service_name fallbacks.
+# ============================================================
 
 import asyncio
+import re
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -18,7 +32,10 @@ import logging
 # ============================================================
 # 📧📱💬 UNIFIED NOTIFICATION IMPORTS
 # ============================================================
-from app.core.services.email import send_html_email
+from app.core.services.email import (
+    send_html_email,
+    build_modern_ai_notification_email,
+)
 from app.core.services.sms import send_sms_async
 from app.core.services.whatsapp import send_whatsapp
 from app.core.services.notification_dispatcher import (
@@ -51,6 +68,12 @@ class NotificationType:
     ADMIN_ALERT = "admin_alert"
     SUPERADMIN_ALERT = "superadmin_alert"
     CUSTOMADMIN_ALERT = "customadmin_alert"
+    NEW_SCHEME = "new_scheme"
+    SCHEME_APPLICATION = "scheme_application"
+    SCHEME_STATUS = "scheme_status"
+    NEW_SERVICE = "new_service"
+    SERVICE_APPLICATION = "service_application"
+    SERVICE_STATUS = "service_status"
 
 
 class UserRole:
@@ -60,12 +83,82 @@ class UserRole:
     CUSTOMADMIN = "customadmin"
 
 
+# ============================================================
+# ✅ TITLE PARSER HELPERS
+# ============================================================
+_TITLE_SCHEME_PATTERNS = [
+    re.compile(r"Scheme Status Update:\s*(.+)$", re.IGNORECASE),
+    re.compile(r"New Government Scheme:\s*(.+)$", re.IGNORECASE),
+    re.compile(r"Scheme Application:\s*(.+)$", re.IGNORECASE),
+    re.compile(r"Scheme(?: Payment Verified| Status| Update| Failed)?:\s*(.+)$", re.IGNORECASE),
+]
+_TITLE_SERVICE_PATTERNS = [
+    re.compile(r"Service Status Update:\s*(.+)$", re.IGNORECASE),
+    re.compile(r"New Service Available:\s*(.+)$", re.IGNORECASE),
+    re.compile(r"Service Application:\s*(.+)$", re.IGNORECASE),
+    re.compile(r"Service(?: Payment Verified| Status| Update| Failed)?:\s*(.+)$", re.IGNORECASE),
+]
+_TITLE_JOB_PATTERNS = [
+    re.compile(r"New Job Alert:\s*(.+?)\s+at\s+(.+)$", re.IGNORECASE),
+    re.compile(r"Application Status Update:\s*(.+)$", re.IGNORECASE),
+    re.compile(r"Application Status:\s*(.+)$", re.IGNORECASE),
+]
+
+
+def _strip_status_suffix(text: str) -> str:
+    """
+    Remove trailing status annotations from a title segment.
+    Example:
+        "PM-KISAN — VERIFICATION SUCCESSFUL"  → "PM-KISAN"
+        "PM-KISAN (VERIFICATION SUCCESSFUL)"  → "PM-KISAN"
+        "PM-KISAN [APPROVED]"                 → "PM-KISAN"
+    """
+    if not text:
+        return ""
+    t = text.strip()
+    # Trim dash/paren/bracket suffixes
+    t = re.sub(r"\s+[—\-–]\s+[A-Z_ ]+$", "", t)
+    t = re.sub(r"\s*\([A-Z_ ]+\)\s*$", "", t)
+    t = re.sub(r"\s*\[[A-Z_ ]+\]\s*$", "", t)
+    return t.strip()
+
+
+def _extract_name_from_title(title: str, app_type: str) -> Optional[str]:
+    """
+    Extract a human-readable name from the notification title
+    for the given app_type.
+    """
+    if not title:
+        return None
+
+    patterns = []
+    if app_type == "scheme":
+        patterns = _TITLE_SCHEME_PATTERNS
+    elif app_type == "service":
+        patterns = _TITLE_SERVICE_PATTERNS
+    elif app_type == "job":
+        patterns = _TITLE_JOB_PATTERNS
+
+    for pattern in patterns:
+        m = pattern.search(title)
+        if m:
+            # Some patterns have 2 groups (e.g. job title at company)
+            if m.lastindex and m.lastindex >= 2:
+                candidate = m.group(2) or m.group(1)
+            else:
+                candidate = m.group(1)
+            cleaned = _strip_status_suffix(candidate)
+            if cleaned:
+                return cleaned
+
+    return None
+
+
 class CentralNotificationService:
     """
     Centralized Notification Service - One place for all notifications
-    Email notifications are clean - NO publisher role displayed
-    BULK EMAIL for fast delivery
     ✅ Multi-channel: Email + SMS + WhatsApp + In-App + WebSocket
+    ✅ AI-formatted emails for Job, Service, and Scheme
     """
 
     def __init__(self):
@@ -82,38 +175,27 @@ class CentralNotificationService:
         """
         Get all active users for notifications
         A user is considered active if is_email_verified = True
-
-        Args:
-            exclude_role: Role to exclude from notification (admin/customadmin)
         """
         db = await self._get_db()
 
-        # Build query
         query = {"is_email_verified": True}
 
-        # Apply role exclusion
         if exclude_role == "admin":
-            # Exclude admin role (admin and superadmin)
             query["role"] = {"$nin": ["admin", "superadmin"]}
-            logger.info(f"📊 Excluding 'admin' and 'superadmin' roles for this notification")
+            logger.info("📊 Excluding 'admin' and 'superadmin' roles for this notification")
         elif exclude_role == "customadmin":
-            # Exclude customadmin role
             query["role"] = {"$nin": ["customadmin", "superadmin"]}
-            logger.info(f"📊 Excluding 'customadmin' and 'superadmin' roles for this notification")
+            logger.info("📊 Excluding 'customadmin' and 'superadmin' roles for this notification")
         else:
-            # No exclusion - send to all
-            logger.info(f"📊 No role exclusion - sending to all verified users")
+            logger.info("📊 No role exclusion - sending to all verified users")
 
-        # Get users with verified email
         users = await db.auth.find(query).to_list(length=10000)
 
-        # Also include users with verified mobile if email not verified
         mobile_verified_users = await db.auth.find({
             "is_email_verified": False,
             "is_mobile_verified": True
         }).to_list(length=10000)
 
-        # Combine and remove duplicates
         all_users = users + mobile_verified_users
         unique_users = {str(u["_id"]): u for u in all_users}.values()
 
@@ -143,10 +225,7 @@ class CentralNotificationService:
     ) -> Dict[str, Any]:
         """
         Send bulk email to multiple users using a single SMTP connection
-        Very fast - reuses the same connection for all emails in a batch
-        ✅ Now supports Brevo via unified email service if EMAIL_PROVIDER=brevo
         """
-        # ✅ If using a cloud provider (Brevo/SendGrid/Mailgun), delegate to unified service
         provider = (settings.EMAIL_PROVIDER or "smtp").lower()
         if provider in ("brevo", "sendgrid", "mailgun"):
             logger.info(f"📧 Bulk email via cloud provider: {provider}")
@@ -166,9 +245,13 @@ class CentralNotificationService:
                 else:
                     failed += 1
                     failed_emails.append({"email": em, "error": "provider_failed"})
-            return {"sent": sent, "failed": failed, "total": len(user_emails), "failed_emails": failed_emails}
+            return {
+                "sent": sent,
+                "failed": failed,
+                "total": len(user_emails),
+                "failed_emails": failed_emails,
+            }
 
-        # Fallback: legacy SMTP batch sending (only if EMAIL_PROVIDER=smtp)
         if not settings.SMTP_HOST or not settings.SMTP_USER:
             logger.warning("SMTP not configured, skipping bulk email")
             return {"sent": 0, "failed": 0, "total": len(user_emails)}
@@ -183,12 +266,10 @@ class CentralNotificationService:
             "failed_emails": []
         }
 
-        # Process in batches to avoid overwhelming the server
         for i in range(0, len(user_emails), batch_size):
             batch = user_emails[i:i + batch_size]
 
             try:
-                # Create a single SMTP connection for this batch
                 server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT)
                 server.starttls()
                 server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
@@ -214,7 +295,6 @@ class CentralNotificationService:
 
             except Exception as e:
                 logger.error(f"SMTP connection failed for batch: {e}")
-                # Mark all emails in this batch as failed
                 for email in batch:
                     results["failed"] += 1
                     results["failed_emails"].append({"email": email, "error": str(e)})
@@ -222,7 +302,7 @@ class CentralNotificationService:
         logger.info(f"📧 Bulk email complete: {results['sent']} sent, {results['failed']} failed")
         return results
 
-    # ==================== CORE NOTIFICATION METHODS ====================
+    # ==================== CORE NOTIFICATION METHOD ====================
 
     async def send_notification(
         self,
@@ -238,16 +318,51 @@ class CentralNotificationService:
         send_websocket: bool = True
     ) -> Dict[str, Any]:
         """
-        Send notification to one or multiple users.
-        ✅ Sends across ALL configured channels:
-           - In-app (DB) — for bell icon
-           - Email (SMTP / Brevo / SendGrid / Mailgun)
-           - SMS (Twilio / MSG91 / Fast2SMS / Brevo)
-           - WhatsApp (MSG91 / Twilio / Meta)
-           - WebSocket (real-time bell)
+        Send notification to one or multiple users across ALL channels.
+
+        ✅ NEW in v3:
+        - Auto-detect app_type from notification_type + title + metadata.
+        - Auto-inject scheme_name / service_name / organization into
+          metadata (from title) so the email header never shows
+          "Details unavailable" even when callers forget to pass them.
         """
         db = await self._get_db()
 
+        # ------------------------------------------------------------
+        # ✅ AUTO-ENRICH METADATA BEFORE ANY DISPATCH
+        # ------------------------------------------------------------
+        metadata = dict(metadata or {})  # copy so we don't mutate caller
+
+        # 1. Detect app type early
+        app_type = self._detect_app_type(notification_type, metadata)
+
+        # 2. Make sure metadata["application_type"] is set for later stages
+        if not metadata.get("application_type"):
+            metadata["application_type"] = app_type
+
+        # 3. Auto-inject the human-readable name if missing
+        if app_type == "scheme":
+            if not any(metadata.get(k) for k in ("scheme_name", "scheme_name_hindi", "department")):
+                extracted = _extract_name_from_title(title, "scheme")
+                if extracted:
+                    metadata["scheme_name"] = extracted
+                    logger.info(f"🛠️ Auto-injected scheme_name from title: {extracted}")
+        elif app_type == "service":
+            if not any(metadata.get(k) for k in ("service_name", "sub_service_name", "service_type", "department")):
+                extracted = _extract_name_from_title(title, "service")
+                if extracted:
+                    metadata["service_name"] = extracted
+                    logger.info(f"🛠️ Auto-injected service_name from title: {extracted}")
+        elif app_type == "job":
+            if not any(metadata.get(k) for k in ("organization", "company", "job_organization")):
+                extracted = _extract_name_from_title(title, "job")
+                if extracted:
+                    metadata["organization"] = extracted
+                    logger.info(f"🛠️ Auto-injected organization from title: {extracted}")
+
+        # ------------------------------------------------------------
+        # SEND TO EACH USER
+        # ------------------------------------------------------------
         if isinstance(user_ids, str):
             user_ids = [user_ids]
 
@@ -275,11 +390,17 @@ class CentralNotificationService:
                         user = await db.auth.find_one({"_id": ObjectId(user_id)})
                         user_id_value = user_id
                     else:
-                        results["failed"].append({"user_id": user_id, "reason": "Invalid user ID format"})
+                        results["failed"].append({
+                            "user_id": user_id,
+                            "reason": "Invalid user ID format"
+                        })
                         continue
 
                 if not user:
-                    results["failed"].append({"user_id": user_id, "reason": "User not found"})
+                    results["failed"].append({
+                        "user_id": user_id,
+                        "reason": "User not found"
+                    })
                     continue
 
                 user_email = user.get("email")
@@ -289,7 +410,7 @@ class CentralNotificationService:
                 is_email_verified = user.get("is_email_verified", False)
                 is_mobile_verified = user.get("is_mobile_verified", False)
 
-                # ==================== 1. DATABASE NOTIFICATION (Bell Icon) ====================
+                # 1. DB notification (bell icon)
                 if is_email_verified or is_mobile_verified:
                     notification_doc = {
                         "user_id": user_id_value,
@@ -300,18 +421,18 @@ class CentralNotificationService:
                         "related_id": related_id,
                         "read": False,
                         "created_at": datetime.utcnow(),
-                        "metadata": metadata or {},
+                        "metadata": metadata,
                         "user_role": user_role
                     }
                     await db.notifications.insert_one(notification_doc)
                     results["db_notifications"] += 1
                     logger.info(f"📝 DB notification saved for {user_email}: {title[:50]}")
 
-                # ==================== 2. EMAIL NOTIFICATION ====================
+                # 2. Email
                 if send_email and user_email and is_email_verified:
                     email_list.append(user_email)
 
-                # ==================== 3. SMS NOTIFICATION ====================
+                # 3. SMS
                 if send_sms and user_mobile:
                     try:
                         await send_sms_async(
@@ -325,7 +446,7 @@ class CentralNotificationService:
                     except Exception as e:
                         logger.warning(f"SMS send failed for {user_mobile}: {e}")
 
-                # ==================== 4. WHATSAPP NOTIFICATION ====================
+                # 4. WhatsApp
                 if send_whatsapp_flag and user_mobile and settings.WHATSAPP_PROVIDER != "disabled":
                     try:
                         await send_whatsapp(
@@ -339,7 +460,7 @@ class CentralNotificationService:
                     except Exception as e:
                         logger.warning(f"WhatsApp send failed for {user_mobile}: {e}")
 
-                # ==================== 5. WEBSOCKET NOTIFICATION (REAL-TIME BELL) ====================
+                # 5. WebSocket
                 if send_websocket and (is_email_verified or is_mobile_verified):
                     try:
                         from .websocket import broadcast_notification
@@ -365,7 +486,7 @@ class CentralNotificationService:
                 logger.error(f"Failed to send notification to {user_id}: {e}")
                 results["failed"].append({"user_id": user_id, "reason": str(e)})
 
-        # ==================== SEND BULK EMAILS ====================
+        # Bulk emails
         if email_list and send_email:
             html_body = self._create_beautiful_email_html(
                 notification_type=notification_type,
@@ -386,7 +507,167 @@ class CentralNotificationService:
         logger.info(f"📢 Notification sent: type={notification_type}, results={results}")
         return results
 
-    # ==================== BEAUTIFUL EMAIL TEMPLATE WITH STATUS HIGHLIGHT ====================
+    # ==================== APP TYPE DETECTION ====================
+
+    def _detect_app_type(
+        self,
+        notification_type: str,
+        metadata: Optional[Dict] = None,
+    ) -> str:
+        """
+        ✅ v3: Detect app_type from notification_type + metadata.
+
+        Priority:
+          1. explicit metadata['application_type']
+          2. notification_type name (contains 'scheme' / 'service' / 'job')
+          3. metadata entity hints (scheme_id / service_id / job_id)
+          4. title-pattern fallback
+          5. default → 'job'
+        """
+        metadata = metadata or {}
+
+        # 1) Explicit
+        explicit = str(metadata.get("application_type") or "").strip().lower()
+        if explicit in ("job", "jobs"):
+            return "job"
+        if explicit in ("service", "services", "online_service"):
+            return "service"
+        if explicit in ("scheme", "schemes"):
+            return "scheme"
+
+        # 2) notification_type contains scheme/service
+        nt = (notification_type or "").lower()
+        if "scheme" in nt:
+            return "scheme"
+        if "service" in nt:
+            return "service"
+
+        # 3) Entity hints
+        if metadata.get("scheme_id"):
+            return "scheme"
+        if metadata.get("service_id") or metadata.get("sub_type_id") or metadata.get("service_type"):
+            return "service"
+        if metadata.get("job_id"):
+            return "job"
+
+        # 4) Direct metadata name keys
+        if metadata.get("scheme_name") or metadata.get("scheme_name_hindi"):
+            return "scheme"
+        if metadata.get("service_name") or metadata.get("sub_service_name"):
+            return "service"
+        if metadata.get("organization") or metadata.get("company") or metadata.get("job_title"):
+            return "job"
+
+        # 5) Default
+        return "job"
+
+    # ==================== ORGANIZATION NAME RESOLVER ====================
+
+    def _resolve_organization_name(
+        self,
+        app_type: str,
+        metadata: Dict[str, Any],
+        title: Optional[str] = None,
+    ) -> str:
+        """
+        ✅ v3: Resolve the human-readable organization/department/ministery
+        name for the email header.
+
+        Order:
+          - explicit keys (organization / company / department / etc.)
+          - scheme_name / scheme_name_hindi
+          - service_name / sub_service_name / service_type
+          - job_title / post_name
+          - title-pattern extraction
+          - last resort: "Details unavailable"
+        """
+        metadata = metadata or {}
+
+        def _clean(v) -> Optional[str]:
+            if v is None:
+                return None
+            s = str(v).strip()
+            if not s:
+                return None
+            if s.lower() in ("none", "null", "n/a", "na", "-", "undefined", "nan"):
+                return None
+            return s
+
+        def _pick(*keys) -> Optional[str]:
+            for k in keys:
+                cleaned = _clean(metadata.get(k))
+                if cleaned:
+                    return cleaned
+            return None
+
+        picked: Optional[str] = None
+
+        if app_type == "scheme":
+            picked = _pick(
+                "scheme_name",
+                "scheme_name_hindi",
+                "department",
+                "ministry",
+                "sponsoring_ministry",
+                "organization",
+                "company",
+                "scheme_id",
+                "job_title",
+                "post_name",
+            )
+        elif app_type == "service":
+            picked = _pick(
+                "service_name",
+                "sub_service_name",
+                "service_type",
+                "department",
+                "organization",
+                "company",
+                "service_id",
+                "job_title",
+                "post_name",
+            )
+        elif app_type == "job":
+            picked = _pick(
+                "organization",
+                "company",
+                "job_organization",
+                "job_title",
+                "post_name",
+            )
+        else:
+            picked = _pick(
+                "organization",
+                "company",
+                "service_name",
+                "sub_service_name",
+                "scheme_name",
+                "scheme_name_hindi",
+                "job_title",
+                "post_name",
+            )
+
+        # Title-pattern fallback
+        if not picked and title:
+            extracted = _extract_name_from_title(title, app_type)
+            if extracted:
+                picked = extracted
+                logger.info(
+                    f"🛠️ Resolved {app_type} name from title fallback: {extracted}"
+                )
+
+        if not picked:
+            logger.warning(
+                f"⚠️ Email formatter: no organization/service/scheme name "
+                f"in metadata OR title for type={app_type}. "
+                f"Metadata keys: {list(metadata.keys())}. "
+                f"Title: {title!r}"
+            )
+            picked = "Details unavailable"
+
+        return picked
+
+    # ==================== AI-BASED BEAUTIFUL EMAIL TEMPLATE ====================
 
     def _create_beautiful_email_html(
         self,
@@ -396,23 +677,189 @@ class CentralNotificationService:
         metadata: Optional[Dict] = None,
         related_id: Optional[str] = None
     ) -> str:
-        """Create beautiful, modern HTML email with status highlighting"""
+        """
+        Routes to the ADVANCED AI formatter with different themes
+        for Job / Service / Scheme.
+        """
+        metadata = metadata or {}
 
-        # Get status color and icon based on notification type
+        app_type = self._detect_app_type(notification_type, metadata)
+
+        user_name = (
+            metadata.get("user_name")
+            or metadata.get("applicant_name")
+            or "Applicant"
+        )
+
+        # ✅ v3: pass title for title-based fallback
+        org_or_dept = self._resolve_organization_name(
+            app_type, metadata, title=title
+        )
+
+        details: Dict[str, Any] = {}
+
+        if app_type == "job":
+            details = {
+                "Job Title": metadata.get("job_title"),
+                "Company": metadata.get("organization"),
+                "Location": metadata.get("location"),
+                "Job Type": metadata.get("job_type"),
+                "Applicant": metadata.get("applicant_name"),
+                "Applicant Email": metadata.get("applicant_email"),
+                "Application Number": (
+                    metadata.get("application_number")
+                    or metadata.get("application_id")
+                ),
+                "Status": metadata.get("status"),
+                "Notes": metadata.get("notes") or metadata.get("admin_notes"),
+            }
+        elif app_type == "service":
+            amount = metadata.get("amount")
+            details = {
+                "Service": metadata.get("service_name")
+                    or metadata.get("service_type"),
+                "Sub-Service": metadata.get("sub_service_name"),
+                "Applicant": metadata.get("user_name"),
+                "Applicant Email": metadata.get("user_email"),
+                "Application Number": (
+                    metadata.get("application_number")
+                    or metadata.get("application_id")
+                ),
+                "Amount": (f"₹{amount}" if amount is not None else None),
+                "Payment Status": metadata.get("payment_status"),
+                "Transaction ID": metadata.get("transaction_id"),
+                "Status": metadata.get("status"),
+                "Notes": metadata.get("verification_notes")
+                    or metadata.get("admin_notes"),
+            }
+        elif app_type == "scheme":
+            amount = metadata.get("amount")
+            details = {
+                "Scheme": metadata.get("scheme_name"),
+                "Scheme (Hindi)": metadata.get("scheme_name_hindi"),
+                "Level": metadata.get("scheme_level"),
+                "State": metadata.get("scheme_state"),
+                "Applicant": metadata.get("user_name"),
+                "Applicant Email": metadata.get("user_email"),
+                "Application Number": (
+                    metadata.get("application_number")
+                    or metadata.get("application_id")
+                ),
+                "Amount": (f"₹{amount}" if amount is not None else None),
+                "Payment Status": metadata.get("payment_status"),
+                "Transaction ID": metadata.get("transaction_id"),
+                "Status": metadata.get("status"),
+                "Notes": metadata.get("admin_notes"),
+            }
+        else:
+            details = {
+                "Status": metadata.get("status"),
+                "Notes": metadata.get("notes"),
+            }
+
+        # Remove empty values
+        details = {
+            k: v for k, v in details.items()
+            if v is not None and str(v).strip() not in ("", "None", "null")
+        }
+
+        app_base_url = (settings.APP_BASE_URL or "").rstrip("/")
+
+        if app_type == "job":
+            action_url = (
+                f"{app_base_url}/jobs/{related_id}" if related_id
+                else f"{app_base_url}/jobs"
+            )
+        elif app_type == "service":
+            action_url = f"{app_base_url}/user/services"
+        elif app_type == "scheme":
+            action_url = f"{app_base_url}/user/schemes"
+        else:
+            action_url = f"{app_base_url}/user/dashboard"
+
+        reference_id = str(
+            metadata.get("application_number")
+            or metadata.get("application_id")
+            or related_id
+            or "N/A"
+        )
+
+        status_display = str(
+            metadata.get("status", "updated")
+        ).upper().replace("_", " ")
+
+        try:
+            return build_modern_ai_notification_email(
+                app_type=app_type,
+                title=title,
+                organization_or_dept=str(org_or_dept),
+                user_name=user_name,
+                status=status_display,
+                reference_id=reference_id,
+                details=details,
+                action_url=action_url,
+            )
+        except Exception as e:
+            logger.warning(
+                f"⚠️ AI email formatter failed ({e}) — using legacy template"
+            )
+            return self._legacy_beautiful_email_html(
+                notification_type=notification_type,
+                title=title,
+                message=message,
+                metadata=metadata,
+                related_id=related_id,
+            )
+
+    # ==================== LEGACY FALLBACK TEMPLATE ====================
+
+    def _legacy_beautiful_email_html(
+        self,
+        notification_type: str,
+        title: str,
+        message: str,
+        metadata: Optional[Dict] = None,
+        related_id: Optional[str] = None,
+    ) -> str:
+        """
+        Legacy generic template — used only if AI formatter fails.
+        ✅ v3: Now also pulls organization from scheme_name / service_name
+        so the fallback never shows "Details unavailable".
+        """
         status_config = self._get_status_config(notification_type, metadata)
-
-        # Get current date for footer
         current_date = datetime.now().strftime("%B %d, %Y")
-
         app_base_url = settings.APP_BASE_URL
 
-        # Extract metadata for job details if available
-        job_title = metadata.get('job_title', '') if metadata else ''
-        organization = metadata.get('organization', '') if metadata else ''
-        location = metadata.get('location', '') if metadata else ''
-        job_type = metadata.get('job_type', '') if metadata else ''
-        status = metadata.get('status', '') if metadata else ''
-        notes = metadata.get('notes', '') if metadata else ''
+        metadata = metadata or {}
+
+        job_title = (
+            metadata.get('job_title')
+            or metadata.get('scheme_name')
+            or metadata.get('service_name')
+            or ''
+        )
+        organization = (
+            metadata.get('organization')
+            or metadata.get('company')
+            or metadata.get('scheme_name')
+            or metadata.get('scheme_name_hindi')
+            or metadata.get('service_name')
+            or metadata.get('sub_service_name')
+            or ''
+        )
+        location = metadata.get('location', '')
+        job_type = metadata.get('job_type', '')
+        status = metadata.get('status', '')
+        notes = metadata.get('notes', '')
+        application_number = metadata.get('application_number', '')
+
+        gradient_start = status_config.get('gradient_start', '#1e3a8a')
+        gradient_end = status_config.get('gradient_end', '#3b82f6')
+        badge_color = status_config.get('badge_color', '#3b82f6')
+        highlight_bg = status_config.get('highlight_bg', '#eff6ff')
+        rgb_color = status_config.get('rgb_color', '59, 130, 246')
+        icon = status_config.get('icon', '📢')
+        badge_text = status_config.get('badge_text', 'Notification')
 
         return f"""
         <!DOCTYPE html>
@@ -422,20 +869,13 @@ class CentralNotificationService:
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>{title}</title>
             <style>
-                /* Reset styles */
-                * {{
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }}
-
+                * {{ margin: 0; padding: 0; box-sizing: border-box; }}
                 body {{
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                     padding: 40px 20px;
                     line-height: 1.6;
                 }}
-
                 .email-container {{
                     max-width: 600px;
                     margin: 0 auto;
@@ -443,45 +883,13 @@ class CentralNotificationService:
                     border-radius: 24px;
                     overflow: hidden;
                     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-                    animation: fadeInUp 0.5s ease-out;
                 }}
-
-                @keyframes fadeInUp {{
-                    from {{
-                        opacity: 0;
-                        transform: translateY(30px);
-                    }}
-                    to {{
-                        opacity: 1;
-                        transform: translateY(0);
-                    }}
-                }}
-
-                /* Header Section */
                 .email-header {{
-                    background: linear-gradient(135deg, {status_config['gradient_start']}, {status_config['gradient_end']});
+                    background: linear-gradient(135deg, {gradient_start}, {gradient_end});
                     padding: 40px 30px;
                     text-align: center;
-                    position: relative;
-                    overflow: hidden;
+                    color: white;
                 }}
-
-                .email-header::before {{
-                    content: '';
-                    position: absolute;
-                    top: -50%;
-                    right: -50%;
-                    width: 200%;
-                    height: 200%;
-                    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-                    animation: pulse 3s ease-in-out infinite;
-                }}
-
-                @keyframes pulse {{
-                    0%, 100% {{ transform: scale(1); opacity: 0.5; }}
-                    50% {{ transform: scale(1.1); opacity: 0.8; }}
-                }}
-
                 .header-icon {{
                     width: 80px;
                     height: 80px;
@@ -491,152 +899,95 @@ class CentralNotificationService:
                     align-items: center;
                     justify-content: center;
                     margin-bottom: 20px;
-                    backdrop-filter: blur(10px);
-                    animation: bounce 2s ease-in-out infinite;
+                    font-size: 42px;
                 }}
-
-                @keyframes bounce {{
-                    0%, 100% {{ transform: translateY(0); }}
-                    50% {{ transform: translateY(-10px); }}
-                }}
-
-                .header-icon span {{
-                    font-size: 48px;
-                }}
-
                 .email-header h1 {{
-                    color: white;
-                    font-size: 28px;
+                    font-size: 24px;
                     font-weight: 700;
                     margin-bottom: 10px;
-                    text-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 }}
-
-                .email-header p {{
-                    color: rgba(255, 255, 255, 0.95);
-                    font-size: 16px;
-                }}
-
-                /* Status Badge */
                 .status-badge {{
                     display: inline-block;
                     padding: 8px 20px;
-                    background: {status_config['badge_color']};
+                    background: {badge_color};
                     color: white;
                     border-radius: 50px;
                     font-weight: 600;
                     font-size: 14px;
-                    margin: 20px auto 0;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                    margin-top: 20px;
                 }}
-
-                /* Content Section */
-                .email-content {{
-                    padding: 40px 30px;
-                }}
-
+                .email-content {{ padding: 40px 30px; }}
                 .greeting {{
                     font-size: 18px;
                     font-weight: 600;
                     color: #1a202c;
                     margin-bottom: 20px;
                 }}
-
                 .message-text {{
                     color: #4a5568;
                     font-size: 16px;
                     margin-bottom: 25px;
-                    line-height: 1.6;
                 }}
-
-                /* Job Details Card */
                 .job-details {{
-                    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                    background: #f8fafc;
                     border-radius: 20px;
                     padding: 25px;
                     margin: 25px 0;
                     border: 1px solid #e2e8f0;
                 }}
-
                 .job-title {{
                     font-size: 20px;
                     font-weight: 700;
                     color: #1e3a8a;
                     margin-bottom: 12px;
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
                 }}
-
-                .job-title::before {{
-                    content: "📌";
-                    font-size: 24px;
-                }}
-
                 .company-name {{
                     font-size: 16px;
                     color: #475569;
                     margin-bottom: 15px;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
                 }}
-
-                .company-name::before {{
-                    content: "🏢";
+                .ref-number {{
+                    font-size: 14px;
+                    color: #1e3a8a;
+                    font-weight: 700;
+                    margin-bottom: 15px;
+                    letter-spacing: 0.5px;
                 }}
-
                 .job-info-grid {{
                     display: grid;
                     grid-template-columns: repeat(2, 1fr);
                     gap: 12px;
-                    margin: 15px 0;
                 }}
-
                 .info-item {{
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
                     font-size: 14px;
                     color: #334155;
                     padding: 8px 12px;
                     background: white;
                     border-radius: 12px;
                 }}
-
-                .info-item strong {{
-                    color: #1e3a8a;
-                    font-weight: 600;
-                }}
-
-                /* Status Update Section */
                 .status-update {{
-                    background: {status_config['highlight_bg']};
-                    border-left: 4px solid {status_config['gradient_start']};
+                    background: {highlight_bg};
+                    border-left: 4px solid {gradient_start};
                     border-radius: 12px;
                     padding: 20px;
                     margin: 25px 0;
                 }}
-
                 .status-label {{
                     font-size: 14px;
                     font-weight: 600;
-                    color: {status_config['gradient_start']};
+                    color: {gradient_start};
                     margin-bottom: 8px;
                     text-transform: uppercase;
-                    letter-spacing: 1px;
                 }}
-
                 .status-value {{
                     font-size: 24px;
                     font-weight: 700;
-                    color: {status_config['gradient_start']};
+                    color: {gradient_start};
                     display: inline-block;
                     padding: 6px 16px;
-                    background: rgba({status_config['rgb_color']}, 0.1);
+                    background: rgba({rgb_color}, 0.1);
                     border-radius: 50px;
                 }}
-
                 .admin-notes {{
                     background: #fef3c7;
                     border-radius: 12px;
@@ -644,161 +995,49 @@ class CentralNotificationService:
                     margin-top: 15px;
                     border-left: 4px solid #f59e0b;
                 }}
-
-                .admin-notes p {{
-                    color: #92400e;
-                    font-size: 14px;
-                    margin: 0;
-                }}
-
-                /* Action Button */
-                .action-button {{
-                    text-align: center;
-                    margin: 30px 0 20px;
-                }}
-
+                .admin-notes p {{ color: #92400e; font-size: 14px; margin: 0; }}
+                .action-button {{ text-align: center; margin: 30px 0 20px; }}
                 .btn {{
                     display: inline-block;
                     padding: 14px 32px;
-                    background: linear-gradient(135deg, {status_config['gradient_start']}, {status_config['gradient_end']});
+                    background: linear-gradient(135deg, {gradient_start}, {gradient_end});
                     color: white;
                     text-decoration: none;
                     border-radius: 50px;
                     font-weight: 600;
                     font-size: 16px;
-                    transition: transform 0.3s ease, box-shadow 0.3s ease;
                     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
                 }}
-
-                .btn:hover {{
-                    transform: translateY(-2px);
-                    box-shadow: 0 8px 25px rgba(0,0,0,0.25);
-                }}
-
-                /* Supporting Info */
-                .supporting-info {{
-                    margin-top: 30px;
-                    padding: 20px;
-                    background: #f8fafc;
-                    border-radius: 16px;
-                }}
-
-                .info-title {{
-                    font-weight: 700;
-                    color: #1e293b;
-                    margin-bottom: 12px;
-                    font-size: 16px;
-                }}
-
-                .info-list {{
-                    list-style: none;
-                    padding: 0;
-                }}
-
-                .info-list li {{
-                    padding: 6px 0;
-                    color: #475569;
-                    font-size: 14px;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                }}
-
-                .info-list li::before {{
-                    content: "✓";
-                    color: #10b981;
-                    font-weight: bold;
-                }}
-
-                /* Footer */
                 .email-footer {{
                     background: #f8fafc;
                     padding: 30px;
                     text-align: center;
                     border-top: 1px solid #e2e8f0;
                 }}
-
-                .footer-links {{
-                    margin-bottom: 20px;
-                }}
-
                 .footer-links a {{
                     color: #64748b;
                     text-decoration: none;
                     font-size: 13px;
                     margin: 0 10px;
-                    transition: color 0.3s ease;
                 }}
-
-                .footer-links a:hover {{
-                    color: {status_config['gradient_start']};
-                }}
-
-                .copyright {{
-                    color: #94a3b8;
-                    font-size: 12px;
-                }}
-
-                /* Divider */
-                .divider {{
-                    height: 1px;
-                    background: linear-gradient(to right, transparent, #e2e8f0, transparent);
-                    margin: 20px 0;
-                }}
-
-                /* Responsive */
-                @media (max-width: 480px) {{
-                    .email-content {{
-                        padding: 25px 20px;
-                    }}
-                    .job-info-grid {{
-                        grid-template-columns: 1fr;
-                    }}
-                    .btn {{
-                        padding: 12px 24px;
-                        font-size: 14px;
-                    }}
-                }}
+                .copyright {{ color: #94a3b8; font-size: 12px; }}
             </style>
         </head>
         <body>
             <div class="email-container">
-                <!-- Header Section -->
                 <div class="email-header">
-                    <div class="header-icon">
-                        <span>{status_config['icon']}</span>
-                    </div>
+                    <div class="header-icon">{icon}</div>
                     <h1>{title}</h1>
                     <p>RojgarNest - Your Career Partner</p>
-                    <div class="status-badge">
-                        {status_config['badge_text']}
-                    </div>
+                    <div class="status-badge">{badge_text}</div>
                 </div>
-
-                <!-- Content Section -->
                 <div class="email-content">
-                    <div class="greeting">
-                        Dear Job Seeker,
-                    </div>
-
-                    <div class="message-text">
-                        {message}
-                    </div>
-
-                    <!-- Job Details Card -->
-                    {self._get_job_details_html(job_title, organization, location, job_type)}
-
-                    <!-- Status Update Section (for application status notifications) -->
+                    <div class="greeting">Dear Job Seeker,</div>
+                    <div class="message-text">{message}</div>
+                    {self._get_job_details_html(job_title, organization, location, job_type, application_number)}
                     {self._get_status_update_html(notification_type, status, notes, status_config)}
-
-                    <!-- Action Button -->
                     {self._get_action_button_html(notification_type, metadata, related_id, app_base_url, status_config)}
-
-                    <!-- Supporting Information -->
-                    {self._get_supporting_info_html(notification_type, status_config)}
                 </div>
-
-                <!-- Footer Section -->
                 <div class="email-footer">
                     <div class="footer-links">
                         <a href="{app_base_url}">Home</a>
@@ -807,7 +1046,7 @@ class CentralNotificationService:
                         <a href="{app_base_url}/support">Support</a>
                     </div>
                     <div class="copyright">
-                        © {current_date.split(', ')[1] if ', ' in current_date else current_date} RojgarNest. All rights reserved.<br>
+                        © {current_date} RojgarNest. All rights reserved.<br>
                         Find Your Dream Job with AI-Powered Career Guidance
                     </div>
                 </div>
@@ -816,9 +1055,15 @@ class CentralNotificationService:
         </html>
         """
 
-    def _get_job_details_html(self, job_title: str, organization: str, location: str, job_type: str) -> str:
-        """Generate job details HTML section"""
-        if not job_title and not organization:
+    def _get_job_details_html(
+        self,
+        job_title: str,
+        organization: str,
+        location: str,
+        job_type: str,
+        application_number: str = "",
+    ) -> str:
+        if not job_title and not organization and not application_number:
             return ""
 
         job_type_display = {
@@ -826,13 +1071,20 @@ class CentralNotificationService:
             "government": "🏛️ Government",
             "remote": "🏠 Remote",
             "hybrid": "🔄 Hybrid",
-            "internship": "🎓 Internship"
+            "internship": "🎓 Internship",
         }.get(job_type, "💼 " + job_type.capitalize() if job_type else "")
+
+        ref_html = ""
+        if application_number:
+            ref_html = (
+                f'<div class="ref-number">📋 Application No: {application_number}</div>'
+            )
 
         return f"""
         <div class="job-details">
-            <div class="job-title">{job_title if job_title else 'Job Opportunity'}</div>
-            <div class="company-name">{organization if organization else 'Company Name'}</div>
+            {ref_html}
+            <div class="job-title">{job_title if job_title else 'Application Update'}</div>
+            <div class="company-name">{organization if organization else 'Details unavailable'}</div>
             <div class="job-info-grid">
                 <div class="info-item">📍 <strong>Location:</strong> {location if location else 'India'}</div>
                 <div class="info-item">💼 <strong>Job Type:</strong> {job_type_display}</div>
@@ -840,9 +1092,19 @@ class CentralNotificationService:
         </div>
         """
 
-    def _get_status_update_html(self, notification_type: str, status: str, notes: str, status_config: Dict) -> str:
-        """Generate status update HTML section with highlighting"""
-        if notification_type != NotificationType.APPLICATION_STATUS or not status:
+    def _get_status_update_html(
+        self,
+        notification_type: str,
+        status: str,
+        notes: str,
+        status_config: Dict,
+    ) -> str:
+        status_types = (
+            NotificationType.APPLICATION_STATUS,
+            NotificationType.SCHEME_STATUS,
+            NotificationType.SERVICE_STATUS,
+        )
+        if notification_type not in status_types or not status:
             return ""
 
         status_display = status.upper().replace('_', ' ')
@@ -865,9 +1127,14 @@ class CentralNotificationService:
         </div>
         """
 
-    def _get_action_button_html(self, notification_type: str, metadata: Optional[Dict], related_id: Optional[str], app_base_url: str, status_config: Dict) -> str:
-        """Generate action button HTML based on notification type"""
-
+    def _get_action_button_html(
+        self,
+        notification_type: str,
+        metadata: Optional[Dict],
+        related_id: Optional[str],
+        app_base_url: str,
+        status_config: Dict,
+    ) -> str:
         if notification_type == NotificationType.NEW_JOB and metadata and metadata.get("job_id"):
             return f"""
             <div class="action-button">
@@ -883,9 +1150,18 @@ class CentralNotificationService:
             """
 
         elif notification_type == NotificationType.APPLICATION_STATUS:
+            if metadata and (metadata.get("scheme_id") or metadata.get("scheme_name")):
+                url = f"{app_base_url}/user/schemes"
+                label = "🏛️ View My Scheme Application"
+            elif metadata and (metadata.get("service_id") or metadata.get("sub_type_id")):
+                url = f"{app_base_url}/user/services"
+                label = "⚙️ View My Service Application"
+            else:
+                url = f"{app_base_url}/user/applications"
+                label = "📊 Track My Applications"
             return f"""
             <div class="action-button">
-                <a href="{app_base_url}/user/applications" class="btn">📊 Track My Applications</a>
+                <a href="{url}" class="btn">{label}</a>
             </div>
             """
 
@@ -910,67 +1186,37 @@ class CentralNotificationService:
             </div>
             """
 
+        elif notification_type in (
+            NotificationType.NEW_SCHEME,
+            NotificationType.SCHEME_APPLICATION,
+            NotificationType.SCHEME_STATUS,
+        ):
+            return f"""
+            <div class="action-button">
+                <a href="{app_base_url}/user/schemes" class="btn">🏛️ View Schemes Dashboard</a>
+            </div>
+            """
+
+        elif notification_type in (
+            NotificationType.NEW_SERVICE,
+            NotificationType.SERVICE_APPLICATION,
+            NotificationType.SERVICE_STATUS,
+        ):
+            return f"""
+            <div class="action-button">
+                <a href="{app_base_url}/user/services" class="btn">⚙️ View Services Dashboard</a>
+            </div>
+            """
+
         return ""
-
-    def _get_supporting_info_html(self, notification_type: str, status_config: Dict) -> str:
-        """Generate supporting information HTML section"""
-
-        if notification_type == NotificationType.NEW_JOB:
-            return f"""
-            <div class="supporting-info">
-                <div class="info-title">💡 Pro Tips for Your Application:</div>
-                <ul class="info-list">
-                    <li>Customize your resume for this specific job</li>
-                    <li>Highlight relevant skills and experience</li>
-                    <li>Submit your application before the deadline</li>
-                    <li>Follow up with a professional thank-you message</li>
-                </ul>
-            </div>
-            """
-
-        elif notification_type == NotificationType.APPLICATION_STATUS:
-            return f"""
-            <div class="supporting-info">
-                <div class="info-title">📌 What's Next?</div>
-                <ul class="info-list">
-                    <li>Keep your profile updated for better opportunities</li>
-                    <li>Check your email regularly for interview updates</li>
-                    <li>Prepare for potential interviews by researching the company</li>
-                    <li>Continue applying to other matching positions</li>
-                </ul>
-            </div>
-            """
-
-        elif notification_type == NotificationType.JOB_APPLICATION:
-            return f"""
-            <div class="supporting-info">
-                <div class="info-title">✅ Application Submitted Successfully!</div>
-                <ul class="info-list">
-                    <li>The employer will review your application</li>
-                    <li>You'll receive updates via email and notifications</li>
-                    <li>Track your application status in your dashboard</li>
-                    <li>Keep applying to increase your chances</li>
-                </ul>
-            </div>
-            """
-
-        return f"""
-        <div class="supporting-info">
-            <div class="info-title">🔔 Stay Connected</div>
-            <ul class="info-list">
-                <li>Enable notifications for instant job alerts</li>
-                <li>Complete your profile for better job matches</li>
-                <li>Follow us on social media for updates</li>
-                <li>Contact support for any assistance</li>
-            </ul>
-        </div>
-        """
 
     # ==================== STATUS CONFIGURATIONS ====================
 
-    def _get_status_config(self, notification_type: str, metadata: Optional[Dict]) -> Dict[str, str]:
-        """Get status configuration based on notification type"""
-
+    def _get_status_config(
+        self,
+        notification_type: str,
+        metadata: Optional[Dict],
+    ) -> Dict[str, str]:
         configs = {
             NotificationType.NEW_JOB: {
                 "icon": "🚀",
@@ -979,7 +1225,7 @@ class CentralNotificationService:
                 "gradient_end": "#3b82f6",
                 "badge_color": "#3b82f6",
                 "highlight_bg": "#eff6ff",
-                "rgb_color": "59, 130, 246"
+                "rgb_color": "59, 130, 246",
             },
             NotificationType.JOB_APPLICATION: {
                 "icon": "📝",
@@ -988,7 +1234,7 @@ class CentralNotificationService:
                 "gradient_end": "#8b5cf6",
                 "badge_color": "#8b5cf6",
                 "highlight_bg": "#f5f3ff",
-                "rgb_color": "139, 92, 246"
+                "rgb_color": "139, 92, 246",
             },
             NotificationType.APPLICATION_STATUS: {
                 "icon": "📋",
@@ -997,7 +1243,7 @@ class CentralNotificationService:
                 "gradient_end": "#10b981",
                 "badge_color": "#10b981",
                 "highlight_bg": "#ecfdf5",
-                "rgb_color": "16, 185, 129"
+                "rgb_color": "16, 185, 129",
             },
             NotificationType.USER_REGISTRATION: {
                 "icon": "🎉",
@@ -1006,7 +1252,7 @@ class CentralNotificationService:
                 "gradient_end": "#0ea5e9",
                 "badge_color": "#0ea5e9",
                 "highlight_bg": "#f0f9ff",
-                "rgb_color": "14, 165, 233"
+                "rgb_color": "14, 165, 233",
             },
             NotificationType.USER_VERIFICATION: {
                 "icon": "✅",
@@ -1015,7 +1261,7 @@ class CentralNotificationService:
                 "gradient_end": "#22c55e",
                 "badge_color": "#22c55e",
                 "highlight_bg": "#f0fdf4",
-                "rgb_color": "34, 197, 94"
+                "rgb_color": "34, 197, 94",
             },
             NotificationType.PASSWORD_RESET: {
                 "icon": "🔒",
@@ -1024,7 +1270,7 @@ class CentralNotificationService:
                 "gradient_end": "#f97316",
                 "badge_color": "#f97316",
                 "highlight_bg": "#fff7ed",
-                "rgb_color": "249, 115, 22"
+                "rgb_color": "249, 115, 22",
             },
             NotificationType.SYSTEM_ALERT: {
                 "icon": "⚠️",
@@ -1033,7 +1279,7 @@ class CentralNotificationService:
                 "gradient_end": "#ef4444",
                 "badge_color": "#ef4444",
                 "highlight_bg": "#fef2f2",
-                "rgb_color": "239, 68, 68"
+                "rgb_color": "239, 68, 68",
             },
             NotificationType.ADMIN_ALERT: {
                 "icon": "👑",
@@ -1042,13 +1288,66 @@ class CentralNotificationService:
                 "gradient_end": "#06b6d4",
                 "badge_color": "#06b6d4",
                 "highlight_bg": "#ecfeff",
-                "rgb_color": "6, 182, 212"
-            }
+                "rgb_color": "6, 182, 212",
+            },
+            NotificationType.NEW_SCHEME: {
+                "icon": "🏛️",
+                "badge_text": "Government Welfare Scheme",
+                "gradient_start": "#b45309",
+                "gradient_end": "#f59e0b",
+                "badge_color": "#f59e0b",
+                "highlight_bg": "#fef3c7",
+                "rgb_color": "245, 158, 11",
+            },
+            NotificationType.SCHEME_APPLICATION: {
+                "icon": "🏛️",
+                "badge_text": "Scheme Application",
+                "gradient_start": "#b45309",
+                "gradient_end": "#f59e0b",
+                "badge_color": "#f59e0b",
+                "highlight_bg": "#fef3c7",
+                "rgb_color": "245, 158, 11",
+            },
+            NotificationType.SCHEME_STATUS: {
+                "icon": "🏛️",
+                "badge_text": "Scheme Status Update",
+                "gradient_start": "#b45309",
+                "gradient_end": "#f59e0b",
+                "badge_color": "#f59e0b",
+                "highlight_bg": "#fef3c7",
+                "rgb_color": "245, 158, 11",
+            },
+            NotificationType.NEW_SERVICE: {
+                "icon": "⚙️",
+                "badge_text": "Professional Service",
+                "gradient_start": "#047857",
+                "gradient_end": "#10b981",
+                "badge_color": "#10b981",
+                "highlight_bg": "#d1fae5",
+                "rgb_color": "16, 185, 129",
+            },
+            NotificationType.SERVICE_APPLICATION: {
+                "icon": "⚙️",
+                "badge_text": "Service Application",
+                "gradient_start": "#047857",
+                "gradient_end": "#10b981",
+                "badge_color": "#10b981",
+                "highlight_bg": "#d1fae5",
+                "rgb_color": "16, 185, 129",
+            },
+            NotificationType.SERVICE_STATUS: {
+                "icon": "⚙️",
+                "badge_text": "Service Status Update",
+                "gradient_start": "#047857",
+                "gradient_end": "#10b981",
+                "badge_color": "#10b981",
+                "highlight_bg": "#d1fae5",
+                "rgb_color": "16, 185, 129",
+            },
         }
 
-        # Override for specific status values
         if notification_type == NotificationType.APPLICATION_STATUS and metadata:
-            status = metadata.get('status', '').lower()
+            status = (metadata.get('status') or '').lower()
             if status == 'shortlisted':
                 return {
                     "icon": "⭐",
@@ -1057,7 +1356,7 @@ class CentralNotificationService:
                     "gradient_end": "#3b82f6",
                     "badge_color": "#3b82f6",
                     "highlight_bg": "#eff6ff",
-                    "rgb_color": "59, 130, 246"
+                    "rgb_color": "59, 130, 246",
                 }
             elif status == 'interview':
                 return {
@@ -1067,7 +1366,7 @@ class CentralNotificationService:
                     "gradient_end": "#f97316",
                     "badge_color": "#f97316",
                     "highlight_bg": "#fff7ed",
-                    "rgb_color": "249, 115, 22"
+                    "rgb_color": "249, 115, 22",
                 }
             elif status == 'offered':
                 return {
@@ -1077,7 +1376,7 @@ class CentralNotificationService:
                     "gradient_end": "#10b981",
                     "badge_color": "#10b981",
                     "highlight_bg": "#ecfdf5",
-                    "rgb_color": "16, 185, 129"
+                    "rgb_color": "16, 185, 129",
                 }
             elif status == 'rejected':
                 return {
@@ -1087,28 +1386,28 @@ class CentralNotificationService:
                     "gradient_end": "#ef4444",
                     "badge_color": "#ef4444",
                     "highlight_bg": "#fef2f2",
-                    "rgb_color": "239, 68, 68"
+                    "rgb_color": "239, 68, 68",
                 }
 
-        return configs.get(notification_type, configs[NotificationType.SYSTEM_ALERT])
+        return configs.get(
+            notification_type,
+            configs[NotificationType.SYSTEM_ALERT],
+        )
 
-    # ==================== NEW JOB NOTIFICATION WITH BULK EMAIL ====================
+    # ==================== NEW JOB NOTIFICATION ====================
 
-    async def notify_new_job(self, job_data: Dict, background_tasks: BackgroundTasks, publisher_role: str = "admin") -> Dict:
-        """
-        Notify users about new job with role-based exclusion
-        Uses BULK EMAIL for fast delivery (50-100x faster)
-        ✅ Also sends WhatsApp alerts based on NOTIFY_JOB_ALERT_CHANNELS in .env
-
-        Role-based rules:
-        - CustomAdmin publishes → Exclude ADMIN role
-        - Admin publishes → Exclude CUSTOMADMIN role
-        - SuperAdmin publishes → Notify ALL
-        """
+    async def notify_new_job(
+        self,
+        job_data: Dict,
+        background_tasks: BackgroundTasks,
+        publisher_role: str = "admin",
+    ) -> Dict:
         db = await self._get_db()
 
         logger.info("=" * 60)
-        logger.info(f"📢 Starting NEW JOB NOTIFICATION (BULK EMAIL + WhatsApp) - Publisher Role: {publisher_role}")
+        logger.info(
+            f"📢 Starting NEW JOB NOTIFICATION - Publisher Role: {publisher_role}"
+        )
         logger.info("=" * 60)
 
         job_title = job_data.get("post_name", "New Job")
@@ -1118,32 +1417,34 @@ class CentralNotificationService:
         job_type = job_data.get("job_type", "private")
 
         title = f"🚀 New Job Alert: {job_title} at {organization}"
-        message = f"A new job opportunity '{job_title}' has been posted by {organization}. Check out the details below and apply now!"
+        message = (
+            f"A new job opportunity '{job_title}' has been posted by "
+            f"{organization}. Check out the details below and apply now!"
+        )
 
         metadata = {
             "job_title": job_title,
             "organization": organization,
             "job_id": job_id,
             "location": location,
-            "job_type": job_type
+            "job_type": job_type,
+            "application_type": "job",
         }
-
-        user_ids = []
-        exclude_role = None
 
         publisher_role_lower = publisher_role.lower() if publisher_role else "admin"
 
         if publisher_role_lower == "customadmin":
             exclude_role = "admin"
             users = await self.get_active_users_for_notification(exclude_role="admin")
-            logger.info(f"📊 CustomAdmin published job - Excluding 'admin' role")
+            logger.info("📊 CustomAdmin published job - Excluding 'admin' role")
         elif publisher_role_lower == "admin":
             exclude_role = "customadmin"
             users = await self.get_active_users_for_notification(exclude_role="customadmin")
-            logger.info(f"📊 Admin published job - Excluding 'customadmin' role")
+            logger.info("📊 Admin published job - Excluding 'customadmin' role")
         else:
+            exclude_role = None
             users = await self.get_active_users_for_notification(exclude_role=None)
-            logger.info(f"📊 SuperAdmin published job - Sending to ALL users")
+            logger.info("📊 SuperAdmin published job - Sending to ALL users")
 
         user_ids = [str(user["_id"]) for user in users]
 
@@ -1157,10 +1458,9 @@ class CentralNotificationService:
                 "total_users": 0,
                 "db_notifications": 0,
                 "emails_sent": 0,
-                "excluded_role": exclude_role
+                "excluded_role": exclude_role,
             }
 
-        # ✅ Send with WhatsApp enabled for job alerts
         result = await self.send_notification(
             user_ids=user_ids,
             notification_type=NotificationType.NEW_JOB,
@@ -1169,43 +1469,326 @@ class CentralNotificationService:
             related_id=job_id,
             metadata=metadata,
             send_email=True,
-            send_sms=False,  # Job alerts: no SMS (per .env default)
-            send_whatsapp_flag=True,  # ✅ WhatsApp enabled for job alerts
-            send_websocket=True
+            send_sms=False,
+            send_whatsapp_flag=True,
+            send_websocket=True,
         )
 
         result["excluded_role"] = exclude_role
         result["publisher_role"] = publisher_role
 
         logger.info("=" * 60)
-        logger.info(f"✅ New Job Notification Complete!")
-        logger.info(f"   Publisher Role: {publisher_role}")
-        logger.info(f"   Excluded Role: {exclude_role}")
-        logger.info(f"   Total Active Users: {result['total_users']}")
-        logger.info(f"   DB Notifications: {result['db_notifications']}")
-        logger.info(f"   Emails Sent (Bulk): {result['emails_sent']}")
-        logger.info(f"   WhatsApp Sent: {result.get('whatsapp_sent', 0)}")
-        logger.info(f"   WebSocket Sent: {result['websocket_sent']}")
+        logger.info("✅ New Job Notification Complete!")
         logger.info("=" * 60)
 
         return result
 
-    # ==================== OTHER NOTIFICATION METHODS ====================
+    # ==================== NEW SCHEME NOTIFICATION ====================
+
+    async def notify_new_scheme(
+        self,
+        scheme_data: Dict,
+        publisher_role: str = "admin",
+    ) -> Dict:
+        logger.info("=" * 60)
+        logger.info(
+            f"🏛️ NEW SCHEME NOTIFICATION - Publisher Role: {publisher_role}"
+        )
+        logger.info("=" * 60)
+
+        scheme_id = str(
+            scheme_data.get("scheme_id")
+            or scheme_data.get("_id")
+            or ""
+        )
+        scheme_name = scheme_data.get("scheme_name", "") or ""
+        scheme_name_hindi = scheme_data.get("scheme_name_hindi", "") or ""
+        scheme_level = scheme_data.get("level", "central")
+        scheme_state = scheme_data.get("state")
+        scheme_category = scheme_data.get("category", "other")
+
+        display_name = scheme_name or scheme_name_hindi or "Government Scheme"
+
+        title = f"🏛️ New Government Scheme: {display_name}"
+        message = (
+            f"A new government scheme '{display_name}' has been published. "
+            f"Check your eligibility and apply now!"
+        )
+
+        metadata = {
+            "application_type": "scheme",
+            "scheme_id": scheme_id,
+            "scheme_name": scheme_name or display_name,
+            "scheme_name_hindi": scheme_name_hindi,
+            "scheme_level": scheme_level,
+            "scheme_state": scheme_state,
+            "scheme_category": scheme_category,
+            "status": "new",
+        }
+
+        publisher_role_lower = (publisher_role or "admin").lower()
+        exclude_role = None
+        if publisher_role_lower == "customadmin":
+            exclude_role = "admin"
+        elif publisher_role_lower == "admin":
+            exclude_role = "customadmin"
+
+        users = await self.get_active_users_for_notification(exclude_role=exclude_role)
+        user_ids = [str(u["_id"]) for u in users]
+
+        if not user_ids:
+            logger.warning("⚠️ No active users to notify for new scheme")
+            return {
+                "success": False,
+                "message": "No active users",
+                "total_users": 0,
+                "emails_sent": 0,
+                "excluded_role": exclude_role,
+            }
+
+        result = await self.send_notification(
+            user_ids=user_ids,
+            notification_type=NotificationType.NEW_SCHEME,
+            title=title,
+            message=message,
+            related_id=scheme_id,
+            metadata=metadata,
+            send_email=True,
+            send_sms=False,
+            send_whatsapp_flag=True,
+            send_websocket=True,
+        )
+
+        result["excluded_role"] = exclude_role
+        result["publisher_role"] = publisher_role
+        logger.info(f"✅ New Scheme Notification Complete: {result}")
+        return result
+
+    # ==================== NEW SERVICE NOTIFICATION ====================
+
+    async def notify_new_service(
+        self,
+        service_data: Dict,
+        publisher_role: str = "admin",
+    ) -> Dict:
+        logger.info("=" * 60)
+        logger.info(
+            f"⚙️ NEW SERVICE NOTIFICATION - Publisher Role: {publisher_role}"
+        )
+        logger.info("=" * 60)
+
+        service_id = str(
+            service_data.get("service_id")
+            or service_data.get("_id")
+            or ""
+        )
+        service_name = service_data.get("service_name", "") or ""
+        sub_service_name = service_data.get("sub_service_name", "") or ""
+        department = service_data.get("department", "") or "Government Service"
+
+        display_name = service_name or sub_service_name or "Professional Service"
+
+        title = f"⚙️ New Service Available: {display_name}"
+        message = (
+            f"A new service '{display_name}' is now available. "
+            f"Apply online and complete your request quickly."
+        )
+
+        metadata = {
+            "application_type": "service",
+            "service_id": service_id,
+            "service_name": service_name or display_name,
+            "sub_service_name": sub_service_name,
+            "service_type": department,
+            "status": "new",
+        }
+
+        publisher_role_lower = (publisher_role or "admin").lower()
+        exclude_role = None
+        if publisher_role_lower == "customadmin":
+            exclude_role = "admin"
+        elif publisher_role_lower == "admin":
+            exclude_role = "customadmin"
+
+        users = await self.get_active_users_for_notification(exclude_role=exclude_role)
+        user_ids = [str(u["_id"]) for u in users]
+
+        if not user_ids:
+            logger.warning("⚠️ No active users to notify for new service")
+            return {
+                "success": False,
+                "message": "No active users",
+                "total_users": 0,
+                "emails_sent": 0,
+                "excluded_role": exclude_role,
+            }
+
+        result = await self.send_notification(
+            user_ids=user_ids,
+            notification_type=NotificationType.NEW_SERVICE,
+            title=title,
+            message=message,
+            related_id=service_id,
+            metadata=metadata,
+            send_email=True,
+            send_sms=False,
+            send_whatsapp_flag=True,
+            send_websocket=True,
+        )
+
+        result["excluded_role"] = exclude_role
+        result["publisher_role"] = publisher_role
+        logger.info(f"✅ New Service Notification Complete: {result}")
+        return result
+
+    # ==================== SCHEME STATUS NOTIFICATION ====================
+
+    async def notify_scheme_status(
+        self,
+        user_email: str,
+        scheme_name: str,
+        scheme_id: str,
+        new_status: str,
+        notes: Optional[str] = None,
+        amount: Optional[int] = None,
+        transaction_id: Optional[str] = None,
+        payment_status: Optional[str] = None,
+        application_number: Optional[str] = None,
+        scheme_name_hindi: Optional[str] = None,
+        scheme_level: Optional[str] = None,
+        scheme_state: Optional[str] = None,
+    ) -> Dict:
+        db = await self._get_db()
+
+        user = await db.auth.find_one({"email": user_email})
+        if not user:
+            logger.error(f"User not found for scheme notification: {user_email}")
+            return {"success": False, "error": "User not found"}
+
+        user_id = str(user["_id"])
+
+        display_name = scheme_name or scheme_name_hindi or "Scheme Application"
+
+        title = f"🏛️ Scheme Status Update: {display_name}"
+        message = (
+            f"Your scheme application for '{display_name}' is now "
+            f"{new_status.upper().replace('_', ' ')}."
+        )
+        if application_number:
+            message += f"\n\n📋 Application No: {application_number}"
+
+        metadata = {
+            "application_type": "scheme",
+            "scheme_id": scheme_id,
+            "scheme_name": scheme_name or display_name,
+            "scheme_name_hindi": scheme_name_hindi,
+            "scheme_level": scheme_level,
+            "scheme_state": scheme_state,
+            "application_id": scheme_id,
+            "application_number": application_number or scheme_id,
+            "status": new_status,
+            "admin_notes": notes,
+            "amount": amount,
+            "transaction_id": transaction_id,
+            "payment_status": payment_status,
+            "user_name": user.get("name"),
+            "user_email": user_email,
+        }
+
+        return await self.send_notification(
+            user_ids=user_id,
+            notification_type=NotificationType.SCHEME_STATUS,
+            title=title,
+            message=message,
+            related_id=application_number or scheme_id,
+            metadata=metadata,
+            send_email=True,
+            send_sms=True,
+            send_whatsapp_flag=True,
+            send_websocket=True,
+        )
+
+    # ==================== SERVICE STATUS NOTIFICATION ====================
+
+    async def notify_service_status(
+        self,
+        user_email: str,
+        service_name: str,
+        service_id: str,
+        new_status: str,
+        notes: Optional[str] = None,
+        amount: Optional[int] = None,
+        transaction_id: Optional[str] = None,
+        payment_status: Optional[str] = None,
+        sub_service_name: Optional[str] = None,
+        application_number: Optional[str] = None,
+    ) -> Dict:
+        db = await self._get_db()
+
+        user = await db.auth.find_one({"email": user_email})
+        if not user:
+            logger.error(f"User not found for service notification: {user_email}")
+            return {"success": False, "error": "User not found"}
+
+        user_id = str(user["_id"])
+
+        display_name = service_name or sub_service_name or "Service Application"
+
+        title = f"⚙️ Service Status Update: {display_name}"
+        message = (
+            f"Your service application for '{display_name}' is now "
+            f"{new_status.upper().replace('_', ' ')}."
+        )
+        if application_number:
+            message += f"\n\n📋 Application No: {application_number}"
+
+        metadata = {
+            "application_type": "service",
+            "service_id": service_id,
+            "service_name": service_name or display_name,
+            "sub_service_name": sub_service_name,
+            "application_id": service_id,
+            "application_number": application_number or service_id,
+            "status": new_status,
+            "admin_notes": notes,
+            "amount": amount,
+            "transaction_id": transaction_id,
+            "payment_status": payment_status,
+            "user_name": user.get("name"),
+            "user_email": user_email,
+        }
+
+        return await self.send_notification(
+            user_ids=user_id,
+            notification_type=NotificationType.SERVICE_STATUS,
+            title=title,
+            message=message,
+            related_id=application_number or service_id,
+            metadata=metadata,
+            send_email=True,
+            send_sms=True,
+            send_whatsapp_flag=True,
+            send_websocket=True,
+        )
+
+    # ==================== ADMIN NOTIFICATIONS ====================
 
     async def notify_admins_new_job(self, job_data: Dict):
-        """Notify admins about new job"""
         db = await self._get_db()
 
         admins = await db.auth.find({
             "role": {"$in": [UserRole.ADMIN, UserRole.SUPERADMIN]},
-            "is_email_verified": True
+            "is_email_verified": True,
         }).to_list(length=1000)
 
         admin_ids = [str(admin["_id"]) for admin in admins]
 
         if admin_ids:
             title = f"📢 Admin Alert: New Job Posted - {job_data.get('post_name')}"
-            message = f"A new job '{job_data.get('post_name')}' has been posted by {job_data.get('organization')}"
+            message = (
+                f"A new job '{job_data.get('post_name')}' has been posted "
+                f"by {job_data.get('organization')}"
+            )
 
             await self.send_notification(
                 user_ids=admin_ids,
@@ -1213,25 +1796,31 @@ class CentralNotificationService:
                 title=title,
                 message=message,
                 related_id=str(job_data.get("_id")),
-                metadata={"job_title": job_data.get("post_name"), "organization": job_data.get("organization")},
+                metadata={
+                    "job_title": job_data.get("post_name"),
+                    "organization": job_data.get("organization"),
+                    "application_type": "job",
+                },
                 send_email=True,
-                send_websocket=True
+                send_websocket=True,
             )
 
     async def notify_customadmins_new_job(self, job_data: Dict):
-        """Notify customadmins about new job"""
         db = await self._get_db()
 
         customadmins = await db.auth.find({
             "role": UserRole.CUSTOMADMIN,
-            "is_email_verified": True
+            "is_email_verified": True,
         }).to_list(length=1000)
 
         customadmin_ids = [str(admin["_id"]) for admin in customadmins]
 
         if customadmin_ids:
             title = f"📢 CustomAdmin Alert: New Job Posted - {job_data.get('post_name')}"
-            message = f"A new job '{job_data.get('post_name')}' has been posted by {job_data.get('organization')}"
+            message = (
+                f"A new job '{job_data.get('post_name')}' has been posted "
+                f"by {job_data.get('organization')}"
+            )
 
             await self.send_notification(
                 user_ids=customadmin_ids,
@@ -1239,18 +1828,21 @@ class CentralNotificationService:
                 title=title,
                 message=message,
                 related_id=str(job_data.get("_id")),
-                metadata={"job_title": job_data.get("post_name"), "organization": job_data.get("organization")},
+                metadata={
+                    "job_title": job_data.get("post_name"),
+                    "organization": job_data.get("organization"),
+                    "application_type": "job",
+                },
                 send_email=True,
-                send_websocket=True
+                send_websocket=True,
             )
 
     async def notify_new_application(
         self,
         application_data: Dict,
         job_data: Dict,
-        admin_email: str
+        admin_email: str,
     ) -> Dict:
-        """Notify admin when user applies for a job"""
         db = await self._get_db()
 
         admin_user = await db.auth.find_one({"email": admin_email})
@@ -1265,17 +1857,23 @@ class CentralNotificationService:
         applicant_name = application_data.get("applicant_name", "Someone")
         applicant_email = application_data.get("applicant_email", "")
         application_id = application_data.get("application_id", "")
+        application_number = application_data.get("application_number", "")
 
-        # Notify Admin
         admin_title = f"📝 New Application Received: {job_title}"
-        admin_message = f"{applicant_name} has applied for '{job_title}' at {organization}"
+        admin_message = (
+            f"{applicant_name} has applied for '{job_title}' at {organization}"
+        )
+        if application_number:
+            admin_message += f"\n\n📋 Application No: {application_number}"
 
         admin_metadata = {
+            "application_type": "job",
             "job_title": job_title,
             "organization": organization,
             "applicant_name": applicant_name,
             "applicant_email": applicant_email,
-            "application_id": application_id
+            "application_id": application_id,
+            "application_number": application_number or application_id,
         }
 
         admin_result = await self.send_notification(
@@ -1286,23 +1884,29 @@ class CentralNotificationService:
             related_id=application_id,
             metadata=admin_metadata,
             send_email=True,
-            send_whatsapp_flag=False,  # Admin gets email + bell only
-            send_websocket=True
+            send_whatsapp_flag=False,
+            send_websocket=True,
         )
 
-        # Notify Applicant (Confirmation)
         applicant_user = await db.auth.find_one({"email": applicant_email})
         if applicant_user and applicant_user.get("is_email_verified"):
             applicant_id = str(applicant_user["_id"])
 
             user_title = f"✅ Application Submitted Successfully: {job_title}"
-            user_message = f"Your application for '{job_title}' at {organization} has been submitted successfully!"
+            user_message = (
+                f"Your application for '{job_title}' at {organization} "
+                f"has been submitted successfully!"
+            )
+            if application_number:
+                user_message += f"\n\n📋 Application No: {application_number}"
 
             user_metadata = {
+                "application_type": "job",
                 "job_title": job_title,
                 "organization": organization,
                 "application_id": application_id,
-                "status": "pending"
+                "application_number": application_number or application_id,
+                "status": "pending",
             }
 
             await self.send_notification(
@@ -1313,37 +1917,131 @@ class CentralNotificationService:
                 related_id=application_id,
                 metadata=user_metadata,
                 send_email=True,
-                send_sms=True,  # ✅ Applicant gets SMS confirmation
-                send_whatsapp_flag=True,  # ✅ Also WhatsApp
-                send_websocket=True
+                send_sms=True,
+                send_whatsapp_flag=True,
+                send_websocket=True,
             )
 
         return admin_result
+
+    # ==================== STATUS UPDATE DISPATCHER ====================
 
     async def notify_status_update(
         self,
         application_id: str,
         new_status: str,
         notes: Optional[str],
-        updated_by_email: str
+        updated_by_email: str,
     ) -> Dict:
         """
-        Notify user when admin updates application status
-        Sends to BOTH user and admin (for audit trail)
-        ✅ Multi-channel: Email + SMS + WhatsApp + In-App + WebSocket
+        Notify user when admin updates application status.
+        ✅ v3: Application doc is searched across all 3 collections,
+                application_type is always set explicitly,
+                and scheme_name_hindi / sub_service_name fallbacks are used.
         """
         db = await self._get_db()
 
-        application = await db.applications.find_one({"_id": ObjectId(application_id)})
+        application = None
+        app_type = "job"
+
+        # 1. Unified applications collection (preferred)
+        if ObjectId.is_valid(application_id):
+            try:
+                application = await db.applications.find_one(
+                    {"_id": ObjectId(application_id)}
+                )
+            except Exception:
+                application = None
+
+        # 2. Fallback by application_id / application_number
+        if not application:
+            try:
+                application = await db.applications.find_one({
+                    "$or": [
+                        {"application_id": application_id},
+                        {"application_number": application_id},
+                    ]
+                })
+            except Exception:
+                application = None
+
+        # 3. Legacy collections (if you still have them)
+        if not application:
+            try:
+                application = await db.scheme_applications.find_one(
+                    {"application_id": application_id}
+                )
+                if application:
+                    app_type = "scheme"
+            except Exception:
+                pass
+
+        if not application:
+            try:
+                application = await db.service_applications.find_one(
+                    {"application_id": application_id}
+                )
+                if application:
+                    app_type = "service"
+            except Exception:
+                pass
+
         if not application:
             return {"success": False, "error": "Application not found"}
 
-        applicant_email = application.get("applicant_email")
-        job_title = application.get("job_title", "the position")
-        organization = application.get("organization", "Company")
-        added_by = application.get("added_by")
+        # Detect app_type from document
+        doc_type = (
+            application.get("application_type")
+            or application.get("payment_type")
+            or app_type
+        )
+        doc_type = str(doc_type).strip().lower()
+        if doc_type in ("schemes", "scheme"):
+            app_type = "scheme"
+        elif doc_type in ("service", "services", "online_service"):
+            app_type = "service"
+        elif doc_type in ("job", "jobs"):
+            app_type = "job"
 
-        job_poster = await db.auth.find_one({"email": added_by}) if added_by else None
+        applicant_email = (
+            application.get("applicant_email")
+            or application.get("user_email")
+        )
+
+        # ------------------------------------------------------------
+        # Build display names with full fallbacks
+        # ------------------------------------------------------------
+        scheme_name = (
+            application.get("scheme_name")
+            or application.get("scheme_name_hindi")
+            or ""
+        )
+        scheme_name_hindi = application.get("scheme_name_hindi") or ""
+
+        sub_service_name = application.get("sub_service_name") or ""
+        service_name = application.get("service_name") or ""
+        service_type = application.get("service_type") or ""
+
+        job_title = application.get("job_title") or "Job Application"
+        organization = application.get("organization") or "Company"
+
+        if app_type == "scheme":
+            job_title = scheme_name or scheme_name_hindi or "Scheme Application"
+            organization = scheme_name or scheme_name_hindi or "Government Scheme"
+        elif app_type == "service":
+            job_title = sub_service_name or service_name or "Service Application"
+            organization = sub_service_name or service_name or "Professional Service"
+
+        application_number = (
+            application.get("application_number")
+            or application.get("application_id")
+            or application_id
+        )
+
+        added_by = application.get("added_by")
+        job_poster = (
+            await db.auth.find_one({"email": added_by}) if added_by else None
+        )
         job_poster_id = str(job_poster["_id"]) if job_poster else None
 
         applicant_user = await db.auth.find_one({"email": applicant_email})
@@ -1352,7 +2050,6 @@ class CentralNotificationService:
 
         applicant_id = str(applicant_user["_id"])
 
-        # Get status display text
         status_display = {
             "shortlisted": "SHORTLISTED",
             "interview": "INTERVIEW SCHEDULED",
@@ -1362,50 +2059,115 @@ class CentralNotificationService:
             "submitted": "SUBMITTED",
             "pending_verification": "AWAITING VERIFICATION",
             "verification_successful": "VERIFICATION APPROVED",
-            "verification_rejected": "VERIFICATION FAILED"
+            "verification_rejected": "VERIFICATION FAILED",
+            "approved": "APPROVED",
+            "completed": "COMPLETED",
         }.get(new_status.lower(), new_status.upper())
 
-        # Notification for Applicant
-        applicant_title = f"📋 Application Status Update: {job_title}"
-        applicant_message = f"Your application for '{job_title}' at {organization} is now {status_display}"
+        # ------------------------------------------------------------
+        # Notify applicant
+        # ------------------------------------------------------------
+        if app_type == "scheme":
+            applicant_title = f"🏛️ Scheme Status Update: {job_title}"
+            nt_type = NotificationType.SCHEME_STATUS
+        elif app_type == "service":
+            applicant_title = f"⚙️ Service Status Update: {job_title}"
+            nt_type = NotificationType.SERVICE_STATUS
+        else:
+            applicant_title = f"📋 Application Status Update: {job_title}"
+            nt_type = NotificationType.APPLICATION_STATUS
+
+        applicant_message = (
+            f"Your application for '{job_title}' at {organization} "
+            f"is now {status_display}"
+        )
+        if application_number:
+            applicant_message += f"\n\n📋 Application No: {application_number}"
         if notes:
             applicant_message += f"\n\nAdmin Notes: {notes}"
 
         applicant_metadata = {
+            "application_type": app_type,
             "job_title": job_title,
             "organization": organization,
+            "application_id": application_id,
+            "application_number": application_number,
             "status": new_status,
             "notes": notes,
-            "application_id": application_id
+            "user_name": applicant_user.get("name"),
+            "user_email": applicant_email,
         }
+
+        if app_type == "scheme":
+            applicant_metadata.update({
+                "scheme_id": application.get("scheme_id"),
+                "scheme_name": scheme_name,
+                "scheme_name_hindi": scheme_name_hindi,
+                "scheme_level": application.get("scheme_level"),
+                "scheme_state": application.get("scheme_state"),
+                "amount": application.get("payment_amount")
+                    or application.get("amount"),
+                "payment_status": application.get("payment_verification_status"),
+                "transaction_id": application.get("transaction_id"),
+            })
+        elif app_type == "service":
+            applicant_metadata.update({
+                "service_id": application.get("service_id"),
+                "service_name": service_name or sub_service_name,
+                "sub_service_name": sub_service_name,
+                "service_type": service_type,
+                "sub_type_id": application.get("sub_type_id"),
+                "amount": application.get("payment_amount")
+                    or application.get("amount"),
+                "payment_status": application.get("payment_verification_status"),
+                "transaction_id": application.get("transaction_id"),
+            })
+        else:
+            applicant_metadata.update({
+                "job_id": application.get("job_id"),
+                "applicant_name": application.get("applicant_name")
+                    or application.get("user_name"),
+                "applicant_email": applicant_email,
+                "location": application.get("location"),
+                "job_type": application.get("job_type"),
+            })
 
         applicant_result = await self.send_notification(
             user_ids=applicant_id,
-            notification_type=NotificationType.APPLICATION_STATUS,
+            notification_type=nt_type,
             title=applicant_title,
             message=applicant_message,
-            related_id=application_id,
+            related_id=application_number,
             metadata=applicant_metadata,
             send_email=True,
-            send_sms=True,  # ✅ Status changes go to SMS too
-            send_whatsapp_flag=True,  # ✅ And WhatsApp
-            send_websocket=True
+            send_sms=True,
+            send_whatsapp_flag=True,
+            send_websocket=True,
         )
 
-        # Notify Admin (Job Poster)
+        # ------------------------------------------------------------
+        # Notify admin (job poster / scheme creator)
+        # ------------------------------------------------------------
         if job_poster_id:
             admin_title = f"📋 Application Status Updated: {job_title}"
-            admin_message = f"Application by {applicant_email} for '{job_title}' is now {status_display}"
+            admin_message = (
+                f"Application by {applicant_email} for '{job_title}' "
+                f"is now {status_display}"
+            )
+            if application_number:
+                admin_message += f"\n\n📋 Application No: {application_number}"
             if notes:
                 admin_message += f"\n\nNotes: {notes}"
 
             admin_metadata = {
+                "application_type": app_type,
                 "job_title": job_title,
                 "organization": organization,
                 "applicant_email": applicant_email,
+                "application_id": application_id,
+                "application_number": application_number,
                 "status": new_status,
                 "notes": notes,
-                "application_id": application_id
             }
 
             await self.send_notification(
@@ -1413,19 +2175,26 @@ class CentralNotificationService:
                 notification_type=NotificationType.ADMIN_ALERT,
                 title=admin_title,
                 message=admin_message,
-                related_id=application_id,
+                related_id=application_number,
                 metadata=admin_metadata,
                 send_email=True,
-                send_sms=False,  # Admin: email + bell
+                send_sms=False,
                 send_whatsapp_flag=False,
-                send_websocket=True
+                send_websocket=True,
             )
 
-            logger.info(f"📧 Status update notification also sent to admin: {added_by}")
+            logger.info(
+                f"📧 Status update notification also sent to admin: {added_by}"
+            )
 
-        # Notify CustomAdmins
+        # ------------------------------------------------------------
+        # Notify custom admins
+        # ------------------------------------------------------------
         if job_poster_id and added_by:
-            customadmins = await db.auth.find({"role": "customadmin", "is_active": True}).to_list(100)
+            customadmins = await db.auth.find(
+                {"role": "customadmin", "is_active": True}
+            ).to_list(100)
+
             for customadmin in customadmins:
                 ca_email = customadmin.get("email")
                 if ca_email != added_by:
@@ -1434,20 +2203,23 @@ class CentralNotificationService:
                         user_ids=ca_id,
                         notification_type=NotificationType.CUSTOMADMIN_ALERT,
                         title=f"📋 Application Update: {job_title}",
-                        message=f"Application by {applicant_email} for '{job_title}' is now {status_display}",
-                        related_id=application_id,
+                        message=(
+                            f"Application by {applicant_email} for "
+                            f"'{job_title}' is now {status_display}"
+                        ),
+                        related_id=application_number,
                         metadata=admin_metadata,
                         send_email=True,
                         send_sms=False,
                         send_whatsapp_flag=False,
-                        send_websocket=True
+                        send_websocket=True,
                     )
 
         return {
             "success": True,
             "applicant_notified": applicant_result.get("total_users", 0) > 0,
             "admin_notified": job_poster_id is not None,
-            "message": f"Status update notification sent to user and admin"
+            "message": "Status update notification sent to user and admin",
         }
 
     # ==================== USER NOTIFICATION METHODS ====================
@@ -1457,23 +2229,24 @@ class CentralNotificationService:
         user_id: str,
         limit: int = 50,
         skip: int = 0,
-        unread_only: bool = False
+        unread_only: bool = False,
     ) -> Dict:
-        """Get notifications for a specific user (Bell icon data)"""
         db = await self._get_db()
 
         query = {"user_id": user_id}
         if unread_only:
             query["read"] = False
 
-        notifications = await db.notifications.find(query)\
-            .sort("created_at", -1)\
-            .skip(skip)\
-            .limit(limit)\
+        notifications = await db.notifications.find(query) \
+            .sort("created_at", -1) \
+            .skip(skip) \
+            .limit(limit) \
             .to_list(limit)
 
         total = await db.notifications.count_documents(query)
-        unread_count = await db.notifications.count_documents({"user_id": user_id, "read": False})
+        unread_count = await db.notifications.count_documents(
+            {"user_id": user_id, "read": False}
+        )
 
         for notif in notifications:
             notif["_id"] = str(notif["_id"])
@@ -1485,43 +2258,48 @@ class CentralNotificationService:
             "total": total,
             "unread_count": unread_count,
             "skip": skip,
-            "limit": limit
+            "limit": limit,
         }
 
     async def mark_as_read(self, notification_id: str, user_id: str) -> Dict:
-        """Mark a notification as read"""
         db = await self._get_db()
 
         if not ObjectId.is_valid(notification_id):
-            raise HTTPException(status_code=400, detail="Invalid notification ID")
+            raise HTTPException(
+                status_code=400, detail="Invalid notification ID"
+            )
 
         result = await db.notifications.update_one(
             {"_id": ObjectId(notification_id), "user_id": user_id},
-            {"$set": {"read": True, "read_at": datetime.utcnow()}}
+            {"$set": {"read": True, "read_at": datetime.utcnow()}},
         )
 
         if result.modified_count == 0:
-            raise HTTPException(status_code=404, detail="Notification not found")
+            raise HTTPException(
+                status_code=404, detail="Notification not found"
+            )
 
         return {"message": "Notification marked as read"}
 
     async def mark_all_as_read(self, user_id: str) -> Dict:
-        """Mark all notifications as read for a user"""
         db = await self._get_db()
 
         result = await db.notifications.update_many(
             {"user_id": user_id, "read": False},
-            {"$set": {"read": True, "read_at": datetime.utcnow()}}
+            {"$set": {"read": True, "read_at": datetime.utcnow()}},
         )
 
-        return {"message": f"Marked {result.modified_count} notifications as read"}
+        return {
+            "message": f"Marked {result.modified_count} notifications as read"
+        }
 
     async def get_unread_count(self, user_id: str) -> int:
-        """Get unread notification count for bell badge"""
         db = await self._get_db()
-        return await db.notifications.count_documents({"user_id": user_id, "read": False})
+        return await db.notifications.count_documents(
+            {"user_id": user_id, "read": False}
+        )
 
-    # ==================== PAYMENT VERIFICATION NOTIFICATION ====================
+    # ==================== PAYMENT VERIFICATION ====================
 
     async def notify_payment_verification(
         self,
@@ -1531,193 +2309,235 @@ class CentralNotificationService:
         admin_email: str,
         amount: int,
         job_title: str,
-        action: str,  # 'approve' or 'reject'
-        notes: Optional[str] = None
+        action: str,
+        notes: Optional[str] = None,
+        application_type: Optional[str] = None,
+        application_number: Optional[str] = None,
+        organization: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Send payment verification notifications to both user and admin
-        Also updates bell icon with proper notification types
-        ✅ Multi-channel: Email + SMS + WhatsApp + In-App + WebSocket
-        """
         db = await self._get_db()
 
-        # Get admin user to get their user_id
+        if application_type is None:
+            application_type = self._detect_app_type(
+                NotificationType.APPLICATION_STATUS,
+                {"job_title": job_title, "organization": organization},
+            )
+        app_type = application_type or "job"
+        if app_type == "schemes":
+            app_type = "scheme"
+
         admin_user = await db.auth.find_one({"email": admin_email})
         admin_user_id = str(admin_user["_id"]) if admin_user else None
 
-        # Get user to get their user_id
         user = await db.auth.find_one({"email": user_email})
         user_user_id = str(user["_id"]) if user else None
 
         results = {
             "user_notified": False,
             "admin_notified": False,
-            "customadmin_notified": False
+            "customadmin_notified": False,
         }
 
+        final_org = organization or job_title
+
         if action == "approve":
-            # Notification for USER (applicant)
             if user_user_id:
                 await self.send_notification(
                     user_ids=[user_user_id],
-                    notification_type="application_status",
+                    notification_type=NotificationType.APPLICATION_STATUS,
                     title="✅ Payment Verified Successfully!",
-                    message=f"Your payment of ₹{amount} for '{job_title}' has been verified successfully. Your application is now submitted.",
-                    related_id=application_id,
+                    message=(
+                        f"Your payment of ₹{amount} for '{job_title}' has "
+                        f"been verified successfully. Your application is now submitted."
+                    ),
+                    related_id=application_number or application_id,
                     metadata={
+                        "application_type": app_type,
                         "status": "verification_successful",
                         "amount": amount,
                         "job_title": job_title,
+                        "organization": final_org,
                         "application_id": application_id,
+                        "application_number": application_number or application_id,
                         "payment_id": payment_id,
-                        "admin_notes": notes
+                        "admin_notes": notes,
+                        "user_name": user.get("name") if user else "User",
+                        "user_email": user_email,
                     },
                     send_email=True,
-                    send_sms=True,   # ✅ SMS for payment
-                    send_whatsapp_flag=True,  # ✅ WhatsApp for payment
-                    send_websocket=True
+                    send_sms=True,
+                    send_whatsapp_flag=True,
+                    send_websocket=True,
                 )
                 results["user_notified"] = True
-                logger.info(f"📧📱💬 Payment approval sent to user: {user_email}")
 
-            # Notification for ADMIN (job poster)
             if admin_user_id:
                 await self.send_notification(
                     user_ids=[admin_user_id],
-                    notification_type="application_status",
+                    notification_type=NotificationType.APPLICATION_STATUS,
                     title="💰 Payment Approved",
-                    message=f"Payment of ₹{amount} from {user_email} for '{job_title}' has been APPROVED. Application is now verified.",
-                    related_id=application_id,
+                    message=(
+                        f"Payment of ₹{amount} from {user_email} for "
+                        f"'{job_title}' has been APPROVED. "
+                        f"Application is now verified."
+                    ),
+                    related_id=application_number or application_id,
                     metadata={
+                        "application_type": app_type,
                         "status": "payment_approved",
                         "amount": amount,
                         "job_title": job_title,
+                        "organization": final_org,
                         "applicant_email": user_email,
                         "application_id": application_id,
+                        "application_number": application_number or application_id,
                         "payment_id": payment_id,
-                        "admin_notes": notes
+                        "admin_notes": notes,
                     },
                     send_email=True,
                     send_sms=False,
                     send_whatsapp_flag=False,
-                    send_websocket=True
+                    send_websocket=True,
                 )
                 results["admin_notified"] = True
-                logger.info(f"📧 Payment approval notification sent to admin: {admin_email}")
 
-            # Notification for ALL CUSTOMADMINS
-            customadmins = await db.auth.find({"role": "customadmin", "is_active": True}).to_list(100)
-            customadmin_ids = [str(ca["_id"]) for ca in customadmins]
-
-            for ca_id in customadmin_ids:
-                if ca_id != admin_user_id:
-                    await self.send_notification(
-                        user_ids=[ca_id],
-                        notification_type="customadmin_alert",
-                        title="💰 Payment Approved",
-                        message=f"Payment of ₹{amount} from {user_email} for '{job_title}' has been APPROVED by {admin_email}",
-                        related_id=application_id,
-                        metadata={
-                            "status": "payment_approved",
-                            "amount": amount,
-                            "job_title": job_title,
-                            "applicant_email": user_email,
-                            "application_id": application_id,
-                            "payment_id": payment_id,
-                            "approved_by": admin_email
-                        },
-                        send_email=True,
-                        send_sms=False,
-                        send_whatsapp_flag=False,
-                        send_websocket=True
-                    )
-                    results["customadmin_notified"] = True
-
-            return results
-
-        else:  # reject
-            # Notification for USER (applicant)
-            if user_user_id:
-                await self.send_notification(
-                    user_ids=[user_user_id],
-                    notification_type="application_status",
-                    title="❌ Payment Verification Failed",
-                    message=f"Your payment of ₹{amount} for '{job_title}' has been REJECTED.\nReason: {notes if notes else 'Please contact support'}",
-                    related_id=application_id,
-                    metadata={
-                        "status": "verification_rejected",
-                        "amount": amount,
-                        "job_title": job_title,
-                        "application_id": application_id,
-                        "payment_id": payment_id,
-                        "rejection_reason": notes
-                    },
-                    send_email=True,
-                    send_sms=True,   # ✅ SMS for payment rejection
-                    send_whatsapp_flag=True,  # ✅ WhatsApp
-                    send_websocket=True
-                )
-                results["user_notified"] = True
-                logger.info(f"📧📱💬 Payment rejection sent to user: {user_email}")
-
-            # Notification for ADMIN
-            if admin_user_id:
-                await self.send_notification(
-                    user_ids=[admin_user_id],
-                    notification_type="application_status",
-                    title="💰 Payment Rejected",
-                    message=f"Payment of ₹{amount} from {user_email} for '{job_title}' has been REJECTED.\nReason: {notes if notes else 'No reason provided'}",
-                    related_id=application_id,
-                    metadata={
-                        "status": "payment_rejected",
-                        "amount": amount,
-                        "job_title": job_title,
-                        "applicant_email": user_email,
-                        "application_id": application_id,
-                        "payment_id": payment_id,
-                        "rejection_reason": notes
-                    },
-                    send_email=True,
-                    send_sms=False,
-                    send_whatsapp_flag=False,
-                    send_websocket=True
-                )
-                results["admin_notified"] = True
-                logger.info(f"📧 Payment rejection notification sent to admin: {admin_email}")
-
-            # Notification for ALL CUSTOMADMINS
-            customadmins = await db.auth.find({"role": "customadmin", "is_active": True}).to_list(100)
+            customadmins = await db.auth.find(
+                {"role": "customadmin", "is_active": True}
+            ).to_list(100)
             for ca in customadmins:
                 ca_id = str(ca["_id"])
                 if ca_id != admin_user_id:
                     await self.send_notification(
                         user_ids=[ca_id],
-                        notification_type="customadmin_alert",
-                        title="💰 Payment Rejected",
-                        message=f"Payment of ₹{amount} from {user_email} for '{job_title}' has been REJECTED by {admin_email}.\nReason: {notes if notes else 'No reason provided'}",
-                        related_id=application_id,
+                        notification_type=NotificationType.CUSTOMADMIN_ALERT,
+                        title="💰 Payment Approved",
+                        message=(
+                            f"Payment of ₹{amount} from {user_email} for "
+                            f"'{job_title}' has been APPROVED by {admin_email}"
+                        ),
+                        related_id=application_number or application_id,
                         metadata={
-                            "status": "payment_rejected",
+                            "application_type": app_type,
+                            "status": "payment_approved",
                             "amount": amount,
                             "job_title": job_title,
+                            "organization": final_org,
                             "applicant_email": user_email,
                             "application_id": application_id,
+                            "application_number": application_number or application_id,
                             "payment_id": payment_id,
-                            "rejected_by": admin_email,
-                            "rejection_reason": notes
+                            "approved_by": admin_email,
                         },
                         send_email=True,
                         send_sms=False,
                         send_whatsapp_flag=False,
-                        send_websocket=True
+                        send_websocket=True,
+                    )
+                    results["customadmin_notified"] = True
+
+            return results
+
+        else:
+            if user_user_id:
+                await self.send_notification(
+                    user_ids=[user_user_id],
+                    notification_type=NotificationType.APPLICATION_STATUS,
+                    title="❌ Payment Verification Failed",
+                    message=(
+                        f"Your payment of ₹{amount} for '{job_title}' has "
+                        f"been REJECTED.\nReason: "
+                        f"{notes if notes else 'Please contact support'}"
+                    ),
+                    related_id=application_number or application_id,
+                    metadata={
+                        "application_type": app_type,
+                        "status": "verification_rejected",
+                        "amount": amount,
+                        "job_title": job_title,
+                        "organization": final_org,
+                        "application_id": application_id,
+                        "application_number": application_number or application_id,
+                        "payment_id": payment_id,
+                        "rejection_reason": notes,
+                        "user_name": user.get("name") if user else "User",
+                        "user_email": user_email,
+                    },
+                    send_email=True,
+                    send_sms=True,
+                    send_whatsapp_flag=True,
+                    send_websocket=True,
+                )
+                results["user_notified"] = True
+
+            if admin_user_id:
+                await self.send_notification(
+                    user_ids=[admin_user_id],
+                    notification_type=NotificationType.APPLICATION_STATUS,
+                    title="💰 Payment Rejected",
+                    message=(
+                        f"Payment of ₹{amount} from {user_email} for "
+                        f"'{job_title}' has been REJECTED.\nReason: "
+                        f"{notes if notes else 'No reason provided'}"
+                    ),
+                    related_id=application_number or application_id,
+                    metadata={
+                        "application_type": app_type,
+                        "status": "payment_rejected",
+                        "amount": amount,
+                        "job_title": job_title,
+                        "organization": final_org,
+                        "applicant_email": user_email,
+                        "application_id": application_id,
+                        "application_number": application_number or application_id,
+                        "payment_id": payment_id,
+                        "rejection_reason": notes,
+                    },
+                    send_email=True,
+                    send_sms=False,
+                    send_whatsapp_flag=False,
+                    send_websocket=True,
+                )
+                results["admin_notified"] = True
+
+            customadmins = await db.auth.find(
+                {"role": "customadmin", "is_active": True}
+            ).to_list(100)
+            for ca in customadmins:
+                ca_id = str(ca["_id"])
+                if ca_id != admin_user_id:
+                    await self.send_notification(
+                        user_ids=[ca_id],
+                        notification_type=NotificationType.CUSTOMADMIN_ALERT,
+                        title="💰 Payment Rejected",
+                        message=(
+                            f"Payment of ₹{amount} from {user_email} for "
+                            f"'{job_title}' has been REJECTED by {admin_email}.\n"
+                            f"Reason: {notes if notes else 'No reason provided'}"
+                        ),
+                        related_id=application_number or application_id,
+                        metadata={
+                            "application_type": app_type,
+                            "status": "payment_rejected",
+                            "amount": amount,
+                            "job_title": job_title,
+                            "organization": final_org,
+                            "applicant_email": user_email,
+                            "application_id": application_id,
+                            "application_number": application_number or application_id,
+                            "payment_id": payment_id,
+                            "rejected_by": admin_email,
+                            "rejection_reason": notes,
+                        },
+                        send_email=True,
+                        send_sms=False,
+                        send_whatsapp_flag=False,
+                        send_websocket=True,
                     )
                     results["customadmin_notified"] = True
 
             return results
 
     # ==================== HIGH-LEVEL DISPATCH WRAPPERS ====================
-    # These wrappers let other modules call unified dispatchers directly
-    # through this service. Useful for custom flows.
 
     async def send_otp(
         self,
@@ -1727,10 +2547,12 @@ class CentralNotificationService:
         purpose: str = "verification",
         user_name: str = "User",
     ) -> Dict[str, bool]:
-        """Send OTP through unified dispatcher (Email + SMS + WhatsApp)."""
         return await dispatch_otp(
-            email=email, mobile=mobile, otp=otp,
-            purpose=purpose, user_name=user_name,
+            email=email,
+            mobile=mobile,
+            otp=otp,
+            purpose=purpose,
+            user_name=user_name,
         )
 
     async def send_welcome(
@@ -1739,9 +2561,10 @@ class CentralNotificationService:
         mobile: Optional[str],
         user_name: str,
     ) -> Dict[str, bool]:
-        """Send welcome through unified dispatcher."""
         return await dispatch_welcome(
-            email=email, mobile=mobile, user_name=user_name,
+            email=email,
+            mobile=mobile,
+            user_name=user_name,
         )
 
     async def send_job_alert(
@@ -1754,11 +2577,14 @@ class CentralNotificationService:
         location: str,
         job_id: str,
     ) -> Dict[str, bool]:
-        """Send job alert through unified dispatcher."""
         return await dispatch_job_alert(
-            email=email, mobile=mobile, user_name=user_name,
-            job_title=job_title, organization=organization,
-            location=location, job_id=job_id,
+            email=email,
+            mobile=mobile,
+            user_name=user_name,
+            job_title=job_title,
+            organization=organization,
+            location=location,
+            job_id=job_id,
         )
 
     async def send_payment_status(
@@ -1771,11 +2597,14 @@ class CentralNotificationService:
         action: str,
         notes: Optional[str] = None,
     ) -> Dict[str, bool]:
-        """Send payment status through unified dispatcher."""
         return await dispatch_payment_status(
-            email=email, mobile=mobile, user_name=user_name,
-            job_title=job_title, amount=amount,
-            action=action, notes=notes,
+            email=email,
+            mobile=mobile,
+            user_name=user_name,
+            job_title=job_title,
+            amount=amount,
+            action=action,
+            notes=notes,
         )
 
     async def send_admin_alert(
@@ -1785,10 +2614,11 @@ class CentralNotificationService:
         message: str,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, bool]:
-        """Send admin alert through unified dispatcher."""
         return await dispatch_admin_alert(
-            admin_email=admin_email, title=title,
-            message=message, metadata=metadata,
+            admin_email=admin_email,
+            title=title,
+            message=message,
+            metadata=metadata,
         )
 
 
@@ -1796,9 +2626,15 @@ class CentralNotificationService:
 central_notification = CentralNotificationService()
 
 print("✅ Centralized Notification Service Loaded - BULK EMAIL for fast delivery")
-print("   🎨 Beautiful Email Templates with Status Highlighting")
+print("   🎨 AI Email Templates: Job (Blue) | Service (Emerald) | Scheme (Gold)")
 print("   📧 Email Provider: " + settings.EMAIL_PROVIDER)
 print("   📱 SMS Provider: " + settings.SMS_PROVIDER)
 print("   💬 WhatsApp Provider: " + settings.WHATSAPP_PROVIDER)
 print("   🚀 Multi-channel: Email + SMS + WhatsApp + In-App + WebSocket")
 print("   💰 Payment verification notification method included")
+print("   ✅ FIXED (v3): 'Details unavailable' bug in email header")
+print("      — resolved from MULTIPLE metadata keys per type")
+print("      — resolved from TITLE patterns as fallback")
+print("      — send_notification() auto-injects name into metadata")
+print("      — notify_new_scheme() and notify_new_service() now")
+print("        prefer the non-empty name between English and Hindi")

@@ -1,12 +1,8 @@
 # app/core/services/email.py
 # ============================================================
-# 📧 UNIFIED EMAIL SERVICE
+# 📧 UNIFIED EMAIL SERVICE WITH ADVANCED MODERN AI FORMATTING
 # Supports: SMTP (Gmail) | Brevo | SendGrid | Mailgun
-# Switch via EMAIL_PROVIDER in .env — NO CODE CHANGES NEEDED
-# ============================================================
-# ✅ EMAIL IS ALWAYS REAL - NEVER BYPASSED
-# ✅ Even when MOBILE_OTP_BYPASS=true, email OTP is sent for real
-# ✅ Only SMS/WhatsApp are bypassed in development mode
+# Dynamically structures templates for Jobs, Services, and Schemes
 # ============================================================
 
 import smtplib
@@ -16,7 +12,7 @@ import httpx
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 from app.core.config.settings import settings
 
@@ -27,8 +23,6 @@ logger = logging.getLogger(__name__)
 # BASE PROVIDER INTERFACE
 # ============================================================
 class BaseEmailProvider:
-    """Abstract email provider."""
-
     name: str = "base"
 
     async def send(
@@ -379,15 +373,6 @@ class MailgunEmailProvider(BaseEmailProvider):
 # 🎯 UNIFIED EMAIL SERVICE
 # ============================================================
 class UnifiedEmailService:
-    """
-    Selects provider based on settings.EMAIL_PROVIDER.
-    Falls back to SMTP if primary fails (configurable).
-
-    ✅ CRITICAL: EMAIL IS ALWAYS SENT FOR REAL - NEVER BYPASSED
-    ✅ Even when MOBILE_OTP_BYPASS=true, email OTP is sent for real
-    ✅ Only SMS/WhatsApp are bypassed in development mode
-    """
-
     def __init__(self):
         self.provider_name = (settings.EMAIL_PROVIDER or "smtp").lower()
         self.provider: BaseEmailProvider = self._get_provider(self.provider_name)
@@ -395,7 +380,6 @@ class UnifiedEmailService:
         if self.provider_name != "smtp":
             self.fallback = SMTPEmailProvider()
         logger.info(f"📧 Email service initialized: primary={self.provider_name}")
-        logger.info(f"   ✅ EMAIL IS ALWAYS REAL - NEVER BYPASSED")
 
     def _get_provider(self, name: str) -> BaseEmailProvider:
         if name == "brevo":
@@ -416,23 +400,11 @@ class UnifiedEmailService:
         from_email: Optional[str] = None,
         from_name: Optional[str] = None,
     ) -> bool:
-        # ============================================================
-        # ✅ CRITICAL FIX: EMAIL IS ALWAYS SENT FOR REAL
-        # ============================================================
-        # We REMOVED the MOBILE_OTP_BYPASS check here!
-        # Email OTP is always real - even in development mode.
-        # Only SMS/WhatsApp are bypassed.
-        # ============================================================
-
         logger.info(f"📧 [REAL SEND] Sending email to {to_email}")
-        logger.info(f"   Subject: {subject}")
-        logger.info(f"   Provider: {self.provider_name}")
-
         ok = await self.provider.send(
             to_email, subject, html_body, text_body, from_email, from_name
         )
         if not ok and self.fallback:
-            logger.warning("⚠️ Primary email provider failed, trying SMTP fallback")
             ok = await self.fallback.send(
                 to_email, subject, html_body, text_body, from_email, from_name
             )
@@ -447,18 +419,7 @@ class UnifiedEmailService:
         from_email: Optional[str] = None,
         from_name: Optional[str] = None,
     ) -> bool:
-        # ============================================================
-        # ✅ CRITICAL FIX: EMAIL IS ALWAYS SENT FOR REAL
-        # ============================================================
-        # We REMOVED the MOBILE_OTP_BYPASS check here!
-        # Email OTP is always real - even in development mode.
-        # Only SMS/WhatsApp are bypassed.
-        # ============================================================
-
         logger.info(f"📧 [REAL SEND] Sending email (sync) to {to_email}")
-        logger.info(f"   Subject: {subject}")
-        logger.info(f"   Provider: {self.provider_name}")
-
         ok = self.provider.send_sync(
             to_email, subject, html_body, text_body, from_email, from_name
         )
@@ -474,7 +435,6 @@ class UnifiedEmailService:
 # ============================================================
 _email_service: Optional[UnifiedEmailService] = None
 
-
 def get_email_service() -> UnifiedEmailService:
     global _email_service
     if _email_service is None:
@@ -482,12 +442,7 @@ def get_email_service() -> UnifiedEmailService:
     return _email_service
 
 
-# -------- Public sync API (used by existing code) --------
 def send_email(to_email: str, otp: str) -> bool:
-    """
-    Legacy helper: sends OTP email.
-    ✅ ALWAYS sends real email - never bypassed.
-    """
     html_body = _build_otp_email_html(otp, purpose="verification")
     subject = "Your RojgarNest Verification OTP"
     return get_email_service().send_email_sync(
@@ -499,10 +454,6 @@ def send_email(to_email: str, otp: str) -> bool:
 
 
 def send_html_email(to_email: str, subject: str, html_body: str) -> bool:
-    """
-    Legacy helper: sends HTML email.
-    ✅ ALWAYS sends real email - never bypassed.
-    """
     return get_email_service().send_email_sync(
         to_email=to_email,
         subject=subject,
@@ -516,10 +467,6 @@ async def send_email_async(
     html_body: str,
     text_body: Optional[str] = None,
 ) -> bool:
-    """
-    Async helper for new code.
-    ✅ ALWAYS sends real email - never bypassed.
-    """
     return await get_email_service().send_email(
         to_email=to_email,
         subject=subject,
@@ -529,14 +476,13 @@ async def send_email_async(
 
 
 # ============================================================
-# 🎨 PRETTY OTP EMAIL TEMPLATE
+# 🎨 MODERN AI-BASED TEMPLATE ENGINE (JOB, SERVICE, SCHEME)
 # ============================================================
+
 def _build_otp_email_html(otp: str, purpose: str = "verification") -> str:
     return f"""<!DOCTYPE html>
 <html>
-<head>
-<meta charset="UTF-8">
-<style>
+<head><meta charset="UTF-8"><style>
   body {{ font-family: 'Segoe UI', Arial, sans-serif; background:#f4f4f7; margin:0; padding:20px; }}
   .container {{ max-width:520px; margin:0 auto; background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 6px 24px rgba(0,0,0,0.08); }}
   .header {{ background:linear-gradient(135deg,#6C63FF,#FF6588); padding:28px; text-align:center; color:#fff; }}
@@ -545,8 +491,7 @@ def _build_otp_email_html(otp: str, purpose: str = "verification") -> str:
   .otp-box {{ display:inline-block; background:#f0f0ff; color:#6C63FF; font-size:34px; font-weight:700; letter-spacing:10px; padding:16px 28px; border-radius:12px; margin:20px 0; border:2px dashed #6C63FF; }}
   .footer {{ text-align:center; padding:18px; background:#f8f9fc; color:#8a8a9a; font-size:12px; }}
   p {{ color:#4a4a5a; line-height:1.5; }}
-</style>
-</head>
+</style></head>
 <body>
   <div class="container">
     <div class="header"><h1>🔐 RojgarNest</h1></div>
@@ -557,13 +502,422 @@ def _build_otp_email_html(otp: str, purpose: str = "verification") -> str:
     </div>
     <div class="footer">© RojgarNest — AI-Powered Career Platform</div>
   </div>
+</body></html>"""
+
+
+def build_modern_ai_notification_email(
+    app_type: str,  # 'job', 'service', or 'scheme'
+    title: str,
+    organization_or_dept: str,
+    user_name: str,
+    status: str,
+    reference_id: str,
+    details: Dict[str, Any],
+    action_url: Optional[str] = None
+) -> str:
+    """
+    Generates an advanced, ultra-modern AI formatted notification email
+    specifically separated and custom-styled by application type: Job, Service, or Scheme.
+    
+    ✅ DIFFERENT THEMES FOR EACH TYPE:
+       - job: Blue gradient (professional, career-focused)
+       - service: Emerald/Green gradient (government services)
+       - scheme: Amber/Gold gradient (government schemes)
+    
+    ✅ RICH DETAILS TABLE
+    ✅ GLASSMORPHISM DESIGN
+    ✅ RESPONSIVE CSS
+    ✅ ACTION BUTTON
+    """
+    app_type_clean = app_type.lower().strip()
+    
+    # ============================================================
+    # THEME CONFIGURATION BASED ON APPLICATION TYPE
+    # ============================================================
+    if app_type_clean == "job":
+        badge_text = "💼 Career / Job Opportunity"
+        badge_icon = "💼"
+        accent_color = "#3b82f6"
+        accent_light = "#dbeafe"
+        gradient_bg = "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)"
+        target_label = "Company / Organization"
+        footer_icon = "💼"
+        type_display = "Job Application"
+    elif app_type_clean == "service":
+        badge_text = "⚙️ Government / Professional Service"
+        badge_icon = "⚙️"
+        accent_color = "#10b981"
+        accent_light = "#d1fae5"
+        gradient_bg = "linear-gradient(135deg, #047857 0%, #10b981 100%)"
+        target_label = "Service Provider / Department"
+        footer_icon = "⚙️"
+        type_display = "Service Application"
+    elif app_type_clean == "scheme":
+        badge_text = "🏛️ Government Welfare Scheme"
+        badge_icon = "🏛️"
+        accent_color = "#f59e0b"
+        accent_light = "#fef3c7"
+        gradient_bg = "linear-gradient(135deg, #b45309 0%, #f59e0b 100%)"
+        target_label = "Sponsoring Ministry / Department"
+        footer_icon = "🏛️"
+        type_display = "Scheme Application"
+    else:
+        badge_text = "🚀 Platform Notification"
+        badge_icon = "🚀"
+        accent_color = "#6c63ff"
+        accent_light = "#e0e7ff"
+        gradient_bg = "linear-gradient(135deg, #6c63ff 0%, #ff6588 100%)"
+        target_label = "Organization"
+        footer_icon = "🚀"
+        type_display = "Application"
+
+    # ============================================================
+    # FORMAT DETAILS TABLE ROWS DYNAMICALLY
+    # ============================================================
+    details_html = ""
+    if details:
+        for k, v in details.items():
+            if v is None or str(v).strip() == "":
+                continue
+            formatted_key = k.replace("_", " ").title()
+            details_html += f"""
+            <tr>
+                <td style="padding: 12px 16px; color: #64748b; font-size: 14px; border-bottom: 1px solid #f1f5f9; width: 38%; font-weight: 600;">
+                    {formatted_key}
+                </td>
+                <td style="padding: 12px 16px; color: #1e293b; font-size: 14px; border-bottom: 1px solid #f1f5f9; font-weight: 500; word-break: break-word;">
+                    {v}
+                </td>
+            </tr>
+            """
+
+    # ============================================================
+    # ACTION BUTTON (if URL provided)
+    # ============================================================
+    button_html = ""
+    if action_url:
+        button_html = f"""
+        <div style="text-align: center; margin: 32px 0 10px 0;">
+            <a href="{action_url}" target="_blank" style="
+                background: {accent_color};
+                color: #ffffff;
+                padding: 14px 32px;
+                font-size: 15px;
+                font-weight: 600;
+                text-decoration: none;
+                border-radius: 10px;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+                display: inline-block;
+                letter-spacing: 0.3px;
+            ">
+                View Live Dashboard & Status →
+            </a>
+        </div>
+        """
+
+    # ============================================================
+    # STATUS COLOR
+    # ============================================================
+    status_upper = str(status).upper()
+    if any(x in status_upper for x in ["APPROVED", "SUCCESS", "VERIFIED", "COMPLETED", "OFFERED", "FINAL"]):
+        status_bg = "#d1fae5"
+        status_color = "#047857"
+    elif any(x in status_upper for x in ["REJECTED", "FAILED", "CANCELLED"]):
+        status_bg = "#fee2e2"
+        status_color = "#b91c1c"
+    elif any(x in status_upper for x in ["PENDING", "WAITING", "UNDER"]):
+        status_bg = "#fef3c7"
+        status_color = "#b45309"
+    else:
+        status_bg = "#e0e7ff"
+        status_color = "#3730a3"
+
+    # ============================================================
+    # FINAL HTML TEMPLATE
+    # ============================================================
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{title}</title>
+<style>
+  body {{
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f1f5f9;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+  }}
+  .wrapper {{
+    width: 100%;
+    table-layout: fixed;
+    background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+    padding: 40px 0;
+  }}
+  .main-card {{
+    max-width: 620px;
+    background-color: #ffffff;
+    margin: 0 auto;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1), 0 10px 20px -5px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e2e8f0;
+  }}
+  .header {{
+    background: {gradient_bg};
+    padding: 40px 28px;
+    text-align: center;
+    color: #ffffff;
+    position: relative;
+    overflow: hidden;
+  }}
+  .header::before {{
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%);
+  }}
+  .header-content {{
+    position: relative;
+    z-index: 1;
+  }}
+  .badge {{
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.22);
+    padding: 8px 18px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    border-radius: 24px;
+    margin-bottom: 16px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+  }}
+  .header h1 {{
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.3;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  }}
+  .header .subtitle {{
+    margin-top: 10px;
+    font-size: 14px;
+    opacity: 0.9;
+    font-weight: 400;
+  }}
+  .content {{
+    padding: 36px 32px;
+    color: #334155;
+  }}
+  .greeting {{
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 8px;
+  }}
+  .greeting span {{
+    color: {accent_color};
+  }}
+  .text-p {{
+    font-size: 15px;
+    line-height: 1.7;
+    color: #475569;
+    margin-bottom: 24px;
+  }}
+  .type-badge {{
+    display: inline-block;
+    background: {accent_light};
+    color: {accent_color};
+    padding: 4px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+  }}
+  .info-table {{
+    width: 100%;
+    border-collapse: collapse;
+    background: #f8fafc;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 28px;
+  }}
+  .info-table tr:last-child td {{
+    border-bottom: none;
+  }}
+  .status-pill {{
+    display: inline-block;
+    background: {status_bg};
+    color: {status_color};
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+  }}
+  .ref-id {{
+    font-family: 'Courier New', monospace;
+    background: #ffffff;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 700;
+    color: {accent_color};
+    border: 1px dashed {accent_color};
+    font-size: 13px;
+  }}
+  .highlight-box {{
+    background: {accent_light};
+    border-left: 4px solid {accent_color};
+    padding: 16px 20px;
+    border-radius: 10px;
+    margin: 24px 0;
+  }}
+  .highlight-box p {{
+    margin: 0;
+    color: #1e293b;
+    font-size: 14px;
+    line-height: 1.6;
+  }}
+  .footer {{
+    background-color: #f8fafc;
+    padding: 28px 24px;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 12px;
+    border-top: 1px solid #e2e8f0;
+  }}
+  .footer .brand {{
+    font-weight: 700;
+    color: {accent_color};
+    font-size: 14px;
+    margin-bottom: 6px;
+  }}
+  .footer .links {{
+    margin: 12px 0;
+  }}
+  .footer .links a {{
+    color: #64748b;
+    text-decoration: none;
+    margin: 0 8px;
+    font-size: 12px;
+  }}
+  .social-row {{
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0;
+  }}
+  .social-row span {{
+    display: inline-block;
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    background: {accent_light};
+    border-radius: 50%;
+    margin: 0 4px;
+    font-size: 16px;
+  }}
+</style>
+</head>
+<body>
+  <center class="wrapper">
+    <table class="main-card" width="100%" cellpadding="0" cellspacing="0" role="presentation">
+      <tr>
+        <td class="header">
+          <div class="header-content">
+            <div class="badge">{badge_icon} {badge_text}</div>
+            <h1>{title}</h1>
+            <div class="subtitle">{type_display} Notification</div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="content">
+          <div class="type-badge">{footer_icon} {type_display}</div>
+          <div class="greeting">Hello, <span>{user_name}</span>! 👋</div>
+          <p class="text-p">
+            We have an important update regarding your {type_display.lower()}.
+            Your request has been processed and is currently tracked under our advanced AI notification engine.
+          </p>
+
+          <table class="info-table" cellpadding="0" cellspacing="0" role="presentation">
+            <tr>
+              <td style="padding: 12px 16px; color: #64748b; font-size: 14px; border-bottom: 1px solid #f1f5f9; width: 38%; font-weight: 600;">
+                Reference ID
+              </td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
+                <span class="ref-id">{reference_id}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 16px; color: #64748b; font-size: 14px; border-bottom: 1px solid #f1f5f9; font-weight: 600;">
+                {target_label}
+              </td>
+              <td style="padding: 12px 16px; color: #1e293b; font-size: 14px; border-bottom: 1px solid #f1f5f9; font-weight: 600;">
+                {organization_or_dept}
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 16px; color: #64748b; font-size: 14px; border-bottom: 1px solid #f1f5f9; font-weight: 600;">
+                Current Status
+              </td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
+                <span class="status-pill">{status}</span>
+              </td>
+            </tr>
+            {details_html}
+          </table>
+
+          {button_html}
+
+          <div class="highlight-box">
+            <p>💡 <strong>Tip:</strong> Keep your profile updated to receive better AI-powered matches and faster verification.</p>
+          </div>
+
+          <p style="font-size: 13px; color: #64748b; margin-top: 24px; text-align: center;">
+            If you have any questions or require support, reply directly to this message
+            or visit your RojgarNest user portal.
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td class="footer">
+          <div class="brand">{footer_icon} RojgarNest</div>
+          <div>© 2026 RojgarNest — Next-Gen AI Career, Service & Schemes Portal</div>
+          <div class="links">
+            <a href="https://www.rojgarnest.com">Home</a> |
+            <a href="https://www.rojgarnest.com/jobs">Jobs</a> |
+            <a href="https://www.rojgarnest.com/schemes">Schemes</a> |
+            <a href="https://www.rojgarnest.com/support">Support</a>
+          </div>
+          <div class="social-row">
+            <span>📘</span>
+            <span>🐦</span>
+            <span>💼</span>
+            <span>📸</span>
+          </div>
+          <p style="margin-top: 16px; font-size: 11px; color: #cbd5e1;">
+            This is an automated system notification. Please do not reply directly to this email address.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </center>
 </body>
 </html>"""
 
 
 print("=" * 70)
-print("✅ Unified Email Service Loaded")
-print(f"   Provider: {settings.EMAIL_PROVIDER}")
-print(f"   ✅ EMAIL IS ALWAYS REAL - NEVER BYPASSED")
-print(f"   ✅ Even when MOBILE_OTP_BYPASS=true, emails are sent for real")
+print("✅ Modern Advanced AI Email Notification Service Loaded Successfully")
+print("   - Formatted for: Jobs, Services, and Schemes")
+print("   - Glassmorphism & Responsive CSS applied")
+print("   - build_modern_ai_notification_email() ready for use")
 print("=" * 70)
