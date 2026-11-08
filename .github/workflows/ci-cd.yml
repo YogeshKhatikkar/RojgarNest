@@ -9,7 +9,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/rojgarnext
+  IMAGE_PREFIX: ${{ github.repository_owner }}/rojgarnest
   FLUTTER_VERSION: '3.24.0'
 
 jobs:
@@ -43,17 +43,17 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: backend/rojgarnext/requirements.txt
+          cache-dependency-path: backend/rojgarnest/requirements.txt
 
       - name: Install dependencies
-        working-directory: backend/rojgarnext
+        working-directory: backend/rojgarnest
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-cov
 
       - name: Run tests
-        working-directory: backend/rojgarnext
+        working-directory: backend/rojgarnest
         env:
           MONGO_URI: mongodb://localhost:27017/rojgarnext_test
           REDIS_URL: redis://localhost:6379
@@ -89,7 +89,6 @@ jobs:
         working-directory: frontend/rojgarnest
         run: flutter analyze --no-fatal-infos || true
 
-      # ✅ FIXED: No --web-renderer canvaskit
       - name: Build Web (Release)
         working-directory: frontend/rojgarnest
         run: |
@@ -253,8 +252,8 @@ jobs:
       - name: Build & Push Backend
         uses: docker/build-push-action@v6
         with:
-          context: backend/rojgarnext
-          file: backend/rojgarnext/Dockerfile
+          context: backend/rojgarnest
+          file: backend/rojgarnest/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
@@ -296,7 +295,7 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_PORT || 22 }}
           script: |
-            cd /opt/rojgarnext/deploy
+            cd /opt/rojgarnest/deploy
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             export IMAGE_TAG=${{ github.sha }}
             export GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}

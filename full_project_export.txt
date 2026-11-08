@@ -1,0 +1,3884 @@
+================================================================================
+ROJGARNEST - FULL PROJECT EXPORT (EXCLUDE MODE)
+================================================================================
+Generated: 2026-11-08 12:12:18
+Source: E:\YOGESH\website\RojgarNest
+Excluded folders: .git, backend, frontend
+Excluded extensions: .txt
+Total Files Included: 39
+Total Skipped: 7
+Total Size: 112.4 KB
+================================================================================
+
+================================================================================
+📁 FOLDER BREAKDOWN
+================================================================================
+
+  (root)/: 5 files (44.8 KB)
+  .github/: 6 files (13.3 KB)
+  deploy/: 26 files (53.2 KB)
+  monitoring/: 2 files (1.1 KB)
+
+
+================================================================================
+⏭️  SKIPPED
+================================================================================
+
+  📁 .git  →  excluded folder '.git'
+  📁 .vscode  →  hard-skip folder '.vscode'
+  📁 backend  →  excluded folder 'backend'
+  📄 backend_complete_export.txt  →  excluded extension '.txt'
+  📁 frontend  →  excluded folder 'frontend'
+  📄 frontend_export.txt  →  excluded extension '.txt'
+  📄 full_project_export.txt  →  system/output file
+
+
+================================================================================
+📁 DIRECTORY STRUCTURE
+================================================================================
+
+📁 RojgarNest/
+├── 📁 .github/
+│   └── 📁 workflows/
+│       ├── ⚙️ android-release.yml
+│       ├── ⚙️ backend-deploy.yml
+│       ├── ⚙️ ci-cd.yml
+│       ├── ⚙️ deploy.yml
+│       ├── ⚙️ security-scan.yml
+│       └── ⚙️ web-deploy.yml
+├── 📁 deploy/
+│   ├── 📄 .env.dev
+│   ├── 📄 .env.dev.example
+│   ├── 📄 .env.example
+│   ├── 📄 .env.prod.example
+│   ├── 📜 deploy.sh
+│   ├── 💻 dev.ps1
+│   ├── 📜 dev.sh
+│   ├── ⚙️ docker-compose.dev.yml
+│   ├── ⚙️ docker-compose.prod.yml
+│   ├── ⚙️ docker-compose.yml
+│   ├── 📄 Dockerfile.dev
+│   ├── 📄 Dockerfile.prod
+│   ├── 📁 k8s/
+│   ├── 📄 Makefile
+│   ├── 📁 nginx/
+│   │   ├── ⚙️ nginx.dev.conf
+│   │   └── ⚙️ nginx.prod.conf
+│   ├── 💻 prod.ps1
+│   ├── 📜 prod.sh
+│   ├── 📝 README.md
+│   └── 📁 scripts/
+│       ├── 📜 backup.sh
+│       ├── 📜 build-android.sh
+│       ├── 📜 build-web.sh
+│       ├── 📜 deploy-local.sh
+│       ├── 📜 deploy-server.sh
+│       ├── 📜 health-check.sh
+│       ├── 📜 rollback.sh
+│       └── 📜 setup-server.sh
+├── 🐍 export_backend_code.py
+├── 🐍 export_frontend.py
+├── 🐍 export_remaining.py
+├── 📁 monitoring/
+│   ├── ⚙️ logstash.conf
+│   └── ⚙️ prometheus.yml
+├── 📋 railway.frontend.json
+└── 📋 railway.json
+
+
+================================================================================
+📊 FILE SUMMARY
+================================================================================
+
+Total Files: 39
+Total Size: 112.4 KB
+
+By extension:
+  .sh: 11 files (24.2 KB)
+  .yml: 10 files (20.2 KB)
+  .example: 3 files (1.0 KB)
+  .conf: 3 files (9.0 KB)
+  .py: 3 files (43.9 KB)
+  .dev: 2 files (212 B)
+  .ps1: 2 files (10.6 KB)
+  .json: 2 files (964 B)
+  .prod: 1 files (0 B)
+  (no ext): 1 files (2.2 KB)
+  .md: 1 files (143 B)
+
+
+================================================================================
+📄 ALL FILE CONTENTS
+================================================================================
+
+================================================================================
+[   1/  39] ⚙️ .github/workflows/android-release.yml
+📏 SIZE: 0 B
+🕐 MODIFIED: 2026-09-25 19:53:10
+================================================================================
+
+
+
+================================================================================
+[   2/  39] ⚙️ .github/workflows/backend-deploy.yml
+📏 SIZE: 0 B
+🕐 MODIFIED: 2026-09-25 19:53:36
+================================================================================
+
+
+
+================================================================================
+[   3/  39] ⚙️ .github/workflows/ci-cd.yml
+📏 SIZE: 10.9 KB
+🕐 MODIFIED: 2026-11-07 17:43:32
+================================================================================
+
+name: 🚀 Full CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/rojgarnest
+  FLUTTER_VERSION: '3.24.0'
+
+jobs:
+  # ============================================================
+  # JOB 1: Backend Tests
+  # ============================================================
+  backend-test:
+    name: 🧪 Backend Tests
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7.0
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd "mongosh --eval 'db.runCommand(\"ping\").ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/rojgarnest/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend/rojgarnest
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Run tests
+        working-directory: backend/rojgarnest
+        env:
+          MONGO_URI: mongodb://localhost:27017/rojgarnext_test
+          REDIS_URL: redis://localhost:6379
+          ENVIRONMENT: test
+          SECRET_KEY: test-secret-key-minimum-32-characters-long
+          JWT_SECRET_KEY: test-jwt-secret-key-minimum-32-characters-long
+        run: |
+          pytest --cov=app --cov-report=xml -v || true
+
+  # ============================================================
+  # JOB 2: Flutter Web Build
+  # ============================================================
+  frontend-web-build:
+    name: 🎨 Flutter Web Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Flutter doctor
+        run: flutter doctor -v
+
+      - name: Get dependencies
+        working-directory: frontend/rojgarnest
+        run: flutter pub get
+
+      - name: Analyze code
+        working-directory: frontend/rojgarnest
+        run: flutter analyze --no-fatal-infos || true
+
+      - name: Build Web (Release)
+        working-directory: frontend/rojgarnest
+        run: |
+          flutter build web --release \
+            --base-href=/ \
+            --dart-define=API_BASE_URL=https://www.rojgarnest.com/api/v1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flutter-web-build
+          path: frontend/rojgarnest/build/web
+          retention-days: 7
+
+  # ============================================================
+  # JOB 3: Flutter Android Build
+  # ============================================================
+  frontend-android-build:
+    name: 📱 Flutter Android Build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        working-directory: frontend/rojgarnest
+        run: flutter pub get
+
+      - name: Decode Keystore
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > frontend/rojgarnest/android/app/rojgarnext-release-key.jks
+
+      - name: Create key.properties
+        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        working-directory: frontend/rojgarnest/android
+        run: |
+          cat > key.properties <<EOF
+          storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
+          keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          storeFile=app/rojgarnext-release-key.jks
+          EOF
+
+      - name: Create google-services.json
+        if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
+        run: |
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > frontend/rojgarnest/android/app/google-services.json
+
+      - name: Build APK (Split per ABI)
+        working-directory: frontend/rojgarnest
+        run: |
+          flutter build apk --release \
+            --flavor prod \
+            --dart-define=API_BASE_URL=https://www.rojgarnest.com/api/v1 \
+            --split-per-abi
+
+      - name: Build App Bundle (AAB)
+        working-directory: frontend/rojgarnest
+        run: |
+          flutter build appbundle --release \
+            --flavor prod \
+            --dart-define=API_BASE_URL=https://www.rojgarnest.com/api/v1
+
+      - name: Rename artifacts
+        run: |
+          cd frontend/rojgarnest/build/app/outputs
+          VERSION=$(date +%Y%m%d)-${GITHUB_SHA::7}
+          mkdir -p release-artifacts
+          for f in flutter-apk/*.apk; do
+            cp "$f" "release-artifacts/rojgarnext-$(basename $f .apk)-${VERSION}.apk"
+          done
+          cp bundle/release/app-release.aab release-artifacts/rojgarnext-${VERSION}.aab
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: frontend/rojgarnest/build/app/outputs/release-artifacts/*.apk
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-aab
+          path: frontend/rojgarnest/build/app/outputs/release-artifacts/*.aab
+          retention-days: 30
+
+      - name: Upload to Play Store (Internal Track)
+        if: github.ref == 'refs/heads/main' && secrets.PLAY_STORE_SERVICE_ACCOUNT != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}
+          packageName: com.rojgarnext.app
+          releaseFiles: frontend/rojgarnest/build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+
+      - name: Create Release (for tags)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            frontend/rojgarnest/build/app/outputs/release-artifacts/*.apk
+            frontend/rojgarnest/build/app/outputs/release-artifacts/*.aab
+          generate_release_notes: true
+
+  # ============================================================
+  # JOB 4: Security Scan
+  # ============================================================
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy FS Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+  # ============================================================
+  # JOB 5: Build & Push Docker Images
+  # ============================================================
+  build-images:
+    name: 🐳 Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [backend-test, frontend-web-build, security-scan]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/rojgarnest
+          file: backend/rojgarnest/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & Push Frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend/rojgarnest
+          file: frontend/rojgarnest/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # JOB 6: Deploy Production
+  # ============================================================
+  deploy-production:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build-images
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://www.rojgarnest.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT || 22 }}
+          script: |
+            cd /opt/rojgarnest/deploy
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            export IMAGE_TAG=${{ github.sha }}
+            export GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -f
+            sleep 20
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost/api/v1/health >/dev/null 2>&1; then
+                echo "✅ Backend healthy after ${i}s"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "❌ Health check failed"
+            exit 1
+
+      - name: Notify Slack
+        if: always() && secrets.SLACK_WEBHOOK != ''
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Deployment: ${{ job.status }}
+            Commit: ${{ github.sha }}
+            By: ${{ github.actor }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+
+================================================================================
+[   4/  39] ⚙️ .github/workflows/deploy.yml
+📏 SIZE: 2.4 KB
+🕐 MODIFIED: 2026-11-07 17:43:53
+================================================================================
+
+name: Deploy RojgarNext
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          cd backend/rojgarnest
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint with flake8
+        run: |
+          cd backend/rojgarnest
+          pip install flake8
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Run tests
+        run: |
+          cd backend/rojgarnest
+          pip install pytest
+          pytest tests/ || true
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend/rojgarnest
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/rojgarnest-backend:latest
+
+      - name: Build and push Frontend
+        run: |
+          cd frontend/rojgarnest
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/rojgarnest-frontend:latest .
+          docker push ${{ secrets.DOCKER_USERNAME }}/rojgarnest-frontend:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/rojgarnest
+            git pull
+            docker-compose down
+            docker-compose pull
+            docker-compose up -d
+            docker system prune -f
+
+================================================================================
+[   5/  39] ⚙️ .github/workflows/security-scan.yml
+📏 SIZE: 0 B
+🕐 MODIFIED: 2026-09-25 19:53:50
+================================================================================
+
+
+
+================================================================================
+[   6/  39] ⚙️ .github/workflows/web-deploy.yml
+📏 SIZE: 0 B
+🕐 MODIFIED: 2026-09-25 19:53:22
+================================================================================
+
+
+
+================================================================================
+[   7/  39] 📄 deploy/.env.dev
+📏 SIZE: 212 B
+🕐 MODIFIED: 2026-11-07 16:58:13
+================================================================================
+
+# ============================================================
+# DEV — COMPOSE ENV (only compose-level vars)
+# ============================================================
+COMPOSE_PROJECT_NAME=rojgarnest-dev
+
+================================================================================
+[   8/  39] 📄 deploy/.env.dev.example
+📏 SIZE: 212 B
+🕐 MODIFIED: 2026-11-07 16:58:13
+================================================================================
+
+# ============================================================
+# DEV — COMPOSE ENV (only compose-level vars)
+# ============================================================
+COMPOSE_PROJECT_NAME=rojgarnest-dev
+
+================================================================================
+[   9/  39] 📄 deploy/.env.example
+📏 SIZE: 505 B
+🕐 MODIFIED: 2026-11-07 17:42:17
+================================================================================
+
+# ============================================================
+# DEPLOY — ENV VARIABLES
+# ============================================================
+# Copy to .env.dev or .env.prod, then fill real values
+# ============================================================
+
+# ============ MONGODB ROOT (prod only) ============
+MONGO_ROOT_USERNAME=rojgar_admin
+MONGO_ROOT_PASSWORD=CHANGE_ME_STRONG_PASSWORD_32_CHARS
+
+# ============ COMPOSE PROJECT NAME ============
+COMPOSE_PROJECT_NAME=rojgarnest
+
+================================================================================
+[  10/  39] 📄 deploy/.env.prod.example
+📏 SIZE: 349 B
+🕐 MODIFIED: 2026-11-07 16:58:22
+================================================================================
+
+# ============================================================
+# PROD — COMPOSE ENV
+# ============================================================
+COMPOSE_PROJECT_NAME=rojgarnest-prod
+
+# ⚠️ MUST SET — used by MongoDB root user + backend connection
+MONGO_ROOT_USERNAME=rojgar_admin
+MONGO_ROOT_PASSWORD=CHANGE_ME_STRONG_32_CHAR_PASSWORD
+
+================================================================================
+[  11/  39] 📜 deploy/deploy.sh
+📏 SIZE: 4.2 KB
+🕐 MODIFIED: 2026-11-07 16:21:59
+================================================================================
+
+#!/usr/bin/env bash
+# ============================================================
+# ROJGARNEST — DEPLOYMENT HELPER
+# ============================================================
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+# ============================================================
+# HELPERS
+# ============================================================
+log()      { echo -e "${CYAN}[deploy]${NC} $*"; }
+success()  { echo -e "${GREEN}[ok]${NC} $*"; }
+warn()     { echo -e "${YELLOW}[warn]${NC} $*"; }
+error()    { echo -e "${RED}[error]${NC} $*" >&2; exit 1; }
+
+# ============================================================
+# COMMANDS
+# ============================================================
+cmd_dev_up() {
+    log "Starting DEVELOPMENT stack..."
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.dev.yml \
+        --env-file .env.dev \
+        up --build -d
+    success "Development stack up. Frontend: http://localhost:8080 | Backend: http://localhost:8000"
+}
+
+cmd_dev_down() {
+    log "Stopping DEVELOPMENT stack..."
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.dev.yml \
+        --env-file .env.dev \
+        down
+    success "Development stack down"
+}
+
+cmd_dev_logs() {
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.dev.yml \
+        --env-file .env.dev \
+        logs -f
+}
+
+cmd_prod_up() {
+    log "Starting PRODUCTION stack..."
+    [ -f .env.prod ] || error ".env.prod not found — copy .env.prod.example"
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.prod.yml \
+        --env-file .env.prod \
+        up --build -d
+    success "Production stack up. Frontend: http://localhost | Backend: internal"
+}
+
+cmd_prod_down() {
+    log "Stopping PRODUCTION stack..."
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.prod.yml \
+        --env-file .env.prod \
+        down
+    success "Production stack down"
+}
+
+cmd_prod_logs() {
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.prod.yml \
+        --env-file .env.prod \
+        logs -f
+}
+
+cmd_backup_db() {
+    log "Backing up MongoDB..."
+    local ts=$(date +%Y%m%d_%H%M%S)
+    local out="backups/mongo_${ts}.gz"
+    mkdir -p backups
+    docker compose exec -T mongo mongodump --archive --gzip > "$out"
+    success "Backup saved: $out"
+}
+
+cmd_restore_db() {
+    local file="${1:-}"
+    [ -n "$file" ] || error "Usage: ./deploy.sh restore-db <backup.gz>"
+    [ -f "$file" ] || error "File not found: $file"
+    log "Restoring MongoDB from $file..."
+    docker compose exec -T mongo mongorestore --archive --gzip < "$file"
+    success "Restore complete"
+}
+
+cmd_seed() {
+    log "Seeding schemes..."
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.dev.yml \
+        --env-file .env.dev \
+        exec backend python seed_schemes.py
+    success "Seeding complete"
+}
+
+cmd_status() {
+    docker compose ps
+}
+
+cmd_health() {
+    log "Checking health..."
+    curl -fsS http://localhost:8000/api/v1/health && echo
+    curl -fsS http://localhost:8080/healthz && echo
+    success "All healthy"
+}
+
+# ============================================================
+# ROUTER
+# ============================================================
+case "${1:-help}" in
+    dev-up)      cmd_dev_up ;;
+    dev-down)    cmd_dev_down ;;
+    dev-logs)    cmd_dev_logs ;;
+    prod-up)     cmd_prod_up ;;
+    prod-down)   cmd_prod_down ;;
+    prod-logs)   cmd_prod_logs ;;
+    backup-db)   cmd_backup_db ;;
+    restore-db)  shift; cmd_restore_db "${1:-}" ;;
+    seed)        cmd_seed ;;
+    status)      cmd_status ;;
+    health)      cmd_health ;;
+    *)
+        cat <<EOF
+Usage: ./deploy.sh <command>
+
+DEV:
+  dev-up       Start development stack
+  dev-down     Stop development stack
+  dev-logs     Follow development logs
+
+PROD:
+  prod-up      Start production stack
+  prod-down    Stop production stack
+  prod-logs    Follow production logs
+
+DB:
+  seed         Seed schemes into MongoDB
+  backup-db    Backup MongoDB to deploy/backups/
+  restore-db   Restore MongoDB from backup file
+
+UTIL:
+  status       Show container status
+  health       Check endpoints
+EOF
+        ;;
+esac
+
+================================================================================
+[  12/  39] 💻 deploy/dev.ps1
+📏 SIZE: 6.0 KB
+🕐 MODIFIED: 2026-11-07 17:01:45
+================================================================================
+
+# ============================================================
+# ROJGARNEST — DEVELOPMENT RUNNER (WINDOWS LOCAL)
+# ============================================================
+param(
+    [Parameter(Position=0)]
+    [ValidateSet("start","stop","logs","restart","ps","rebuild","clean","seed","shell","mongo","health")]
+    [string]$Command = "start"
+)
+
+$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
+
+# ============================================================
+# HELPERS
+# ============================================================
+function Write-Log     { param([string]$m) Write-Host "> $m" -ForegroundColor Cyan }
+function Write-Success { param([string]$m) Write-Host "[OK] $m" -ForegroundColor Green }
+function Write-Warn    { param([string]$m) Write-Host "[!] $m" -ForegroundColor Yellow }
+function Write-Err     { param([string]$m) Write-Host "[X] $m" -ForegroundColor Red; exit 1 }
+
+# ============================================================
+# GUARD
+# ============================================================
+if ($env:CI -or $env:GITHUB_ACTIONS -or $env:GITLAB_CI) {
+    Write-Err "CI environment detected. Use prod.ps1 on server."
+}
+
+# ============================================================
+# COMPOSE ARGS
+# ============================================================
+$composeArgs = @(
+    "compose",
+    "-f", "docker-compose.yml",
+    "-f", "docker-compose.dev.yml",
+    "--env-file", ".env.dev"
+)
+
+# ============================================================
+# ENSURE ENV
+# ============================================================
+function Ensure-Env {
+    if (-not (Test-Path ".env.dev")) {
+        if (Test-Path ".env.dev.example") {
+            Copy-Item ".env.dev.example" ".env.dev"
+            Write-Warn "Created .env.dev from template"
+        } else {
+            Write-Err ".env.dev missing"
+        }
+    }
+}
+
+# ============================================================
+# COMMANDS
+# ============================================================
+function Cmd-Start {
+    Ensure-Env
+    Write-Log "Starting DEVELOPMENT stack (local)..."
+    docker @composeArgs up --build -d
+    if ($LASTEXITCODE -ne 0) {
+        Write-Err "docker compose up failed"
+    }
+    Write-Success "Development stack is up!"
+    Write-Host ""
+    Write-Host "  Frontend : http://localhost:8080"
+    Write-Host "  Backend  : http://localhost:8000"
+    Write-Host "  API Docs : http://localhost:8000/docs"
+    Write-Host "  MongoDB  : mongodb://localhost:27017"
+    Write-Host "  Redis    : redis://localhost:6379"
+    Write-Host ""
+    Write-Host "  Logs: .\dev.ps1 logs"
+    Write-Host "  Stop: .\dev.ps1 stop"
+    Write-Host ""
+}
+
+function Cmd-Stop {
+    Write-Log "Stopping DEVELOPMENT stack..."
+    docker @composeArgs down
+    Write-Success "Stopped"
+}
+
+function Cmd-Logs {
+    docker @composeArgs logs -f
+}
+
+function Cmd-Restart {
+    Write-Log "Restarting DEVELOPMENT stack..."
+    docker @composeArgs restart
+    Write-Success "Restarted"
+}
+
+function Cmd-Ps {
+    docker @composeArgs ps
+}
+
+function Cmd-Rebuild {
+    Ensure-Env
+    Write-Log "Full rebuild (no cache) - this takes 8-12 minutes..."
+    docker @composeArgs down
+    docker @composeArgs build --no-cache
+    docker @composeArgs up -d
+    Write-Success "Rebuild complete"
+}
+
+function Cmd-Clean {
+    Write-Warn "WARNING: This will DELETE ALL DATA (mongo + redis volumes)."
+    Write-Warn "Type DELETE to confirm:"
+    $confirm = Read-Host
+    if ($confirm -ne "DELETE") {
+        Write-Warn "Cancelled"
+        return
+    }
+    docker @composeArgs down -v --rmi local
+    Write-Success "Cleaned - all data deleted"
+}
+
+function Cmd-Seed {
+    Write-Log "Seeding schemes..."
+    docker @composeArgs exec backend python seed_schemes.py
+    Write-Success "Seeding complete"
+}
+
+function Cmd-Shell {
+    Write-Log "Opening shell in backend..."
+    docker @composeArgs exec backend bash
+}
+
+function Cmd-Mongo {
+    Write-Log "Opening mongosh..."
+    docker @composeArgs exec mongo mongosh RojgarNest
+}
+
+function Cmd-Health {
+    Write-Log "Checking health..."
+    $ok = $true
+
+    try {
+        Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:8000/api/v1/health" -TimeoutSec 5 | Out-Null
+        Write-Host "  [OK] Backend  : OK" -ForegroundColor Green
+    } catch {
+        Write-Host "  [X] Backend  : FAIL" -ForegroundColor Red
+        $ok = $false
+    }
+
+    try {
+        Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:8080/healthz" -TimeoutSec 5 | Out-Null
+        Write-Host "  [OK] Frontend : OK" -ForegroundColor Green
+    } catch {
+        Write-Host "  [X] Frontend : FAIL" -ForegroundColor Red
+        $ok = $false
+    }
+
+    if ($ok) {
+        Write-Success "All healthy"
+    } else {
+        Write-Err "Some services unhealthy"
+    }
+}
+
+# ============================================================
+# ROUTER
+# ============================================================
+switch ($Command) {
+    "start"   { Cmd-Start   }
+    "stop"    { Cmd-Stop    }
+    "logs"    { Cmd-Logs    }
+    "restart" { Cmd-Restart }
+    "ps"      { Cmd-Ps      }
+    "rebuild" { Cmd-Rebuild }
+    "clean"   { Cmd-Clean   }
+    "seed"    { Cmd-Seed    }
+    "shell"   { Cmd-Shell   }
+    "mongo"   { Cmd-Mongo   }
+    "health"  { Cmd-Health  }
+    default   {
+        Write-Host "Usage: .\dev.ps1 <command>"
+        Write-Host ""
+        Write-Host "Commands:"
+        Write-Host "  start      Start development stack (default)"
+        Write-Host "  stop       Stop stack"
+        Write-Host "  logs       Follow logs"
+        Write-Host "  restart    Restart stack"
+        Write-Host "  ps         Show container status"
+        Write-Host "  rebuild    Full rebuild (no cache)"
+        Write-Host "  clean      Stop + delete volumes (DESTROYS DATA)"
+        Write-Host "  seed       Seed schemes"
+        Write-Host "  shell      Shell into backend"
+        Write-Host "  mongo      Shell into mongo"
+        Write-Host "  health     Check endpoints"
+        exit 1
+    }
+}
+
+================================================================================
+[  13/  39] 📜 deploy/dev.sh
+📏 SIZE: 5.3 KB
+🕐 MODIFIED: 2026-11-07 16:56:36
+================================================================================
+
+#!/usr/bin/env bash
+# ============================================================
+# ROJGARNEST — DEVELOPMENT RUNNER (LOCAL COMPUTER ONLY)
+# ============================================================
+# Usage:
+#   ./dev.sh              # start
+#   ./dev.sh stop         # stop
+#   ./dev.sh logs         # follow logs
+#   ./dev.sh restart      # restart
+#   ./dev.sh ps           # status
+#   ./dev.sh rebuild      # full rebuild (no cache)
+#   ./dev.sh clean        # stop + delete volumes (DESTROYS DATA)
+#   ./dev.sh seed         # seed schemes
+#   ./dev.sh shell        # shell into backend
+#   ./dev.sh mongo        # shell into mongo
+# ============================================================
+set -euo pipefail
+cd "$(dirname "$0")"
+
+# Colors
+G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; C='\033[0;36m'; B='\033[1m'; N='\033[0m'
+log()     { echo -e "${C}▶${N} $*"; }
+success() { echo -e "${G}✅${N} $*"; }
+warn()    { echo -e "${Y}⚠️${N}  $*"; }
+error()   { echo -e "${R}❌${N} $*" >&2; exit 1; }
+
+# ============================================================
+# GUARD — Prevent running on server
+# ============================================================
+if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${GITLAB_CI:-}" ]; then
+    error "CI environment detected. Use ./prod.sh for server/production."
+fi
+
+# ============================================================
+# COMPOSE COMMAND
+# ============================================================
+COMPOSE=(
+    docker compose
+    -f docker-compose.yml
+    -f docker-compose.dev.yml
+    --env-file .env.dev
+)
+
+# ============================================================
+# ENSURE ENV FILE
+# ============================================================
+ensure_env() {
+    if [ ! -f .env.dev ]; then
+        if [ -f .env.dev.example ]; then
+            cp .env.dev.example .env.dev
+            warn "Created .env.dev from template"
+        else
+            error ".env.dev missing AND .env.dev.example missing"
+        fi
+    fi
+}
+
+# ============================================================
+# COMMANDS
+# ============================================================
+cmd_start() {
+    ensure_env
+    log "Starting DEVELOPMENT stack (local)..."
+    "${COMPOSE[@]}" up --build -d
+    success "Development stack is up!"
+    echo ""
+    echo -e "  ${B}🌐 Frontend${N} : http://localhost:8080"
+    echo -e "  ${B}🔌 Backend${N}  : http://localhost:8000"
+    echo -e "  ${B}📚 API Docs${N} : http://localhost:8000/docs"
+    echo -e "  ${B}🗄️  MongoDB${N}  : mongodb://localhost:27017"
+    echo -e "  ${B}⚡ Redis${N}    : redis://localhost:6379"
+    echo ""
+    echo -e "  ${Y}Logs${N}: ./dev.sh logs"
+    echo -e "  ${Y}Stop${N}: ./dev.sh stop"
+    echo ""
+}
+
+cmd_stop() {
+    log "Stopping DEVELOPMENT stack..."
+    "${COMPOSE[@]}" down
+    success "Stopped"
+}
+
+cmd_logs() {
+    "${COMPOSE[@]}" logs -f
+}
+
+cmd_restart() {
+    log "Restarting DEVELOPMENT stack..."
+    "${COMPOSE[@]}" restart
+    success "Restarted"
+}
+
+cmd_ps() {
+    "${COMPOSE[@]}" ps
+}
+
+cmd_rebuild() {
+    ensure_env
+    log "Full rebuild (no cache) — this takes 8-12 minutes..."
+    "${COMPOSE[@]}" down
+    "${COMPOSE[@]}" build --no-cache
+    "${COMPOSE[@]}" up -d
+    success "Rebuild complete"
+}
+
+cmd_clean() {
+    warn "⚠️  This will DELETE ALL DATA (mongo + redis volumes)."
+    warn "    Press Ctrl+C to cancel, Enter to continue."
+    read -r
+    "${COMPOSE[@]}" down -v --rmi local
+    success "Cleaned — all data deleted"
+}
+
+cmd_seed() {
+    log "Seeding schemes..."
+    "${COMPOSE[@]}" exec backend python seed_schemes.py
+    success "Seeding complete"
+}
+
+cmd_shell() {
+    log "Opening shell in backend..."
+    "${COMPOSE[@]}" exec backend bash
+}
+
+cmd_mongo() {
+    log "Opening mongosh..."
+    "${COMPOSE[@]}" exec mongo mongosh RojgarNest
+}
+
+cmd_health() {
+    log "Checking health..."
+    local ok=1
+    curl -fsS http://localhost:8000/api/v1/health >/dev/null && echo -e "  ${G}✅${N} Backend  : OK" || { echo -e "  ${R}❌${N} Backend  : FAIL"; ok=0; }
+    curl -fsS http://localhost:8080/healthz >/dev/null && echo -e "  ${G}✅${N} Frontend : OK" || { echo -e "  ${R}❌${N} Frontend : FAIL"; ok=0; }
+    [ $ok -eq 1 ] && success "All healthy" || error "Some services unhealthy"
+}
+
+# ============================================================
+# ROUTER
+# ============================================================
+case "${1:-start}" in
+    start|up)    cmd_start ;;
+    stop|down)   cmd_stop ;;
+    logs)        cmd_logs ;;
+    restart)     cmd_restart ;;
+    ps|status)   cmd_ps ;;
+    rebuild)     cmd_rebuild ;;
+    clean)       cmd_clean ;;
+    seed)        cmd_seed ;;
+    shell)       cmd_shell ;;
+    mongo)       cmd_mongo ;;
+    health)      cmd_health ;;
+    *)
+        echo "Usage: ./dev.sh <command>"
+        echo ""
+        echo "Commands:"
+        echo "  start      Start development stack (default)"
+        echo "  stop       Stop stack"
+        echo "  logs       Follow logs"
+        echo "  restart    Restart stack"
+        echo "  ps         Show container status"
+        echo "  rebuild    Full rebuild (no cache)"
+        echo "  clean      Stop + delete volumes (DESTROYS DATA)"
+        echo "  seed       Seed schemes"
+        echo "  shell      Shell into backend"
+        echo "  mongo      Shell into mongo"
+        echo "  health     Check endpoints"
+        exit 1
+        ;;
+esac
+
+================================================================================
+[  14/  39] ⚙️ deploy/docker-compose.dev.yml
+📏 SIZE: 1.1 KB
+🕐 MODIFIED: 2026-11-07 17:41:51
+================================================================================
+
+# ============================================================
+# ROJGARNEST — DEVELOPMENT OVERRIDE
+# ============================================================
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# ============================================================
+
+services:
+  mongo:
+    ports:
+      # Expose MongoDB locally for debugging (MongoDB Compass)
+      - "27017:27017"
+
+  redis:
+    ports:
+      # Expose Redis locally for debugging (redis-cli)
+      - "6379:6379"
+
+  backend:
+    environment:
+      ENVIRONMENT: development
+      MOBILE_OTP_BYPASS: "true"
+      DEV_MODE_LOG_ONLY: "false"
+      LOG_LEVEL: DEBUG
+    ports:
+      # Expose backend directly for testing (bypass frontend)
+      - "8000:8000"
+    # ✅ Dev: mount source code for live-reload (optional)
+    # volumes:
+    #   - ../backend/rojgarnest/app:/app/app:ro
+
+  frontend:
+    build:
+      args:
+        API_BASE_URL: http://localhost:8000/api/v1
+        WS_BASE_URL: ws://localhost:8000/notification/ws
+    ports:
+      - "8080:80"   # Dev frontend on 8080, not 80
+
+================================================================================
+[  15/  39] ⚙️ deploy/docker-compose.prod.yml
+📏 SIZE: 1.3 KB
+🕐 MODIFIED: 2026-11-07 17:42:04
+================================================================================
+
+# ============================================================
+# ROJGARNEST — PRODUCTION OVERRIDE
+# ============================================================
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+# ============================================================
+
+services:
+  mongo:
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    # ⚠️ Never expose MongoDB in prod
+    # ports:
+    #   - "27017:27017"
+
+  backend:
+    environment:
+      ENVIRONMENT: production
+      MOBILE_OTP_BYPASS: "false"
+      DEV_MODE_LOG_ONLY: "false"
+      LOG_LEVEL: WARNING
+      # ✅ Production DB with auth
+      MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/RojgarNest?authSource=admin
+      # ✅ Production URL
+      APP_BASE_URL: https://www.rojgarnest.com
+    restart: always
+    # No port exposure — Nginx reverse proxies
+    # ports:
+    #   - "8000:8000"
+
+  frontend:
+    build:
+      args:
+        API_BASE_URL: https://www.rojgarnest.com/api/v1
+        WS_BASE_URL: wss://www.rojgarnest.com/notification/ws
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Optional: mount TLS certs
+      - ./nginx-ssl:/etc/nginx/ssl:ro
+
+================================================================================
+[  16/  39] ⚙️ deploy/docker-compose.yml
+📏 SIZE: 4.0 KB
+🕐 MODIFIED: 2026-11-07 17:41:35
+================================================================================
+
+# ============================================================
+# ROJGARNEST — DOCKER COMPOSE (BASE)
+# ============================================================
+# Usage:
+#   Dev:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#   Prod: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+# ============================================================
+
+services:
+  # ==========================================================
+  # MONGODB
+  # ==========================================================
+  mongo:
+    image: mongo:7
+    container_name: rojgarnest-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: RojgarNest
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - rojgarnest-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ==========================================================
+  # REDIS
+  # ==========================================================
+  redis:
+    image: redis:7-alpine
+    container_name: rojgarnest-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - rojgarnest-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ==========================================================
+  # BACKEND (FastAPI)
+  # ==========================================================
+  backend:
+    build:
+      context: ../backend/rojgarnest
+      dockerfile: Dockerfile
+    container_name: rojgarnest-backend
+    restart: unless-stopped
+    environment:
+      # ✅ Override .env localhost values with Docker service names
+      MONGO_URI: mongodb://mongo:27017/RojgarNest
+      DATABASE_NAME: RojgarNest
+      REDIS_URL: redis://redis:6379
+      PORT: "8000"
+      # ENVIRONMENT overridden by docker-compose.dev.yml or .prod.yml
+    env_file:
+      - ../backend/rojgarnest/.env
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_secure:/app/secure
+      - backend_models:/app/models
+      - backend_logs:/app/logs
+      - backend_backups:/app/backups
+    networks:
+      - rojgarnest-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
+  # ==========================================================
+  # FRONTEND (Flutter Web + Nginx)
+  # ==========================================================
+  frontend:
+    build:
+      context: ../frontend/rojgarnest
+      dockerfile: Dockerfile
+      args:
+        # Overridden by .dev.yml or .prod.yml
+        API_BASE_URL: http://localhost:8000/api/v1
+        WS_BASE_URL: ws://localhost:8000/notification/ws
+    container_name: rojgarnest-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    networks:
+      - rojgarnest-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+# ============================================================
+# NETWORKS
+# ============================================================
+networks:
+  rojgarnest-net:
+    driver: bridge
+
+# ============================================================
+# VOLUMES
+# ============================================================
+volumes:
+  mongo_data:
+  redis_data:
+  backend_uploads:
+  backend_secure:
+  backend_models:
+  backend_logs:
+  backend_backups:
+
+================================================================================
+[  17/  39] 📄 deploy/Dockerfile.dev
+📏 SIZE: 0 B
+🕐 MODIFIED: 2026-11-07 15:57:17
+================================================================================
+
+
+
+================================================================================
+[  18/  39] 📄 deploy/Dockerfile.prod
+📏 SIZE: 0 B
+🕐 MODIFIED: 2026-11-07 15:57:41
+================================================================================
+
+
+
+================================================================================
+[  19/  39] 📄 deploy/Makefile
+📏 SIZE: 2.2 KB
+🕐 MODIFIED: 2026-11-07 16:22:11
+================================================================================
+
+# ============================================================
+# ROJGARNEST — MAKEFILE
+# ============================================================
+.PHONY: help dev-up dev-down dev-logs prod-up prod-down prod-logs seed backup-db status health
+
+# ============================================================
+# VARIABLES
+# ============================================================
+COMPOSE_DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev
+COMPOSE_PROD = docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod
+
+# ============================================================
+# HELP
+# ============================================================
+help:
+	@echo "RojgarNest Deployment Commands:"
+	@echo ""
+	@echo "  make dev-up      Start development stack"
+	@echo "  make dev-down    Stop development stack"
+	@echo "  make dev-logs    Follow development logs"
+	@echo "  make prod-up     Start production stack"
+	@echo "  make prod-down   Stop production stack"
+	@echo "  make prod-logs   Follow production logs"
+	@echo "  make seed        Seed schemes"
+	@echo "  make backup-db   Backup MongoDB"
+	@echo "  make status      Container status"
+	@echo "  make health      Check endpoints"
+
+# ============================================================
+# DEV
+# ============================================================
+dev-up:
+	$(COMPOSE_DEV) up --build -d
+
+dev-down:
+	$(COMPOSE_DEV) down
+
+dev-logs:
+	$(COMPOSE_DEV) logs -f
+
+# ============================================================
+# PROD
+# ============================================================
+prod-up:
+	$(COMPOSE_PROD) up --build -d
+
+prod-down:
+	$(COMPOSE_PROD) down
+
+prod-logs:
+	$(COMPOSE_PROD) logs -f
+
+# ============================================================
+# UTILS
+# ============================================================
+seed:
+	$(COMPOSE_DEV) exec backend python seed_schemes.py
+
+backup-db:
+	mkdir -p backups
+	docker compose exec -T mongo mongodump --archive --gzip > backups/mongo_$$(date +%Y%m%d_%H%M%S).gz
+
+status:
+	docker compose ps
+
+health:
+	curl -fsS http://localhost:8000/api/v1/health && echo
+	curl -fsS http://localhost:8080/healthz && echo
+
+================================================================================
+[  20/  39] ⚙️ deploy/nginx/nginx.dev.conf
+📏 SIZE: 2.5 KB
+🕐 MODIFIED: 2026-11-07 15:11:12
+================================================================================
+
+# ============================================================
+# DEV NGINX — Only used if you add an nginx service to dev compose
+# For local dev, frontend is served on :8080 directly by its own container.
+# You can OPTIONALLY add this as a proxy if you want http://localhost:80 → backend+frontend.
+# ============================================================
+user nginx;
+worker_processes auto;
+worker_rlimit_nofile 65535;
+
+events {
+    worker_connections 2048;
+    multi_accept on;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    client_max_body_size 50M;
+
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript
+               application/wasm image/svg+xml application/xml;
+    gzip_min_length 1024;
+    gzip_comp_level 6;
+
+    upstream backend_upstream {
+        server backend:8000;
+    }
+
+    upstream frontend_upstream {
+        server frontend:80;
+    }
+
+    server {
+        listen 80;
+        server_name localhost;
+
+        # ---- Health ----
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+
+        # ---- API ----
+        location /api/ {
+            proxy_pass http://backend_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 120s;
+        }
+
+        # ---- WebSocket ----
+        location /ws/ {
+            proxy_pass http://backend_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_read_timeout 86400s;
+        }
+
+        # ---- Backend uploads ----
+        location /uploads/ {
+            proxy_pass http://backend_upstream;
+            expires 1d;
+        }
+
+        # ---- Frontend (Flutter web) ----
+        location / {
+            proxy_pass http://frontend_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+    }
+}
+
+================================================================================
+[  21/  39] ⚙️ deploy/nginx/nginx.prod.conf
+📏 SIZE: 5.9 KB
+🕐 MODIFIED: 2026-11-05 21:48:55
+================================================================================
+
+# ============================================================
+# PRODUCTION NGINX - Complete with WebSocket, SSE, Static Files
+# ============================================================
+user nginx;
+worker_processes auto;
+worker_rlimit_nofile 65536;
+
+events {
+    worker_connections 4096;
+    use epoll;
+    multi_accept on;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    server_tokens off;
+
+    # ✅ Logging
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log /var/log/nginx/access.log main;
+    error_log /var/log/nginx/error.log warn;
+
+    # ✅ Gzip
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types
+        text/plain
+        text/css
+        application/json
+        application/javascript
+        text/xml
+        application/xml
+        application/xml+rss
+        text/javascript
+        application/wasm
+        image/svg+xml
+        application/manifest+json;
+
+    # ✅ Rate limiting
+    limit_req_zone $binary_remote_addr zone=api:10m rate=30r/s;
+    limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;
+
+    # ✅ Upstreams
+    upstream backend_upstream {
+        least_conn;
+        server backend:8000 max_fails=3 fail_timeout=30s;
+        keepalive 32;
+    }
+
+    upstream frontend_upstream {
+        server frontend:80;
+        keepalive 32;
+    }
+
+    # ✅ HTTP → HTTPS redirect
+    server {
+        listen 80;
+        server_name www.rojgarnest.com rojgarnest.com;
+
+        location /.well-known/acme-challenge/ {
+            root /var/www/certbot;
+        }
+
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    # ✅ HTTPS server
+    server {
+        listen 443 ssl http2;
+        server_name www.rojgarnest.com rojgarnest.com;
+
+        ssl_certificate     /etc/letsencrypt/live/rojgarnest.com/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/rojgarnest.com/privkey.pem;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5:!3DES;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 1d;
+        ssl_session_tickets off;
+        ssl_stapling on;
+        ssl_stapling_verify on;
+
+        # ✅ Security headers
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "geolocation=(self), microphone=(), camera=()" always;
+
+        client_max_body_size 50M;
+        client_body_timeout 60s;
+        client_header_timeout 60s;
+
+        # ✅ Health check
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+
+        # ✅ Backend API
+        location /api/ {
+            limit_req zone=api burst=50 nodelay;
+            proxy_pass http://backend_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Connection "";
+            proxy_read_timeout 120s;
+            proxy_send_timeout 120s;
+            proxy_connect_timeout 30s;
+        }
+
+        # ✅ Login endpoint (stricter rate limit)
+        location /api/v1/auth/login {
+            limit_req zone=login burst=3 nodelay;
+            proxy_pass http://backend_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # ✅ WebSocket support
+        location /ws/ {
+            proxy_pass http://backend_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+
+        # ✅ SSE (Server-Sent Events)
+        location /api/v1/notification/stream {
+            proxy_pass http://backend_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            proxy_set_header Host $host;
+            proxy_buffering off;
+            proxy_cache off;
+            proxy_read_timeout 86400s;
+            chunked_transfer_encoding on;
+        }
+
+        # ✅ Static files from backend (uploads)
+        location /uploads/ {
+            proxy_pass http://backend_upstream;
+            proxy_set_header Host $host;
+            expires 1d;
+            add_header Cache-Control "public";
+        }
+
+        # ✅ Frontend (catch-all)
+        location / {
+            proxy_pass http://frontend_upstream;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Connection "";
+        }
+    }
+}
+
+================================================================================
+[  22/  39] 💻 deploy/prod.ps1
+📏 SIZE: 4.5 KB
+🕐 MODIFIED: 2026-11-07 16:57:49
+================================================================================
+
+# ============================================================
+# ROJGARNEST — PRODUCTION RUNNER (WINDOWS SERVER)
+# ============================================================
+param(
+    [Parameter(Position=0)]
+    [ValidateSet("start","stop","logs","restart","ps","rebuild","clean","seed","shell","mongo","backup","health")]
+    [string]$Command = "start"
+)
+
+$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
+
+function Write-Log($m)     { Write-Host "▶ $m" -ForegroundColor Cyan }
+function Write-Success($m) { Write-Host "✅ $m" -ForegroundColor Green }
+function Write-Warn($m)    { Write-Host "⚠️  $m" -ForegroundColor Yellow }
+function Write-Err($m)     { Write-Host "❌ $m" -ForegroundColor Red; exit 1 }
+
+# ============================================================
+# COMPOSE
+# ============================================================
+$composeArgs = @(
+    "compose",
+    "-f", "docker-compose.yml",
+    "-f", "docker-compose.prod.yml",
+    "--env-file", ".env.prod"
+)
+
+function Ensure-Env {
+    if (-not (Test-Path ".env.prod")) {
+        Write-Err ".env.prod not found. Copy from .env.prod.example."
+    }
+    $content = Get-Content ".env.prod" -Raw
+    if ($content -notmatch "MONGO_ROOT_PASSWORD=.+") {
+        Write-Err "MONGO_ROOT_PASSWORD not set in .env.prod"
+    }
+}
+
+function Cmd-Start {
+    Ensure-Env
+    Write-Log "Starting PRODUCTION stack (server)..."
+    docker @composeArgs up --build -d
+    Write-Success "Production stack is up!"
+    Write-Host ""
+    Write-Host "  🌐 Frontend : http://localhost:80"
+    Write-Host "  🔌 Backend  : internal (via Nginx)"
+    Write-Host ""
+}
+
+function Cmd-Stop {
+    Write-Log "Stopping..."
+    docker @composeArgs down
+    Write-Success "Stopped"
+}
+
+function Cmd-Logs    { docker @composeArgs logs -f }
+function Cmd-Restart {
+    Write-Log "Restarting..."
+    docker @composeArgs restart
+    Write-Success "Restarted"
+}
+function Cmd-Ps      { docker @composeArgs ps }
+
+function Cmd-Rebuild {
+    Ensure-Env
+    Write-Log "Full rebuild (no cache)..."
+    docker @composeArgs down
+    docker @composeArgs build --no-cache
+    docker @composeArgs up -d
+    Write-Success "Rebuild complete"
+}
+
+function Cmd-Clean {
+    Write-Warn "⚠️  This will DELETE ALL PRODUCTION DATA."
+    $c = Read-Host "Type 'DELETE' to confirm"
+    if ($c -ne "DELETE") { Write-Warn "Cancelled"; return }
+    docker @composeArgs down -v --rmi local
+    Write-Success "Cleaned"
+}
+
+function Cmd-Seed {
+    docker @composeArgs exec backend python seed_schemes.py
+    Write-Success "Seeding complete"
+}
+
+function Cmd-Shell { docker @composeArgs exec backend bash }
+
+function Cmd-Mongo {
+    $user = (Select-String -Path .env.prod -Pattern "^MONGO_ROOT_USERNAME=(.+)$").Matches.Groups[1].Value
+    $pass = (Select-String -Path .env.prod -Pattern "^MONGO_ROOT_PASSWORD=(.+)$").Matches.Groups[1].Value
+    docker @composeArgs exec mongo mongosh -u $user -p $pass --authenticationDatabase admin RojgarNest
+}
+
+function Cmd-Backup {
+    Ensure-Env
+    Write-Log "Backing up MongoDB..."
+    New-Item -ItemType Directory -Path "backups" -Force | Out-Null
+    $ts = Get-Date -Format "yyyyMMdd_HHmmss"
+    $file = "backups/mongo_${ts}.gz"
+    # Using mongo container's env vars
+    docker @composeArgs exec -T mongo sh -c `
+        'mongodump --archive --gzip --uri="mongodb://$MONGO_ROOT_USERNAME:$MONGO_ROOT_PASSWORD@localhost:27017/RojgarNest?authSource=admin"' `
+        | Out-File -FilePath $file -Encoding binary
+    Write-Success "Backup saved: $file"
+}
+
+function Cmd-Health {
+    Write-Log "Checking health..."
+    $ok = $true
+    try { Invoke-WebRequest -UseBasicParsing -Uri "http://localhost/healthz" -TimeoutSec 5 | Out-Null; Write-Host "  ✅ Frontend : OK" -ForegroundColor Green } catch { Write-Host "  ❌ Frontend : FAIL" -ForegroundColor Red; $ok = $false }
+    try { Invoke-WebRequest -UseBasicParsing -Uri "http://localhost/api/v1/health" -TimeoutSec 5 | Out-Null; Write-Host "  ✅ Backend  : OK" -ForegroundColor Green } catch { Write-Host "  ❌ Backend  : FAIL" -ForegroundColor Red; $ok = $false }
+    if ($ok) { Write-Success "All healthy" } else { Write-Err "Some unhealthy" }
+}
+
+switch ($Command) {
+    "start"   { Cmd-Start }
+    "stop"    { Cmd-Stop }
+    "logs"    { Cmd-Logs }
+    "restart" { Cmd-Restart }
+    "ps"      { Cmd-Ps }
+    "rebuild" { Cmd-Rebuild }
+    "clean"   { Cmd-Clean }
+    "seed"    { Cmd-Seed }
+    "shell"   { Cmd-Shell }
+    "mongo"   { Cmd-Mongo }
+    "backup"  { Cmd-Backup }
+    "health"  { Cmd-Health }
+}
+
+================================================================================
+[  23/  39] 📜 deploy/prod.sh
+📏 SIZE: 6.8 KB
+🕐 MODIFIED: 2026-11-07 16:57:00
+================================================================================
+
+#!/usr/bin/env bash
+# ============================================================
+# ROJGARNEST — PRODUCTION RUNNER (SERVER ONLY)
+# ============================================================
+# Usage:
+#   ./prod.sh              # start
+#   ./prod.sh stop         # stop
+#   ./prod.sh logs         # follow logs
+#   ./prod.sh restart      # restart
+#   ./prod.sh ps           # status
+#   ./prod.sh rebuild      # full rebuild (no cache)
+#   ./prod.sh clean        # stop + delete volumes (DESTROYS DATA)
+#   ./prod.sh seed         # seed schemes
+#   ./prod.sh shell        # shell into backend
+#   ./prod.sh mongo        # shell into mongo
+#   ./prod.sh backup       # backup mongo to deploy/backups/
+#   ./prod.sh restore F    # restore mongo from file F
+#   ./prod.sh health       # check endpoints
+# ============================================================
+set -euo pipefail
+cd "$(dirname "$0")"
+
+# Colors
+G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; C='\033[0;36m'; B='\033[1m'; N='\033[0m'
+log()     { echo -e "${C}▶${N} $*"; }
+success() { echo -e "${G}✅${N} $*"; }
+warn()    { echo -e "${Y}⚠️${N}  $*"; }
+error()   { echo -e "${R}❌${N} $*" >&2; exit 1; }
+
+# ============================================================
+# COMPOSE COMMAND
+# ============================================================
+COMPOSE=(
+    docker compose
+    -f docker-compose.yml
+    -f docker-compose.prod.yml
+    --env-file .env.prod
+)
+
+# ============================================================
+# ENSURE ENV FILE
+# ============================================================
+ensure_env() {
+    if [ ! -f .env.prod ]; then
+        error ".env.prod not found. Copy from .env.prod.example and fill MONGO_ROOT_PASSWORD."
+    fi
+
+    # Validate required vars
+    if ! grep -q "^MONGO_ROOT_PASSWORD=.\+" .env.prod; then
+        error "MONGO_ROOT_PASSWORD not set in .env.prod"
+    fi
+    if ! grep -q "^MONGO_ROOT_USERNAME=.\+" .env.prod; then
+        error "MONGO_ROOT_USERNAME not set in .env.prod"
+    fi
+}
+
+# ============================================================
+# COMMANDS
+# ============================================================
+cmd_start() {
+    ensure_env
+    log "Starting PRODUCTION stack (server)..."
+    "${COMPOSE[@]}" up --build -d
+    success "Production stack is up!"
+    echo ""
+    local ip
+    ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
+    echo -e "  ${B}🌐 Frontend${N} : http://${ip}:80"
+    echo -e "  ${B}🔌 Backend${N}  : internal (via Nginx reverse proxy)"
+    echo ""
+    echo -e "  ${Y}Logs${N}: ./prod.sh logs"
+    echo -e "  ${Y}Stop${N}: ./prod.sh stop"
+    echo ""
+}
+
+cmd_stop() {
+    log "Stopping PRODUCTION stack..."
+    "${COMPOSE[@]}" down
+    success "Stopped"
+}
+
+cmd_logs() {
+    "${COMPOSE[@]}" logs -f
+}
+
+cmd_restart() {
+    log "Restarting PRODUCTION stack..."
+    "${COMPOSE[@]}" restart
+    success "Restarted"
+}
+
+cmd_ps() {
+    "${COMPOSE[@]}" ps
+}
+
+cmd_rebuild() {
+    ensure_env
+    log "Full rebuild (no cache) — this takes 8-12 minutes..."
+    "${COMPOSE[@]}" down
+    "${COMPOSE[@]}" build --no-cache
+    "${COMPOSE[@]}" up -d
+    success "Rebuild complete"
+}
+
+cmd_clean() {
+    warn "⚠️  This will DELETE ALL PRODUCTION DATA."
+    warn "    Type 'DELETE' to confirm:"
+    read -r confirm
+    [ "$confirm" = "DELETE" ] || { warn "Cancelled"; exit 0; }
+    "${COMPOSE[@]}" down -v --rmi local
+    success "Cleaned — all data deleted"
+}
+
+cmd_seed() {
+    log "Seeding schemes (production)..."
+    "${COMPOSE[@]}" exec backend python seed_schemes.py
+    success "Seeding complete"
+}
+
+cmd_shell() {
+    log "Opening shell in backend..."
+    "${COMPOSE[@]}" exec backend bash
+}
+
+cmd_mongo() {
+    log "Opening mongosh (with auth)..."
+    local user pass
+    user=$(grep "^MONGO_ROOT_USERNAME=" .env.prod | cut -d= -f2)
+    pass=$(grep "^MONGO_ROOT_PASSWORD=" .env.prod | cut -d= -f2)
+    "${COMPOSE[@]}" exec mongo mongosh -u "$user" -p "$pass" --authenticationDatabase admin RojgarNest
+}
+
+cmd_backup() {
+    ensure_env
+    log "Backing up MongoDB..."
+    mkdir -p backups
+    local ts
+    ts=$(date +%Y%m%d_%H%M%S)
+    local file="backups/mongo_${ts}.gz"
+    "${COMPOSE[@]}" exec -T mongo sh -c \
+        'mongodump --archive --gzip --uri="mongodb://$(MONGO_ROOT_USERNAME):$(MONGO_ROOT_PASSWORD)@localhost:27017/RojgarNest?authSource=admin"' \
+        > "$file"
+    success "Backup saved: $file ($(du -h "$file" | cut -f1))"
+}
+
+cmd_restore() {
+    ensure_env
+    local file="${1:-}"
+    [ -n "$file" ] || error "Usage: ./prod.sh restore <backup.gz>"
+    [ -f "$file" ] || error "File not found: $file"
+    warn "⚠️  This will overwrite current data. Type 'RESTORE' to confirm:"
+    read -r confirm
+    [ "$confirm" = "RESTORE" ] || { warn "Cancelled"; exit 0; }
+    log "Restoring MongoDB from $file..."
+    "${COMPOSE[@]}" exec -T mongo sh -c \
+        'mongorestore --archive --gzip --uri="mongodb://$(MONGO_ROOT_USERNAME):$(MONGO_ROOT_PASSWORD)@localhost:27017/RojgarNest?authSource=admin"' \
+        < "$file"
+    success "Restore complete"
+}
+
+cmd_health() {
+    log "Checking health..."
+    local ok=1
+    local ip
+    ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
+    curl -fsS "http://${ip}/healthz" >/dev/null && echo -e "  ${G}✅${N} Frontend : OK" || { echo -e "  ${R}❌${N} Frontend : FAIL"; ok=0; }
+    curl -fsS "http://${ip}/api/v1/health" >/dev/null && echo -e "  ${G}✅${N} Backend  : OK" || { echo -e "  ${R}❌${N} Backend  : FAIL"; ok=0; }
+    [ $ok -eq 1 ] && success "All healthy" || error "Some services unhealthy"
+}
+
+# ============================================================
+# ROUTER
+# ============================================================
+case "${1:-start}" in
+    start|up)    cmd_start ;;
+    stop|down)   cmd_stop ;;
+    logs)        cmd_logs ;;
+    restart)     cmd_restart ;;
+    ps|status)   cmd_ps ;;
+    rebuild)     cmd_rebuild ;;
+    clean)       cmd_clean ;;
+    seed)        cmd_seed ;;
+    shell)       cmd_shell ;;
+    mongo)       cmd_mongo ;;
+    backup)      cmd_backup ;;
+    restore)     shift; cmd_restore "${1:-}" ;;
+    health)      cmd_health ;;
+    *)
+        echo "Usage: ./prod.sh <command>"
+        echo ""
+        echo "Commands:"
+        echo "  start          Start production stack (default)"
+        echo "  stop           Stop stack"
+        echo "  logs           Follow logs"
+        echo "  restart        Restart stack"
+        echo "  ps             Show container status"
+        echo "  rebuild        Full rebuild (no cache)"
+        echo "  clean          Stop + delete volumes (DESTROYS DATA)"
+        echo "  seed           Seed schemes"
+        echo "  shell          Shell into backend"
+        echo "  mongo          Shell into mongo (with auth)"
+        echo "  backup         Backup mongo to deploy/backups/"
+        echo "  restore <file> Restore mongo from backup file"
+        echo "  health         Check endpoints"
+        exit 1
+        ;;
+esac
+
+================================================================================
+[  24/  39] 📝 deploy/README.md
+📏 SIZE: 143 B
+🕐 MODIFIED: 2026-11-07 16:22:22
+================================================================================
+
+# RojgarNest — Deployment
+
+## Quick Start
+
+### Development
+```bash
+cp .env.dev.example .env.dev
+chmod +x deploy.sh
+./deploy.sh dev-up
+
+================================================================================
+[  25/  39] 📜 deploy/scripts/backup.sh
+📏 SIZE: 538 B
+🕐 MODIFIED: 2026-11-07 17:42:40
+================================================================================
+
+#!/usr/bin/env bash
+set -euo pipefail
+
+BACKUP_DIR="/opt/rojgarnest/backups"
+TS=$(date +%Y%m%d_%H%M%S)
+mkdir -p "$BACKUP_DIR"
+
+# Mongo
+docker exec rojgarnest_mongo mongodump --db=RojgarNest --archive --gzip > \
+  "$BACKUP_DIR/mongo_${TS}.archive.gz" 2>/dev/null || true
+
+# Redis
+docker exec rojgarnest_redis redis-cli SAVE >/dev/null 2>&1 || true
+docker cp rojgarnest_redis:/data/dump.rdb \
+  "$BACKUP_DIR/redis_${TS}.rdb" 2>/dev/null || true
+
+# Retention 7 days
+find "$BACKUP_DIR" -type f -mtime +7 -delete
+
+echo "✅ Backup: $BACKUP_DIR"
+
+================================================================================
+[  26/  39] 📜 deploy/scripts/build-android.sh
+📏 SIZE: 2.0 KB
+🕐 MODIFIED: 2026-09-25 20:11:48
+================================================================================
+
+#!/usr/bin/env bash
+# ============================================================
+# 📱 BUILD ANDROID APK + AAB
+# Usage:
+#   ./build-android.sh apk        → universal APK
+#   ./build-android.sh split      → per-ABI APKs
+#   ./build-android.sh aab        → Play Store bundle
+#   ./build-android.sh all        → everything
+# ============================================================
+set -euo pipefail
+
+MODE="${1:-all}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/../../frontend/rojgarnext"
+
+command -v flutter >/dev/null 2>&1 || { echo "❌ Flutter not installed"; exit 1; }
+
+# Check signing config
+if [ ! -f "android/key.properties" ]; then
+  echo "⚠️  android/key.properties not found"
+  echo "   Copy android/key.properties.example and fill it in"
+  echo "   To generate keystore:"
+  echo "     keytool -genkey -v -keystore android/app/rojgarnext-release-key.jks \\"
+  echo "       -keyalg RSA -keysize 2048 -validity 10000 -alias rojgarnext"
+  exit 1
+fi
+
+flutter pub get
+
+API_URL="${API_BASE_URL:-https://api.rojgarnext.com}"
+FLAVOR="${FLAVOR:-prod}"
+
+case "$MODE" in
+  apk)
+    flutter build apk --release --flavor $FLAVOR --dart-define=API_BASE_URL=$API_URL
+    echo "✅ APK: build/app/outputs/flutter-apk/app-${FLAVOR}-release.apk"
+    ;;
+  split)
+    flutter build apk --release --split-per-abi --flavor $FLAVOR --dart-define=API_BASE_URL=$API_URL
+    echo "✅ Split APKs in: build/app/outputs/flutter-apk/"
+    ls -la build/app/outputs/flutter-apk/*.apk
+    ;;
+  aab)
+    flutter build appbundle --release --flavor $FLAVOR --dart-define=API_BASE_URL=$API_URL
+    echo "✅ AAB: build/app/outputs/bundle/${FLAVOR}Release/app-${FLAVOR}-release.aab"
+    ;;
+  all)
+    flutter build apk --release --split-per-abi --flavor $FLAVOR --dart-define=API_BASE_URL=$API_URL
+    flutter build appbundle --release --flavor $FLAVOR --dart-define=API_BASE_URL=$API_URL
+    echo "✅ All Android artifacts built!"
+    ;;
+  *) echo "Usage: $0 [apk|split|aab|all]"; exit 1 ;;
+esac
+
+================================================================================
+[  27/  39] 📜 deploy/scripts/build-web.sh
+📏 SIZE: 610 B
+🕐 MODIFIED: 2026-09-25 20:12:00
+================================================================================
+
+#!/usr/bin/env bash
+# ============================================================
+# 🌐 BUILD FLUTTER WEB
+# ============================================================
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/../../frontend/rojgarnext"
+
+command -v flutter >/dev/null 2>&1 || { echo "❌ Flutter not installed"; exit 1; }
+
+flutter pub get
+
+API_URL="${API_BASE_URL:-https://api.rojgarnext.com}"
+
+flutter build web \
+  --release \
+  --web-renderer canvaskit \
+  --dart-define=API_BASE_URL=$API_URL
+
+echo "✅ Web build complete: build/web/"
+du -sh build/web
+
+================================================================================
+[  28/  39] 📜 deploy/scripts/deploy-local.sh
+📏 SIZE: 1.7 KB
+🕐 MODIFIED: 2026-09-25 20:11:24
+================================================================================
+
+#!/usr/bin/env bash
+# ============================================================
+# 🖥️  LOCAL DEVELOPMENT — ONE COMMAND
+# ============================================================
+set -euo pipefail
+
+BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+
+log() { echo -e "${BLUE}[$(date +'%H:%M:%S')]${NC} $*"; }
+ok()  { echo -e "${GREEN}✅ $*${NC}"; }
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+command -v docker >/dev/null 2>&1 || { echo "❌ Install Docker first"; exit 1; }
+
+if [ ! -f "../backend/rojgarnext/.env" ]; then
+  log "Creating .env from template..."
+  cp ../backend/rojgarnext/.env.example ../backend/rojgarnext/.env
+  echo "⚠️  Edit ../backend/rojgarnext/.env with your values!"
+fi
+
+log "Starting local dev environment..."
+docker compose -f docker-compose.dev.yml up -d --build
+
+log "Waiting for services..."
+sleep 15
+
+log "Health check..."
+curl -sf http://localhost:8000/api/v1/health && ok "Backend healthy" || true
+curl -sf http://localhost:8080 >/dev/null && ok "Frontend healthy" || true
+
+echo ""
+echo "============================================================"
+ok "🚀 LOCAL DEV ENVIRONMENT READY"
+echo "============================================================"
+echo "   🌐 Web App      →  http://localhost:8080"
+echo "   📚 API Docs     →  http://localhost:8000/docs"
+echo "   🗄️  Mongo         →  localhost:27017"
+echo "   ⚡ Redis        →  localhost:6379"
+echo "   📱 Android      →  flutter run -d <device-id>"
+echo ""
+echo "   Logs: docker compose -f docker-compose.dev.yml logs -f"
+echo "   Stop: docker compose -f docker-compose.dev.yml down"
+echo "============================================================"
+
+================================================================================
+[  29/  39] 📜 deploy/scripts/deploy-server.sh
+📏 SIZE: 1.4 KB
+🕐 MODIFIED: 2026-09-25 20:12:28
+================================================================================
+
+#!/usr/bin/env bash
+# ============================================================
+# 🚀 DEPLOY TO SERVER — Zero Downtime
+# ============================================================
+set -euo pipefail
+
+ENV="${1:-production}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR/.."
+
+BLUE='\033[0;34m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
+log() { echo -e "${BLUE}[$(date +'%H:%M:%S')]${NC} $*"; }
+ok()  { echo -e "${GREEN}✅ $*${NC}"; }
+fail(){ echo -e "${RED}❌ $*${NC}"; exit 1; }
+
+# Pre-deploy backup
+log "Creating backup..."
+bash "$SCRIPT_DIR/backup.sh" || true
+
+# Build & deploy
+log "Building images..."
+docker compose -f docker-compose.prod.yml build --parallel
+
+log "Rolling update (zero downtime)..."
+docker compose -f docker-compose.prod.yml up -d --remove-orphans --scale backend=3
+
+# Health check
+log "Health check..."
+for i in {1..30}; do
+  if curl -sf http://localhost/api/v1/health >/dev/null 2>&1; then
+    ok "Backend healthy after ${i}s"
+    break
+  fi
+  [ $i -eq 30 ] && fail "Health check failed"
+  sleep 1
+done
+
+# Cleanup
+docker image prune -f >/dev/null
+docker builder prune -f --filter "until=72h" >/dev/null
+
+echo ""
+echo "============================================================"
+ok "🎉 DEPLOYMENT SUCCESSFUL — $ENV"
+echo "============================================================"
+docker compose -f docker-compose.prod.yml ps
+
+================================================================================
+[  30/  39] 📜 deploy/scripts/health-check.sh
+📏 SIZE: 0 B
+🕐 MODIFIED: 2026-09-25 19:57:28
+================================================================================
+
+
+
+================================================================================
+[  31/  39] 📜 deploy/scripts/rollback.sh
+📏 SIZE: 0 B
+🕐 MODIFIED: 2026-09-25 19:57:40
+================================================================================
+
+
+
+================================================================================
+[  32/  39] 📜 deploy/scripts/setup-server.sh
+📏 SIZE: 1.8 KB
+🕐 MODIFIED: 2026-11-07 17:42:54
+================================================================================
+
+#!/usr/bin/env bash
+# ============================================================
+# 🖥️  FRESH SERVER SETUP — Ubuntu 22.04 / Debian 12
+# ============================================================
+set -euo pipefail
+
+if [ "$EUID" -ne 0 ]; then
+  echo "Please run as root: sudo bash setup-server.sh"
+  exit 1
+fi
+
+echo "🚀 Setting up RojgarNest server..."
+
+# 1. System update
+apt-get update && apt-get upgrade -y
+
+# 2. Docker
+if ! command -v docker &>/dev/null; then
+  curl -fsSL https://get.docker.com | sh
+  usermod -aG docker "$SUDO_USER" || true
+fi
+
+# 3. Docker Compose plugin
+apt-get install -y docker-compose-plugin
+
+# 4. Utilities
+apt-get install -y curl wget git ufw fail2ban htop
+
+# 5. Firewall
+ufw allow 22/tcp
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw --force enable
+
+# 6. Fail2ban
+systemctl enable fail2ban --now
+
+# 7. Auto security updates
+apt-get install -y unattended-upgrades
+dpkg-reconfigure -plow unattended-upgrades
+
+# 8. Swap (for 2GB RAM VPS)
+if [ ! -f /swapfile ]; then
+  fallocate -l 2G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+
+# 9. App dir
+mkdir -p /opt/rojgarnest
+chown -R "${SUDO_USER:-root}:${SUDO_USER:-root}" /opt/rojgarnest
+
+# 10. Docker log rotation
+cat > /etc/docker/daemon.json <<EOF
+{
+  "log-driver": "json-file",
+  "log-opts": { "max-size": "10m", "max-file": "3" },
+  "default-ulimits": { "nofile": { "Name": "nofile", "Hard": 65536, "Soft": 65536 } }
+}
+EOF
+systemctl restart docker
+
+echo ""
+echo "✅ Server ready!"
+echo "   Next:"
+echo "   1. cd /opt/rojgarnest && git clone <repo> ."
+echo "   2. cd deploy"
+echo "   3. cp ../backend/rojgarnest/.env.example ../backend/rojgarnest/.env"
+echo "   4. nano ../backend/rojgarnest/.env"
+echo "   5. ./scripts/deploy-server.sh production"
+
+================================================================================
+[  33/  39] 🐍 export_backend_code.py
+📏 SIZE: 17.1 KB
+🕐 MODIFIED: 2026-10-18 08:35:42
+================================================================================
+
+#!/usr/bin/env python3
+"""
+Export Backend Code to a Single Text File - WITH ENV SANITIZATION
+This script scans the entire backend/rojgarnext/ folder and exports ALL code files
+to a single txt file, BUT it sanitizes the .env file by replacing ALL actual values
+with dummy/placeholder values.
+
+This ensures you can safely share the code without exposing your secrets.
+
+Usage: python export_backend_code.py
+"""
+
+import os
+import re
+import sys
+from pathlib import Path
+from datetime import datetime
+from typing import List, Dict, Tuple
+
+# ================= CONFIGURATION =================
+BACKEND_ROOT = Path(__file__).parent / "backend" / "rojgarnest"
+
+if not BACKEND_ROOT.exists():
+    if Path.cwd().name == "rojgarnext" and (Path.cwd() / "app").exists():
+        BACKEND_ROOT = Path.cwd()
+    else:
+        for path in Path.cwd().parents:
+            if (path / "backend" / "rojgarnext").exists():
+                BACKEND_ROOT = path / "backend" / "rojgarnext"
+                break
+
+OUTPUT_FILE = "backend_complete_export.txt"
+
+# Skip only these
+SKIP_DIRS = {'.venv', '__pycache__', '.git', '.pytest_cache', 'node_modules', '.idea', '.vscode'}
+SKIP_FILES = {'.DS_Store', '*.pyc', '*.pyo', '*.pyd', '*.so', '*.dll', '*.exe', OUTPUT_FILE, 'backend.txt', 'service-account-key.json'}
+
+# Include extensions
+INCLUDE_EXTENSIONS = {
+    '.py', '.yaml', '.yml', '.json', '.txt', '.md', '.sql', '.sh', '.bat',
+    '.ps1', '.dockerfile', '.conf', '.ini', '.toml', '.xml', '.html', '.css', '.js'
+}
+
+MAX_FILE_SIZE = 10 * 1024 * 1024
+
+
+# ================= ENV SANITIZATION MAPPING =================
+# KEY ke according dummy value map karo
+ENV_SANITIZATION_RULES = {
+    # Database
+    'MONGO_URI': 'mongodb://localhost:27017/rojgarnext',
+    'DATABASE_NAME': 'rojgarnext',
+    'ENVIRONMENT': 'development',
+    
+    # Security
+    'SECRET_KEY': 'your-secret-key-change-in-production-minimum-32-chars',
+    'JWT_SECRET_KEY': 'your-jwt-secret-key-change-in-production',
+    'SESSION_SECRET_KEY': 'your-session-secret-key-change-in-production',
+    'ENCRYPTION_KEY': 'your-encryption-key-change-in-production',
+    
+    # Redis
+    'REDIS_URL': 'redis://localhost:6379',
+    
+    # SMTP / Email
+    'SMTP_HOST': 'smtp.gmail.com',
+    'SMTP_PORT': '587',
+    'SMTP_USER': 'your-email@gmail.com',
+    'SMTP_PASSWORD': 'your-app-password-here',
+    'SMTP_FROM': 'your-email@gmail.com',
+    
+    # SMS / Twilio
+    'TWILIO_ACCOUNT_SID': 'your_twilio_account_sid',
+    'TWILIO_AUTH_TOKEN': 'your_twilio_auth_token',
+    'TWILIO_PHONE': '+1234567890',
+    'MOBILE_OTP_BYPASS': 'true',
+    
+    # App
+    'APP_BASE_URL': 'http://localhost:8000',
+    'SECURE_FOLDER_PATH': './secure',
+    'SECRET_TOKEN': 'your-secret-token-here',
+    
+    # APIs
+    'OPENAI_API_KEY': 'your_openai_api_key_here',
+    'OPENAI_MODEL': 'gpt-4o-mini',
+    'PROXY_POOL': '["proxy1:port","proxy2:port"]',
+    'CAPTCHA_API_KEY': 'your_captcha_api_key',
+    'DISABLE_AUTH': 'false',
+    'FAST2SMS_API_KEY': 'your_fast2sms_api_key',
+    
+    # Job APIs
+    'ADZUNA_APP_ID': 'your_adzuna_app_id',
+    'ADZUNA_API_KEY': 'your_adzuna_api_key',
+    'FREE_JOB_SEARCH_API_KEY': 'your_free_job_search_api_key',
+    'INFOTRIE_API_KEY': 'your_infotrie_api_key',
+    'CORESIGNAL_API_KEY': 'your_coresignal_api_key',
+    
+    # Cloudinary
+    'CLOUDINARY_CLOUD_NAME': 'your_cloud_name',
+    'CLOUDINARY_API_KEY': 'your_api_key',
+    'CLOUDINARY_API_SECRET': 'your_api_secret',
+    
+    # Google Drive
+    'GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL': 'your-service-account@project.iam.gserviceaccount.com',
+    'GOOGLE_DRIVE_PRIVATE_KEY': '-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----',
+    'GOOGLE_DRIVE_FOLDER_ID': 'your_google_drive_folder_id_here',
+    'GOOGLE_DRIVE_FOLDER_NAME': 'rojgarnext_advertisements',
+    
+    # Blockchain
+    'WEB3_PROVIDER_URL': 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID',
+    'CONTRACT_ADDRESS': '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+    'ISSUER_ADDRESS': '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B',
+    
+    # Stripe
+    'STRIPE_SECRET_KEY': 'sk_test_your_stripe_secret_key',
+    'STRIPE_PUBLISHABLE_KEY': 'pk_test_your_stripe_publishable_key',
+    
+    # AI / ML
+    'ML_MODELS_PATH': './models',
+    'AI_LEARNING_RATE': '0.01',
+    'AUTO_RETRAIN_INTERVAL_HOURS': '24',
+    'ENABLE_AUTO_APPLY': 'true',
+    'ENABLE_AUTO_SHORTLIST': 'true',
+    'AUTO_SHORTLIST_THRESHOLD': '85',
+    'ENABLE_SMART_NOTIFICATIONS': 'true',
+    
+    # CORS
+    'CORS_ORIGINS': '["http://localhost:3000","http://localhost:8000"]',
+    
+    # Fake Job Detection
+    'FAKE_JOB_DETECTION_ENABLED': 'true',
+    'FAKE_JOB_CONFIDENCE_THRESHOLD': '60',
+    'DUPLICATE_JOB_DAYS_THRESHOLD': '30',
+    'MAX_JOBS_PER_FETCH': '50',
+    
+    # Access Tokens
+    'ACCESS_TOKEN_EXPIRE_MINUTES': '1440',
+    'REFRESH_TOKEN_EXPIRE_DAYS': '7',
+}
+
+
+def sanitize_env_file(content: str) -> str:
+    """
+    Sanitize .env file content by replacing actual values with dummy values.
+    Original values ko hide karta hai, dummy values show karta hai.
+    """
+    lines = content.split('\n')
+    sanitized_lines = []
+    
+    for line in lines:
+        # Remove leading/trailing whitespace
+        line = line.rstrip('\n\r')
+        
+        # Skip empty lines
+        if not line.strip():
+            sanitized_lines.append(line)
+            continue
+        
+        # Skip comments
+        if line.strip().startswith('#'):
+            sanitized_lines.append(line)
+            continue
+        
+        # Check if line has KEY=VALUE format
+        if '=' in line:
+            # Split at first '='
+            parts = line.split('=', 1)
+            key = parts[0].strip()
+            value = parts[1].strip() if len(parts) > 1 else ''
+            
+            # Apply sanitization if key is in mapping
+            if key in ENV_SANITIZATION_RULES:
+                dummy_value = ENV_SANITIZATION_RULES[key]
+                # Preserve quotes if original had quotes
+                if value.startswith('"') and value.endswith('"'):
+                    sanitized_lines.append(f'{key}="{dummy_value}"')
+                elif value.startswith("'") and value.endswith("'"):
+                    sanitized_lines.append(f"{key}='{dummy_value}'")
+                else:
+                    sanitized_lines.append(f'{key}={dummy_value}')
+            else:
+                # Unknown key - put placeholder
+                sanitized_lines.append(f'{key}=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]')
+        else:
+            # Malformed line - keep as is
+            sanitized_lines.append(line)
+    
+    # Add warning header at top of .env content
+    warning_header = """# ============================================================
+# ⚠️  WARNING: THIS IS A SANITIZED .env FILE
+# All original values have been replaced with dummy/placeholder values.
+# Add your actual credentials in the original .env file.
+# ============================================================
+
+"""
+    
+    return warning_header + '\n'.join(sanitized_lines)
+
+
+def should_skip_dir(dir_name: str) -> bool:
+    """Check if directory should be skipped"""
+    return dir_name in SKIP_DIRS
+
+
+def should_skip_file(file_path: Path) -> bool:
+    """Check if file should be skipped"""
+    if file_path.name in SKIP_FILES:
+        return True
+    if file_path.suffix == '.pyc':
+        return True
+    if file_path.suffix == '.log':
+        return True
+    if file_path.name == OUTPUT_FILE:
+        return True
+    if file_path.stat().st_size == 0:
+        return True
+    if file_path.stat().st_size > MAX_FILE_SIZE:
+        return True
+    
+    ext = file_path.suffix.lower()
+    return ext not in INCLUDE_EXTENSIONS and not file_path.suffix == ''
+
+
+def get_file_encoding(file_path: Path) -> str:
+    """Detect file encoding"""
+    try:
+        with open(file_path, 'rb') as f:
+            raw = f.read(1000)
+            if raw.startswith(b'\xef\xbb\xbf'):
+                return 'utf-8-sig'
+            if b'\0' in raw:
+                return 'utf-16'
+    except:
+        pass
+    return 'utf-8'
+
+
+def read_file_safely(file_path: Path, is_env_file: bool = False) -> str:
+    """
+    Read file safely. If it's .env file, sanitize the content.
+    """
+    encoding = get_file_encoding(file_path)
+    try:
+        with open(file_path, 'r', encoding=encoding, errors='replace') as f:
+            content = f.read()
+        
+        # ✅ CRITICAL: Sanitize .env file content
+        if is_env_file or file_path.name == '.env' or file_path.suffix == '.env':
+            content = sanitize_env_file(content)
+        
+        return content
+    except Exception as e:
+        return f"ERROR: Could not read file - {str(e)}\n"
+
+
+def scan_directory(root: Path, base_path: Path, all_files: List[Dict]) -> None:
+    """Scan directory recursively and return list of files"""
+    try:
+        for item in sorted(root.iterdir()):
+            if not item.exists():
+                continue
+            
+            if item.is_dir():
+                if should_skip_dir(item.name):
+                    print(f"⏭️  Skipping directory: {item.relative_to(base_path)}")
+                    continue
+                scan_directory(item, base_path, all_files)
+            
+            elif item.is_file():
+                if should_skip_file(item):
+                    continue
+                
+                try:
+                    rel_path = item.relative_to(base_path)
+                    # Check if it's .env file
+                    is_env = (item.name == '.env' or item.suffix == '.env')
+                    all_files.append({
+                        'path': item,
+                        'rel_path': rel_path,
+                        'size': item.stat().st_size,
+                        'is_env': is_env
+                    })
+                except Exception as e:
+                    print(f"⚠️ Error processing {item}: {e}")
+                    continue
+                    
+    except PermissionError:
+        print(f"⚠️ Permission denied: {root}")
+    except Exception as e:
+        print(f"⚠️ Error scanning {root}: {e}")
+
+
+def format_file_content(path: Path, rel_path: Path, content: str, file_num: int, total: int, is_env: bool = False) -> str:
+    """Format file content with header"""
+    separator = "=" * 80
+    
+    if path.suffix == '.py':
+        file_type = "🐍 PYTHON FILE"
+    elif is_env or path.name == '.env':
+        file_type = "🔐 ENV FILE (SANITIZED - Dummy Values Only)"
+    else:
+        file_type = "📄 TEXT FILE"
+    
+    env_note = ""
+    if is_env or path.name == '.env':
+        env_note = "\n⚠️  NOTE: This .env file has been sanitized. All original values replaced with dummy placeholders.\n"
+    
+    return f"""
+{separator}
+[{file_num:4d}/{total:4d}] {file_type}: {rel_path}
+📏 SIZE: {path.stat().st_size:,} bytes
+🕐 MODIFIED: {datetime.fromtimestamp(path.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')}
+{env_note}
+{separator}
+
+{content}
+"""
+
+
+def generate_tree_structure(root: Path, base_path: Path, prefix: str = "", is_last: bool = True) -> List[str]:
+    """Generate complete directory tree structure"""
+    lines = []
+    
+    try:
+        items = []
+        for item in sorted(root.iterdir()):
+            if should_skip_dir(item.name):
+                continue
+            if item.is_file() and should_skip_file(item):
+                continue
+            items.append(item)
+        
+        for i, item in enumerate(items):
+            is_last_item = (i == len(items) - 1)
+            connector = "└── " if is_last_item else "├── "
+            
+            if item.is_dir():
+                lines.append(f"{prefix}{connector}📁 {item.name}/")
+                extension = "    " if is_last_item else "│   "
+                lines.extend(generate_tree_structure(item, base_path, prefix + extension))
+            else:
+                if item.name == '.env':
+                    icon = "🔐"
+                elif item.suffix == '.py':
+                    icon = "🐍"
+                elif item.suffix in ['.json', '.yaml', '.yml']:
+                    icon = "⚙️"
+                elif item.suffix == '.md':
+                    icon = "📝"
+                else:
+                    icon = "📄"
+                lines.append(f"{prefix}{connector}{icon} {item.name}")
+    except Exception as e:
+        lines.append(f"{prefix}[Error reading directory: {e}]")
+    
+    return lines
+
+
+def main():
+    """Main function"""
+    print("=" * 80)
+    print("📦 ROJARGAR NEXT - COMPLETE BACKEND EXPORTER (with .env Sanitization)")
+    print("=" * 80)
+    
+    if not BACKEND_ROOT.exists():
+        print(f"\n❌ Error: Backend directory not found!")
+        print(f"   Tried: {BACKEND_ROOT}")
+        sys.exit(1)
+    
+    print(f"\n📁 Scanning directory: {BACKEND_ROOT}")
+    print(f"📄 Output file: {OUTPUT_FILE}")
+    print(f"🔐 .env file will be SANITIZED (original values replaced with dummies)")
+    print("-" * 80)
+    
+    # Scan all files
+    print("\n🔍 Scanning for ALL files...")
+    all_files = []
+    scan_directory(BACKEND_ROOT, BACKEND_ROOT, all_files)
+    
+    # Sort files by path
+    all_files.sort(key=lambda x: str(x['rel_path']))
+    
+    total_files = len(all_files)
+    py_count = sum(1 for f in all_files if f['path'].suffix == '.py')
+    env_count = sum(1 for f in all_files if f['is_env'] or f['path'].name == '.env')
+    other_count = total_files - py_count - env_count
+    
+    print(f"\n✅ Found {total_files} files to export")
+    print(f"   🐍 Python files: {py_count}")
+    print(f"   🔐 ENV files (will be sanitized): {env_count}")
+    print(f"   📄 Other files: {other_count}")
+    
+    # Generate output lines
+    output_lines = []
+    
+    # Header
+    output_lines.append("=" * 80)
+    output_lines.append("ROJARGAR NEXT BACKEND - COMPLETE CODE EXPORT (SANITIZED)")
+    output_lines.append("=" * 80)
+    output_lines.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    output_lines.append(f"Source: {BACKEND_ROOT.absolute()}")
+    output_lines.append(f"Total Files: {total_files}")
+    output_lines.append(f"  - Python Files: {py_count}")
+    output_lines.append(f"  - ENV Files (Sanitized): {env_count}")
+    output_lines.append(f"  - Other Files: {other_count}")
+    output_lines.append("=" * 80)
+    output_lines.append("")
+    output_lines.append("⚠️  IMPORTANT: The .env file in this export has been SANITIZED.")
+    output_lines.append("⚠️  All actual credentials, API keys, and secrets have been replaced")
+    output_lines.append("⚠️  with dummy/placeholder values for security purposes.")
+    output_lines.append("")
+    
+    # Directory tree
+    output_lines.append("=" * 80)
+    output_lines.append("📁 COMPLETE DIRECTORY STRUCTURE")
+    output_lines.append("=" * 80)
+    output_lines.append("")
+    output_lines.append(f"📁 backend/rojgarnext/")
+    output_lines.extend(generate_tree_structure(BACKEND_ROOT, BACKEND_ROOT))
+    output_lines.append("")
+    output_lines.append("")
+    
+    # File contents
+    output_lines.append("=" * 80)
+    output_lines.append("📄 ALL FILE CONTENTS")
+    output_lines.append("=" * 80)
+    output_lines.append("")
+    
+    print("\n📝 Writing file contents...")
+    
+    for i, file_info in enumerate(all_files, 1):
+        path = file_info['path']
+        rel_path = file_info['rel_path']
+        is_env = file_info.get('is_env', False) or path.name == '.env'
+        
+        percent = (i / total_files) * 100
+        env_marker = "🔐 " if is_env else ""
+        print(f"  [{i:4d}/{total_files}] ({percent:5.1f}%) {env_marker}Exporting: {rel_path}")
+        
+        content = read_file_safely(path, is_env_file=is_env)
+        formatted = format_file_content(path, rel_path, content, i, total_files, is_env)
+        output_lines.append(formatted)
+    
+    # Write to output file
+    print("\n💾 Writing to output file...")
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+        f.write("\n".join(output_lines))
+    
+    output_size = os.path.getsize(OUTPUT_FILE) / (1024 * 1024)
+    
+    print("\n" + "=" * 80)
+    print(f"✅ EXPORT COMPLETE!")
+    print("=" * 80)
+    print(f"📄 Output file: {OUTPUT_FILE}")
+    print(f"📊 Total files exported: {total_files}")
+    print(f"   🐍 Python files: {py_count}")
+    print(f"   🔐 ENV files (sanitized): {env_count}")
+    print(f"   📄 Other files: {other_count}")
+    print(f"💾 File size: {output_size:.2f} MB")
+    print(f"📁 Location: {os.path.abspath(OUTPUT_FILE)}")
+    print("=" * 80)
+    print("\n🔐 SECURITY NOTE: The .env file has been sanitized.")
+    print("   Original credentials, API keys, and secrets are NOT included.")
+    print("   You can safely share this file without exposing your sensitive data.")
+    print("=" * 80)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n⚠️ Export cancelled by user")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+================================================================================
+[  34/  39] 🐍 export_frontend.py
+📏 SIZE: 13.0 KB
+🕐 MODIFIED: 2026-10-18 08:35:42
+================================================================================
+
+# scripts/export_frontend.py
+"""
+Frontend Code Exporter for RojgarNext
+Exports all Flutter frontend code to a single text file
+Run: python scripts/export_frontend.py
+"""
+
+import os
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import List, Tuple, Set
+
+# ==================== CONFIGURATION ====================
+# Frontend path - Update this to your actual frontend location
+FRONTEND_PATH = r"E:\yogesh\website\rojgarnest\frontend"
+
+# Output file
+OUTPUT_FILE = "frontend_export.txt"
+
+# Extensions to include
+EXTENSIONS = [
+    '.dart', '.yaml', '.yml', '.json', '.md', '.html', '.css', '.js',
+    '.xml', '.gradle', '.properties', '.sh', '.bat', '.ps1',
+    '.dockerfile', '.conf', '.ini', '.toml'
+]
+
+# Folders to exclude
+EXCLUDE_FOLDERS = {
+    '.dart_tool', '.github', '.idea', '.vscode', 'build', 'node_modules',
+    '.git', '__pycache__', 'venv', '.venv', 'env', '.env',
+    'android', 'ios', 'linux', 'macos', 'windows', 'test',
+    '.flutter-plugins', '.gradle', 'gradle', '.settings'
+}
+
+# Files to exclude
+EXCLUDE_FILES = {
+    'pubspec.lock', '.flutter-plugins', '.flutter-plugins-dependencies',
+    'gradle.properties', 'local.properties', 'flutter_export_environment.sh',
+    'Podfile.lock', '.gitignore', '.metadata', '*.log', '*.tmp',
+    '*.lock', '*.pid', '*.old', '*.symbols'
+}
+
+# Specific files to always include (even if in excluded patterns)
+FORCE_INCLUDE = {
+    'pubspec.yaml', 'analysis_options.yaml', 'Dockerfile', 'README.md',
+    'index.html', 'manifest.json', 'favicon.ico'
+}
+
+# File size limit (50 MB)
+MAX_FILE_SIZE = 50 * 1024 * 1024
+
+# ==================== UTILITY FUNCTIONS ====================
+
+def should_include_file(file_path: Path) -> bool:
+    """Check if file should be included in export"""
+    file_name = file_path.name
+    
+    # Force include specific files
+    if file_name in FORCE_INCLUDE:
+        return True
+    
+    # Check file size
+    try:
+        if file_path.stat().st_size > MAX_FILE_SIZE:
+            return False
+    except:
+        pass
+    
+    # Check extension
+    if file_path.suffix not in EXTENSIONS:
+        return False
+    
+    # Check exclude list (with pattern matching)
+    for pattern in EXCLUDE_FILES:
+        if '*' in pattern:
+            import fnmatch
+            if fnmatch.fnmatch(file_name, pattern):
+                return False
+        elif file_name == pattern:
+            return False
+    
+    # Skip empty files
+    try:
+        if file_path.stat().st_size == 0:
+            return False
+    except:
+        pass
+    
+    return True
+
+
+def should_include_folder(folder_path: Path) -> bool:
+    """Check if folder should be traversed"""
+    folder_name = folder_path.name
+    
+    # Check exclude list
+    if folder_name in EXCLUDE_FOLDERS:
+        return False
+    
+    # Skip hidden folders (starting with .)
+    if folder_name.startswith('.') and folder_name not in FORCE_INCLUDE:
+        return False
+    
+    return True
+
+
+def get_all_files(root_path: Path) -> List[Path]:
+    """Get all files to export recursively"""
+    all_files = []
+    
+    try:
+        for item in root_path.iterdir():
+            if item.is_dir():
+                if should_include_folder(item):
+                    all_files.extend(get_all_files(item))
+            else:
+                if should_include_file(item):
+                    all_files.append(item)
+    except PermissionError:
+        pass
+    
+    return all_files
+
+
+def read_file_content(file_path: Path) -> Tuple[str, str]:
+    """Read file content with proper encoding"""
+    # Try different encodings
+    encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1']
+    
+    for encoding in encodings:
+        try:
+            with open(file_path, 'r', encoding=encoding) as f:
+                content = f.read()
+            return content, encoding
+        except UnicodeDecodeError:
+            continue
+        except Exception as e:
+            continue
+    
+    # If all encodings fail, try with replacement
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read()
+        return content, 'utf-8 (with replacements)'
+    except Exception as e:
+        return f"[ERROR: Could not read file - {str(e)}]", 'error'
+
+
+def get_file_type_icon(extension: str) -> str:
+    """Get icon for file type"""
+    icons = {
+        '.dart': '🎯',
+        '.yaml': '⚙️',
+        '.yml': '⚙️',
+        '.json': '📋',
+        '.md': '📝',
+        '.html': '🌐',
+        '.css': '🎨',
+        '.js': '💛',
+        '.txt': '📄',
+        '.xml': '📄',
+        '.gradle': '📦',
+        '.properties': '⚙️',
+        '.sh': '📜',
+        '.bat': '🪟',
+        '.ps1': '💻',
+        '.dockerfile': '🐳',
+        '.conf': '🔧',
+        '.ini': '⚙️',
+        '.toml': '📋',
+    }
+    return icons.get(extension, '📄')
+
+
+def get_relative_path(file_path: Path, base_path: Path) -> str:
+    """Get relative path with forward slashes"""
+    try:
+        rel = file_path.relative_to(base_path)
+        return str(rel).replace('\\', '/')
+    except ValueError:
+        return str(file_path).replace('\\', '/')
+
+
+def generate_tree_structure(root_path: Path, prefix: str = "", is_root: bool = True) -> List[str]:
+    """Generate directory tree structure"""
+    lines = []
+    
+    if is_root:
+        lines.append(f"📁 {root_path.name}/")
+        current_prefix = ""
+    else:
+        current_prefix = prefix
+    
+    try:
+        items = []
+        for item in sorted(root_path.iterdir()):
+            if item.is_dir():
+                if should_include_folder(item):
+                    items.append(item)
+            else:
+                if should_include_file(item):
+                    items.append(item)
+        
+        for i, item in enumerate(items):
+            is_last = (i == len(items) - 1)
+            connector = "└── " if is_last else "├── "
+            
+            if item.is_dir():
+                icon = "📁"
+                lines.append(f"{current_prefix}{connector}{icon} {item.name}/")
+                extension = "    " if is_last else "│   "
+                lines.extend(generate_tree_structure(item, current_prefix + extension, False))
+            else:
+                icon = get_file_type_icon(item.suffix)
+                lines.append(f"{current_prefix}{connector}{icon} {item.name}")
+    except Exception as e:
+        lines.append(f"{current_prefix}[Error: {e}]")
+    
+    return lines
+
+
+def get_file_summary(all_files: List[Path]) -> dict:
+    """Get summary of file types"""
+    summary = {}
+    for f in all_files:
+        ext = f.suffix if f.suffix else '(no extension)'
+        if ext not in summary:
+            summary[ext] = {'count': 0, 'size': 0}
+        summary[ext]['count'] += 1
+        try:
+            summary[ext]['size'] += f.stat().st_size
+        except:
+            pass
+    return summary
+
+
+def format_size(size_bytes: int) -> str:
+    """Format file size in human readable format"""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
+
+
+# ==================== MAIN EXPORT FUNCTION ====================
+
+def export_frontend():
+    """Main export function"""
+    
+    print("=" * 80)
+    print("🚀 FRONTEND CODE EXPORTER - RojgarNext")
+    print("=" * 80)
+    print()
+    
+    # Check if frontend path exists
+    frontend_path = Path(FRONTEND_PATH)
+    if not frontend_path.exists():
+        print(f"❌ ERROR: Frontend path not found!")
+        print(f"   Path: {FRONTEND_PATH}")
+        print()
+        print("Please update FRONTEND_PATH in the script to your actual frontend location.")
+        sys.exit(1)
+    
+    print(f"📁 Source: {frontend_path}")
+    print(f"📄 Output: {OUTPUT_FILE}")
+    print()
+    
+    # Get all files
+    print("📂 Scanning files...")
+    all_files = get_all_files(frontend_path)
+    
+    # Sort files by path
+    all_files.sort(key=lambda x: str(x))
+    
+    # Get summary
+    summary = get_file_summary(all_files)
+    total_size = sum(info['size'] for info in summary.values())
+    
+    print(f"✅ Found {len(all_files)} files to export")
+    print(f"💾 Total size: {format_size(total_size)}")
+    print()
+    print("📊 File type breakdown:")
+    for ext, info in sorted(summary.items(), key=lambda x: x[1]['count'], reverse=True):
+        icon = get_file_type_icon(ext)
+        print(f"   {icon} {ext}: {info['count']} files ({format_size(info['size'])})")
+    print()
+    
+    # Create export content
+    print("✍️ Writing export file...")
+    
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as out_file:
+        # Write header
+        out_file.write("=" * 80 + "\n")
+        out_file.write("ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT\n")
+        out_file.write("=" * 80 + "\n")
+        out_file.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        out_file.write(f"Source: {FRONTEND_PATH}\n")
+        out_file.write(f"Total Files: {len(all_files)}\n")
+        out_file.write(f"Total Size: {format_size(total_size)}\n")
+        out_file.write("=" * 80 + "\n\n")
+        
+        # Write directory structure
+        out_file.write("=" * 80 + "\n")
+        out_file.write("📁 COMPLETE DIRECTORY STRUCTURE\n")
+        out_file.write("=" * 80 + "\n\n")
+        
+        tree_lines = generate_tree_structure(frontend_path)
+        for line in tree_lines:
+            out_file.write(line + "\n")
+        out_file.write("\n\n")
+        
+        # Write file summary
+        out_file.write("=" * 80 + "\n")
+        out_file.write("📊 FILE SUMMARY\n")
+        out_file.write("=" * 80 + "\n\n")
+        out_file.write(f"Total Files: {len(all_files)}\n")
+        out_file.write(f"Total Size: {format_size(total_size)}\n\n")
+        out_file.write("File Types:\n")
+        for ext, info in sorted(summary.items(), key=lambda x: x[1]['count'], reverse=True):
+            out_file.write(f"  {ext}: {info['count']} files ({format_size(info['size'])})\n")
+        out_file.write("\n\n")
+        
+        # Write all file contents
+        out_file.write("=" * 80 + "\n")
+        out_file.write("📄 ALL FILE CONTENTS\n")
+        out_file.write("=" * 80 + "\n\n")
+        
+        for i, file_path in enumerate(all_files, 1):
+            rel_path = get_relative_path(file_path, frontend_path)
+            icon = get_file_type_icon(file_path.suffix)
+            size = file_path.stat().st_size
+            
+            # Read file content
+            content, encoding = read_file_content(file_path)
+            
+            # Write file header
+            out_file.write("=" * 80 + "\n")
+            out_file.write(f"[{i:4d}/{len(all_files):4d}] {icon} {rel_path}\n")
+            out_file.write(f"📏 SIZE: {format_size(size)}\n")
+            out_file.write(f"🕐 MODIFIED: {datetime.fromtimestamp(file_path.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')}\n")
+            if encoding != 'utf-8':
+                out_file.write(f"📝 ENCODING: {encoding}\n")
+            out_file.write("=" * 80 + "\n\n")
+            
+            # Write content
+            out_file.write(content)
+            out_file.write("\n\n")
+        
+        # Write footer
+        out_file.write("=" * 80 + "\n")
+        out_file.write("🎉 EXPORT COMPLETED!\n")
+        out_file.write("=" * 80 + "\n")
+        out_file.write(f"Total Files: {len(all_files)}\n")
+        out_file.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        out_file.write("=" * 80 + "\n")
+    
+    # Calculate file size
+    output_size = os.path.getsize(OUTPUT_FILE)
+    
+    print()
+    print("=" * 80)
+    print("🎉 EXPORT COMPLETED SUCCESSFULLY!")
+    print("=" * 80)
+    print(f"📄 Output file: {OUTPUT_FILE}")
+    print(f"📊 Total files exported: {len(all_files)}")
+    print(f"💾 File size: {format_size(output_size)}")
+    print()
+    print("📁 Files exported include:")
+    print("   ✅ lib/ (all Dart files)")
+    print("   ✅ pubspec.yaml")
+    print("   ✅ analysis_options.yaml")
+    print("   ✅ README.md")
+    print("   ✅ Dockerfile")
+    print("   ✅ assets/ (images, icons, JS files)")
+    print("   ✅ web/ (HTML, manifest, etc.)")
+    print("   ✅ pubspec.yaml")
+    print()
+    print("⚠️ WARNING: This file contains ALL your frontend code!")
+    print("   Do not share it publicly.")
+    print("=" * 80)
+
+
+# ==================== ENTRY POINT ====================
+
+if __name__ == "__main__":
+    try:
+        export_frontend()
+    except KeyboardInterrupt:
+        print("\n\n❌ Export cancelled by user.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n\n❌ Error during export: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+================================================================================
+[  35/  39] 🐍 export_remaining.py
+📏 SIZE: 13.8 KB
+🕐 MODIFIED: 2026-11-06 11:04:06
+================================================================================
+
+# scripts/export_all_except.py
+"""
+RojgarNest - Full Project Exporter (EXCLUDE MODE)
+Exports EVERY file under ROOT_PATH EXCEPT:
+  - backend/   (entire folder)
+  - frontend/  (entire folder)
+  - .git/      (entire folder)
+  - *.txt      (all .txt files — prevents self-recursion & log noise)
+
+Run: python scripts/export_all_except.py
+"""
+
+import os
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import List, Tuple, Dict
+
+# ==================== CONFIGURATION ====================
+
+ROOT_PATH = r"E:\YOGESH\website\RojgarNest"
+OUTPUT_FILE = "full_project_export.txt"
+
+# ❌ Folders to EXCLUDE (case-insensitive, anywhere in tree)
+EXCLUDE_FOLDERS = {
+    'backend',
+    'frontend',
+    '.git',
+}
+
+# ❌ File extensions to EXCLUDE
+EXCLUDE_EXTENSIONS = {
+    '.txt',   # output file khud .txt hai — recursion avoid
+}
+
+# Hard safety: in folders ko kabhi andar mat jao
+HARD_SKIP_FOLDERS = {
+    'node_modules', '.venv', 'venv', 'env', '__pycache__',
+    '.pytest_cache', '.mypy_cache', '.ruff_cache',
+    '.idea', '.vscode', '.next', 'dist', 'build',
+    'coverage', 'htmlcov', '.cache', '.turbo',
+}
+
+# Exact filenames to skip
+SKIP_FILES_EXACT = {
+    '.DS_Store', 'Thumbs.db', 'desktop.ini',
+    OUTPUT_FILE,  # apna hi output skip karo
+}
+
+# Binary / huge file extensions to skip (content can't be read as text)
+BINARY_EXTENSIONS = {
+    '.zip', '.tar', '.tgz', '.rar', '.7z', '.gz', '.bz2',
+    '.pyc', '.pyo', '.class', '.o', '.obj', '.so', '.dll', '.exe', '.dylib', '.wasm',
+    '.jpg', '.jpeg', '.png', '.gif', '.bmp', '.ico', '.webp', '.svg',
+    '.mp4', '.mov', '.avi', '.mkv', '.webm',
+    '.mp3', '.wav', '.ogg', '.flac',
+    '.woff', '.woff2', '.ttf', '.otf', '.eot',
+    '.pdf', '.doc', '.docx', '.pptx', '.xlsx', '.xls',
+    '.db', '.sqlite', '.sqlite3',
+    '.pem', '.key', '.crt', '.cer', '.p12', '.pfx', '.jks',
+}
+
+# Max size per file (10 MB) — bade files skip (log mein reason aayega)
+MAX_FILE_SIZE = 10 * 1024 * 1024
+
+# ==================== HELPERS ====================
+
+
+def normalize(path: Path) -> str:
+    return str(path).replace('\\', '/').lower()
+
+
+def is_excluded_folder(folder_path: Path) -> Tuple[bool, str]:
+    name = folder_path.name.lower()
+    if name in EXCLUDE_FOLDERS:
+        return True, f"excluded folder '{name}'"
+    if name in HARD_SKIP_FOLDERS:
+        return True, f"hard-skip folder '{name}'"
+    return False, ""
+
+
+def is_excluded_file(file_path: Path) -> Tuple[bool, str]:
+    name = file_path.name
+    name_lower = name.lower()
+    suffix = file_path.suffix.lower()
+
+    if name in SKIP_FILES_EXACT:
+        return True, "system/output file"
+
+    if suffix in EXCLUDE_EXTENSIONS:
+        return True, f"excluded extension '{suffix}'"
+
+    if suffix in BINARY_EXTENSIONS:
+        return True, f"binary extension '{suffix}'"
+
+    try:
+        size = file_path.stat().st_size
+        if size > MAX_FILE_SIZE:
+            return True, f"too large ({size / (1024*1024):.1f} MB)"
+    except Exception as e:
+        return True, f"stat error: {e}"
+
+    return False, ""
+
+
+def read_file_content(file_path: Path) -> Tuple[str, str]:
+    encodings = ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1']
+    for enc in encodings:
+        try:
+            with open(file_path, 'r', encoding=enc) as f:
+                return f.read(), enc
+        except UnicodeDecodeError:
+            continue
+        except Exception:
+            continue
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            return f.read(), 'utf-8 (with replacements)'
+    except Exception as e:
+        return f"[ERROR: Could not read file - {e}]", 'error'
+
+
+def format_size(size_bytes: int) -> str:
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    return f"{size_bytes / (1024 * 1024 * 1024):.2f} GB"
+
+
+def get_file_icon(file_path: Path) -> str:
+    suffix = file_path.suffix.lower()
+    icons = {
+        '.py': '🐍', '.js': '💛', '.ts': '💙', '.jsx': '⚛️', '.tsx': '⚛️',
+        '.json': '📋', '.yaml': '⚙️', '.yml': '⚙️', '.conf': '⚙️', '.ini': '⚙️',
+        '.md': '📝', '.txt': '📄', '.html': '🌐', '.htm': '🌐',
+        '.css': '🎨', '.scss': '🎨', '.sass': '🎨', '.less': '🎨',
+        '.sql': '🗄️', '.sh': '📜', '.bat': '🪟', '.ps1': '💻',
+        '.tf': '🏗️', '.xml': '📄', '.toml': '⚙️',
+        '.env': '🔐', '.lock': '🔒',
+        '.java': '☕', '.go': '🐹', '.rs': '🦀', '.rb': '💎', '.php': '🐘',
+    }
+    return icons.get(suffix, '📄')
+
+
+def get_rel(file_path: Path, base: Path) -> str:
+    try:
+        return str(file_path.relative_to(base)).replace('\\', '/')
+    except ValueError:
+        return str(file_path).replace('\\', '/')
+
+
+# ==================== SCAN ====================
+
+
+def scan_folder(folder: Path, root: Path) -> Tuple[List[Dict], List[Dict]]:
+    included, skipped = [], []
+
+    def walk(current: Path):
+        try:
+            for item in sorted(current.iterdir()):
+                try:
+                    rel = item.relative_to(root)
+                except ValueError:
+                    rel = item
+
+                if not item.exists():
+                    continue
+
+                is_dir = item.is_dir() and not item.is_symlink()
+                is_file = item.is_file() or (item.is_symlink() and item.resolve().is_file())
+
+                if is_dir:
+                    ex, reason = is_excluded_folder(item)
+                    if ex:
+                        skipped.append({'path': item, 'rel_path': rel,
+                                        'reason': reason, 'is_dir': True})
+                    else:
+                        walk(item)
+
+                elif is_file:
+                    ex, reason = is_excluded_file(item)
+                    entry = {'path': item, 'rel_path': rel,
+                             'reason': reason, 'is_dir': False}
+                    if ex:
+                        skipped.append(entry)
+                    else:
+                        included.append(entry)
+
+        except PermissionError as e:
+            print(f"⚠️ Permission denied: {current} — {e}")
+        except Exception as e:
+            print(f"⚠️ Error scanning {current}: {e}")
+
+    walk(folder)
+    return included, skipped
+
+
+def generate_tree(folder: Path, root: Path, prefix: str = "") -> List[str]:
+    lines = []
+    try:
+        items = []
+        for item in sorted(folder.iterdir()):
+            if item.is_dir() and not item.is_symlink():
+                ex, _ = is_excluded_folder(item)
+                if not ex:
+                    items.append(item)
+            elif item.is_file():
+                ex, _ = is_excluded_file(item)
+                if not ex:
+                    items.append(item)
+        for i, item in enumerate(items):
+            last = (i == len(items) - 1)
+            conn = "└── " if last else "├── "
+            if item.is_dir():
+                lines.append(f"{prefix}{conn}📁 {item.name}/")
+                ext = "    " if last else "│   "
+                lines.extend(generate_tree(item, root, prefix + ext))
+            else:
+                lines.append(f"{prefix}{conn}{get_file_icon(item)} {item.name}")
+    except Exception as e:
+        lines.append(f"{prefix}[Error: {e}]")
+    return lines
+
+
+# ==================== MAIN ====================
+
+
+def export_all():
+    print("=" * 80)
+    print("🚀 ROJGARNEST - FULL PROJECT EXPORTER (EXCLUDE MODE)")
+    print("=" * 80)
+    print(f"   ROOT_PATH:  {ROOT_PATH}")
+    print(f"   OUTPUT_FILE: {OUTPUT_FILE}")
+    print(f"   EXCLUDING folders: {', '.join(sorted(EXCLUDE_FOLDERS))}")
+    print(f"   EXCLUDING extensions: {', '.join(sorted(EXCLUDE_EXTENSIONS))}")
+    print()
+
+    root = Path(ROOT_PATH)
+    if not root.exists() or not root.is_dir():
+        print(f"❌ Root not found: {ROOT_PATH}")
+        sys.exit(1)
+
+    print("📂 Scanning (excluding backend/, frontend/, .git/, *.txt)...")
+    included, skipped = scan_folder(root, root)
+    included.sort(key=lambda x: str(x['rel_path']).lower())
+    skipped.sort(key=lambda x: str(x['rel_path']).lower())
+
+    total_size = 0
+    type_summary: Dict[str, Dict] = {}
+    folder_summary: Dict[str, Dict] = {}
+
+    for e in included:
+        try:
+            sz = e['path'].stat().st_size
+            total_size += sz
+            suf = e['path'].suffix.lower() or '(no ext)'
+            type_summary.setdefault(suf, {'count': 0, 'size': 0})
+            type_summary[suf]['count'] += 1
+            type_summary[suf]['size'] += sz
+
+            rel = str(e['rel_path']).replace('\\', '/')
+            top = rel.split('/')[0] if '/' in rel else '(root)'
+            folder_summary.setdefault(top, {'count': 0, 'size': 0})
+            folder_summary[top]['count'] += 1
+            folder_summary[top]['size'] += sz
+        except Exception:
+            pass
+
+    print(f"✅ Included: {len(included)} files, {format_size(total_size)}")
+    print(f"⏭️  Skipped: {len(skipped)} items")
+    print()
+
+    print("📁 Folder breakdown:")
+    for folder, info in sorted(folder_summary.items()):
+        print(f"   {folder}/: {info['count']} files ({format_size(info['size'])})")
+    print()
+
+    # ---- Write output ----
+    print(f"✍️  Writing {OUTPUT_FILE}...")
+    try:
+        out = open(OUTPUT_FILE, 'w', encoding='utf-8')
+    except Exception as e:
+        print(f"❌ Cannot open output: {e}")
+        sys.exit(1)
+
+    with out:
+        out.write("=" * 80 + "\n")
+        out.write("ROJGARNEST - FULL PROJECT EXPORT (EXCLUDE MODE)\n")
+        out.write("=" * 80 + "\n")
+        out.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        out.write(f"Source: {ROOT_PATH}\n")
+        out.write(f"Excluded folders: {', '.join(sorted(EXCLUDE_FOLDERS))}\n")
+        out.write(f"Excluded extensions: {', '.join(sorted(EXCLUDE_EXTENSIONS))}\n")
+        out.write(f"Total Files Included: {len(included)}\n")
+        out.write(f"Total Skipped: {len(skipped)}\n")
+        out.write(f"Total Size: {format_size(total_size)}\n")
+        out.write("=" * 80 + "\n\n")
+
+        # Folder breakdown
+        out.write("=" * 80 + "\n📁 FOLDER BREAKDOWN\n" + "=" * 80 + "\n\n")
+        for folder, info in sorted(folder_summary.items()):
+            out.write(f"  {folder}/: {info['count']} files ({format_size(info['size'])})\n")
+        out.write("\n\n")
+
+        # Skipped
+        out.write("=" * 80 + "\n⏭️  SKIPPED\n" + "=" * 80 + "\n\n")
+        if skipped:
+            for e in skipped:
+                tag = "📁" if e['is_dir'] else get_file_icon(e['path'])
+                out.write(f"  {tag} {e['rel_path']}  →  {e['reason']}\n")
+        else:
+            out.write("  (none)\n")
+        out.write("\n\n")
+
+        # Tree
+        out.write("=" * 80 + "\n📁 DIRECTORY STRUCTURE\n" + "=" * 80 + "\n\n")
+        out.write(f"📁 RojgarNest/\n")
+        for line in generate_tree(root, root):
+            out.write(line + "\n")
+        out.write("\n\n")
+
+        # Summary
+        out.write("=" * 80 + "\n📊 FILE SUMMARY\n" + "=" * 80 + "\n\n")
+        out.write(f"Total Files: {len(included)}\n")
+        out.write(f"Total Size: {format_size(total_size)}\n\n")
+        out.write("By extension:\n")
+        for suf, info in sorted(type_summary.items(),
+                                key=lambda x: x[1]['count'], reverse=True):
+            out.write(f"  {suf}: {info['count']} files ({format_size(info['size'])})\n")
+        out.write("\n\n")
+
+        # File contents
+        out.write("=" * 80 + "\n📄 ALL FILE CONTENTS\n" + "=" * 80 + "\n\n")
+
+        total = len(included)
+        for i, e in enumerate(included, 1):
+            fp = e['path']
+            rel = get_rel(fp, root)
+            icon = get_file_icon(fp)
+            try:
+                sz = fp.stat().st_size
+                mtime = datetime.fromtimestamp(fp.stat().st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+            except Exception:
+                sz, mtime = 0, 'unknown'
+
+            content, enc = read_file_content(fp)
+            pct = (i / total) * 100 if total else 0
+            print(f"  [{i:4d}/{total}] ({pct:5.1f}%) {rel}")
+
+            out.write("=" * 80 + "\n")
+            out.write(f"[{i:4d}/{total:4d}] {icon} {rel}\n")
+            out.write(f"📏 SIZE: {format_size(sz)}\n")
+            out.write(f"🕐 MODIFIED: {mtime}\n")
+            if enc != 'utf-8':
+                out.write(f"📝 ENCODING: {enc}\n")
+            out.write("=" * 80 + "\n\n")
+            out.write(content)
+            out.write("\n\n")
+
+        out.write("=" * 80 + "\n🎉 EXPORT COMPLETED!\n" + "=" * 80 + "\n")
+        out.write(f"Total Files: {total}\n")
+        out.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        out.write("=" * 80 + "\n")
+
+    try:
+        out_size = os.path.getsize(OUTPUT_FILE)
+    except Exception:
+        out_size = 0
+
+    print()
+    print("=" * 80)
+    print("🎉 EXPORT COMPLETED!")
+    print("=" * 80)
+    print(f"📄 Output: {OUTPUT_FILE}")
+    print(f"📊 Included: {len(included)} files")
+    print(f"⏭️  Skipped: {len(skipped)} items")
+    print(f"💾 Size: {format_size(out_size)}")
+    print(f"📁 Path: {os.path.abspath(OUTPUT_FILE)}")
+    print("=" * 80)
+
+
+if __name__ == "__main__":
+    try:
+        export_all()
+    except KeyboardInterrupt:
+        print("\n\n❌ Cancelled by user.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+================================================================================
+[  36/  39] ⚙️ monitoring/logstash.conf
+📏 SIZE: 578 B
+🕐 MODIFIED: 2026-09-10 10:40:32
+================================================================================
+
+input {
+  tcp {
+    port => 5000
+    codec => json
+  }
+  file {
+    path => "/var/log/backend/*.log"
+    type => "backend"
+  }
+}
+
+filter {
+  if [type] == "backend" {
+    grok {
+      match => { "message" => "%{TIMESTAMP_ISO8601:timestamp} \| %{LOGLEVEL:level} \| %{DATA:logger} \| %{GREEDYDATA:message}" }
+    }
+  }
+  
+  date {
+    match => [ "timestamp", "ISO8601" ]
+    target => "@timestamp"
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["elasticsearch:9200"]
+    index => "rojgarnext-logs-%{+YYYY.MM.dd}"
+  }
+  stdout { codec => rubydebug }
+}
+
+================================================================================
+[  37/  39] ⚙️ monitoring/prometheus.yml
+📏 SIZE: 536 B
+🕐 MODIFIED: 2026-09-10 10:40:32
+================================================================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'backend'
+    static_configs:
+      - targets: ['backend1:8000', 'backend2:8000']
+    metrics_path: '/metrics'
+
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:9113']
+
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb:9216']
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:9121']
+
+================================================================================
+[  38/  39] 📋 railway.frontend.json
+📏 SIZE: 431 B
+🕐 MODIFIED: 2026-11-05 21:52:26
+================================================================================
+
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "frontend/rojgarnest/Dockerfile",
+    "buildArgs": {
+      "API_BASE_URL": "https://www.rojgarnest.com/api/v1"
+    }
+  },
+  "deploy": {
+    "healthcheckPath": "/",
+    "healthcheckTimeout": 60,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 5,
+    "numReplicas": 1
+  }
+}
+
+================================================================================
+[  39/  39] 📋 railway.json
+📏 SIZE: 533 B
+🕐 MODIFIED: 2026-11-07 17:44:06
+================================================================================
+
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "backend/rojgarnest/Dockerfile"
+  },
+  "deploy": {
+    "startCommand": "gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120 --access-logfile - --error-logfile -",
+    "healthcheckPath": "/api/v1/health",
+    "healthcheckTimeout": 120,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10,
+    "numReplicas": 1
+  }
+}
+
+================================================================================
+🎉 EXPORT COMPLETED!
+================================================================================
+Total Files: 39
+Generated: 2026-11-08 12:12:18
+================================================================================

@@ -1,127 +1,43 @@
-version: '3.9'
+# ============================================================
+# ROJGARNEST — PRODUCTION OVERRIDE
+# ============================================================
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+# ============================================================
 
 services:
   mongo:
-    image: mongo:7.0
-    restart: always
-    volumes:
-      - mongo_data:/data/db
-    networks: [rojgarnext_net]
-    deploy:
-      resources:
-        limits: { memory: 2G }
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/rojgarnext --quiet
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  redis:
-    image: redis:7.4-alpine
-    restart: always
-    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
-    volumes:
-      - redis_data:/data
-    networks: [rojgarnext_net]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+    # ⚠️ Never expose MongoDB in prod
+    # ports:
+    #   - "27017:27017"
 
   backend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-org}/rojgarnext-backend:${IMAGE_TAG:-latest}
-    restart: always
-    env_file:
-      - ../backend/rojgarnext/.env
     environment:
-      MONGO_URI: mongodb://mongo:27017/rojgarnext
-      REDIS_URL: redis://redis:6379
       ENVIRONMENT: production
-    volumes:
-      - backend_uploads:/app/uploads
-      - backend_secure:/app/secure
-      - backend_models:/app/models
-      - backend_logs:/app/logs
-    networks: [rojgarnext_net]
-    depends_on:
-      mongo:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    deploy:
-      replicas: 3
-      update_config:
-        parallelism: 1
-        delay: 10s
-        order: start-first
-        failure_action: rollback
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-      resources:
-        limits: { cpus: '1.5', memory: 1G }
-        reservations: { cpus: '0.5', memory: 512M }
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      MOBILE_OTP_BYPASS: "false"
+      DEV_MODE_LOG_ONLY: "false"
+      LOG_LEVEL: WARNING
+      # ✅ Production DB with auth
+      MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/RojgarNest?authSource=admin
+      # ✅ Production URL
+      APP_BASE_URL: https://www.rojgarnest.com
+    restart: always
+    # No port exposure — Nginx reverse proxies
+    # ports:
+    #   - "8000:8000"
 
   frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-your-org}/rojgarnext-frontend:${IMAGE_TAG:-latest}
-    restart: always
-    networks: [rojgarnext_net]
-    depends_on:
-      - backend
-    deploy:
-      replicas: 2
-      resources:
-        limits: { cpus: '0.5', memory: 256M }
-
-  nginx:
-    image: nginx:1.27-alpine
+    build:
+      args:
+        API_BASE_URL: https://www.rojgarnest.com/api/v1
+        WS_BASE_URL: wss://www.rojgarnest.com/notification/ws
     restart: always
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
-      - certbot_conf:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
-    depends_on:
-      - backend
-      - frontend
-    networks: [rojgarnext_net]
-    healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  certbot:
-    image: certbot/certbot:latest
-    volumes:
-      - certbot_www:/var/www/certbot
-      - certbot_conf:/etc/letsencrypt
-    entrypoint: /bin/sh
-    command: -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"
-    networks: [rojgarnext_net]
-
-volumes:
-  mongo_data:
-  redis_data:
-  backend_uploads:
-  backend_secure:
-  backend_models:
-  backend_logs:
-  certbot_www:
-  certbot_conf:
-
-networks:
-  rojgarnext_net:
-    driver: overlay
-    attachable: true
+      # Optional: mount TLS certs
+      - ./nginx-ssl:/etc/nginx/ssl:ro

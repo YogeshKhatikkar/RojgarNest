@@ -3,6 +3,11 @@
 # ✅ All user/admin endpoints now use ServiceService._enrich_application_for_frontend()
 # ✅ payment_status='completed' + verification='pending' → auto-corrected to 'approved'
 # ✅ Frontend will NEVER see "Payment Pending" once gateway says completed
+# ✅ NEW (this build): application_number propagated through ALL review /
+#    final-submit / payment / status notifications, so the email header
+#    shows the human-readable YYYYMMDDSSSS number instead of the raw _id
+# ✅ NEW (this build): Previously-missing user notifications for
+#    review / final-submit / payment-verify / status-update now fire
 
 from fastapi import (
     APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
@@ -45,6 +50,37 @@ def _safe_doc_type(doc_type: str) -> str:
     return doc_type[:60] or "document"
 
 
+def _resolve_application_number(application: dict, fallback_id: str) -> str:
+    """
+    ✅ Resolve the human-readable application number.
+
+    Priority:
+      1. application['application_number']  (YYYYMMDDSSSS)
+      2. application['application_id']      (legacy alias)
+      3. fallback_id                        (the raw _id passed in)
+    """
+    return (
+        (application or {}).get("application_number")
+        or (application or {}).get("application_id")
+        or fallback_id
+    )
+
+
+def _service_display_title(application: dict) -> str:
+    """
+    ✅ Build a human-readable title for the service application
+    used by the email header.
+
+    Priority:
+      sub_service_name → service_name → "Service Application"
+    """
+    return (
+        (application or {}).get("sub_service_name")
+        or (application or {}).get("service_name")
+        or "Service Application"
+    )
+
+
 # ============================================================
 # ✅ STEP 1: CREATE DRAFT SERVICE APPLICATION
 # ============================================================
@@ -77,6 +113,9 @@ async def create_draft_service_application(
         return {
             "success": True,
             "application_id": str(existing["_id"]),
+            "application_number": _resolve_application_number(
+                existing, str(existing["_id"])
+            ),
             "message": "Existing draft reused",
             "is_new": False,
         }
@@ -256,6 +295,7 @@ async def get_service_application_documents(
     return {
         "success": True,
         "application_id": application_id,
+        "application_number": _resolve_application_number(app_rec, application_id),
         "service_documents": service_docs,
         "admin_documents": admin_docs,
         "total": len(service_docs) + len(admin_docs),
@@ -295,12 +335,26 @@ async def finalize_service_application(
     if result.modified_count == 0:
         existing = await db.applications.find_one({"_id": ObjectId(application_id)})
         if existing and existing.get("is_draft") is False:
-            return {"success": True, "application_id": application_id,
-                    "message": "Already finalized"}
+            return {
+                "success": True,
+                "application_id": application_id,
+                "application_number": _resolve_application_number(
+                    existing, application_id
+                ),
+                "message": "Already finalized",
+            }
         raise HTTPException(status_code=404, detail="Draft not found")
 
-    return {"success": True, "application_id": application_id,
-            "message": "Application finalized"}
+    # Read back for app_number
+    updated = await db.applications.find_one({"_id": ObjectId(application_id)})
+    app_number = _resolve_application_number(updated or {}, application_id)
+
+    return {
+        "success": True,
+        "application_id": application_id,
+        "application_number": app_number,
+        "message": "Application finalized",
+    }
 
 
 # ============================================================
@@ -360,8 +414,11 @@ async def submit_service_application(
         })
 
     result = await db.applications.insert_one(application)
-    return {"success": True, "application_id": str(result.inserted_id),
-            "message": "Service application submitted"}
+    return {
+        "success": True,
+        "application_id": str(result.inserted_id),
+        "message": "Service application submitted",
+    }
 
 
 # ============================================================
@@ -393,8 +450,15 @@ async def get_my_service_applications(
     for a in apps:
         a["_id"] = str(a["_id"])
 
+        # Preserve original app_number BEFORE enrichment
+        original_app_number = _resolve_application_number(a, a["_id"])
+
         # ✅ THIS IS THE FIX — enrich + auto-correct status
         a = service_service._enrich_application_for_frontend(a)
+
+        # Ensure application_number is always present in the payload
+        if not a.get("application_number"):
+            a["application_number"] = original_app_number
 
         # Lightweight listing — omit full docs
         a.pop("service_documents", None)
@@ -423,7 +487,14 @@ async def get_all_service_applications(
     out: List[Dict[str, Any]] = []
     for a in apps:
         a["_id"] = str(a["_id"])
+
+        original_app_number = _resolve_application_number(a, a["_id"])
+
         a = service_service._enrich_application_for_frontend(a)
+
+        if not a.get("application_number"):
+            a["application_number"] = original_app_number
+
         a.pop("service_documents", None)
         out.append(a)
 
@@ -457,15 +528,20 @@ async def get_service_application_detail(
 
     app_rec["_id"] = str(app_rec["_id"])
 
+    original_app_number = _resolve_application_number(app_rec, application_id)
+
     # ✅ Enrich + auto-correct
     service_service = ServiceService(db)
     app_rec = service_service._enrich_application_for_frontend(app_rec)
+
+    if not app_rec.get("application_number"):
+        app_rec["application_number"] = original_app_number
 
     return {"success": True, "data": app_rec}
 
 
 # ============================================================
-# STATUS UPDATE (admin)
+# STATUS UPDATE (admin) — ✅ NOW NOTIFIES USER
 # ============================================================
 @router.put("/application/{application_id}/status")
 async def update_service_application_status(
@@ -484,6 +560,13 @@ async def update_service_application_status(
     if not status:
         raise HTTPException(status_code=400, detail="status is required")
 
+    # ✅ Read current app BEFORE update for notification data
+    app_rec = await db.applications.find_one({"_id": ObjectId(application_id)})
+    if not app_rec:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    old_status = app_rec.get("status", "unknown")
+
     update: Dict[str, Any] = {
         "status": status,
         "updated_at": datetime.utcnow(),
@@ -498,12 +581,68 @@ async def update_service_application_status(
         {"$set": update},
     )
 
-    return {"success": result.modified_count > 0,
-            "message": "Status updated" if result.modified_count > 0 else "Not found"}
+    if result.modified_count == 0:
+        return {"success": False, "message": "Not found or status unchanged"}
+
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(app_rec, application_id)
+    applicant_email = (
+        app_rec.get("applicant_email") or
+        app_rec.get("user_email")
+    )
+    service_title = _service_display_title(app_rec)
+
+    logger.info(
+        f"📋 Service STATUS UPDATE — app_number={app_number}, "
+        f"status={old_status} → {status}"
+    )
+
+    # ✅ FIX: Notify user with correct application_number
+    if applicant_email:
+        try:
+            from app.modules.notification.service import central_notification
+            await central_notification.send_notification(
+                user_ids=[applicant_email],
+                notification_type="application_status",
+                title=f"Application Status: {status.upper()}",
+                message=(
+                    f"Your service application for '{service_title}' is "
+                    f"now {status.upper()}.\n\n"
+                    f"📋 Application Number: {app_number}"
+                ),
+                related_id=app_number,
+                metadata={
+                    "application_type": "service",
+                    "application_number": app_number,
+                    "application_id": app_number,
+                    "service_name": service_title,
+                    "job_title": service_title,
+                    "organization": service_title,
+                    "old_status": old_status,
+                    "new_status": status,
+                    "admin_notes": admin_notes,
+                    "show_blue_bell": True,
+                },
+                send_email=True,
+                send_websocket=True,
+            )
+            logger.info(f"🔔 Status notification sent to: {applicant_email}")
+        except Exception as ne:
+            logger.warning(f"⚠️ Status notification failed: {ne}")
+
+    return {
+        "success": True,
+        "message": "Status updated",
+        "application_id": application_id,
+        "application_number": app_number,
+        "status": status,
+        "old_status": old_status,
+        "notifications_sent": bool(applicant_email),
+    }
 
 
 # ============================================================
-# VERIFY PAYMENT (admin)
+# VERIFY PAYMENT (admin) — ✅ NOW NOTIFIES USER
 # ============================================================
 @router.post("/application/{application_id}/verify-payment")
 async def verify_service_application_payment(
@@ -522,6 +661,11 @@ async def verify_service_application_payment(
 
     if action not in ("approve", "reject"):
         raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'")
+
+    # ✅ Read current app BEFORE update
+    app_rec = await db.applications.find_one({"_id": ObjectId(application_id)})
+    if not app_rec:
+        raise HTTPException(status_code=404, detail="Application not found")
 
     if action == "approve":
         update = {
@@ -546,11 +690,79 @@ async def verify_service_application_payment(
         {"$set": update},
     )
 
-    return {"success": True, "message": f"Payment {action}d successfully"}
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(app_rec, application_id)
+    applicant_email = (
+        app_rec.get("applicant_email") or
+        app_rec.get("user_email")
+    )
+    service_title = _service_display_title(app_rec)
+    amount = app_rec.get("payment_amount", 0)
+
+    logger.info(
+        f"📋 Service PAYMENT VERIFY — app_number={app_number}, "
+        f"action={action}, amount=₹{amount}"
+    )
+
+    # ✅ FIX: Notify user with correct application_number
+    if applicant_email:
+        try:
+            from app.modules.notification.service import central_notification
+
+            if action == "approve":
+                title = f"✅ Service Payment Verified: {service_title}"
+                message = (
+                    f"Your payment of ₹{amount} for '{service_title}' has been "
+                    f"verified successfully.\n\n"
+                    f"📋 Application Number: {app_number}"
+                )
+                status_val = "payment_verified"
+            else:
+                title = f"❌ Service Payment Rejected: {service_title}"
+                message = (
+                    f"Your payment of ₹{amount} for '{service_title}' has been "
+                    f"REJECTED.\nReason: {notes or 'Please contact support'}\n\n"
+                    f"📋 Application Number: {app_number}"
+                )
+                status_val = "rejected"
+
+            await central_notification.send_notification(
+                user_ids=[applicant_email],
+                notification_type="application_status",
+                title=title,
+                message=message,
+                related_id=app_number,
+                metadata={
+                    "application_type": "service",
+                    "application_number": app_number,
+                    "application_id": app_number,
+                    "service_name": service_title,
+                    "job_title": service_title,
+                    "organization": service_title,
+                    "status": status_val,
+                    "amount": amount,
+                    "admin_notes": notes,
+                    "show_blue_bell": True,
+                },
+                send_email=True,
+                send_sms=True,
+                send_websocket=True,
+            )
+            logger.info(f"🔔 Payment notification sent to: {applicant_email}")
+        except Exception as ne:
+            logger.warning(f"⚠️ Payment notification failed: {ne}")
+
+    return {
+        "success": True,
+        "message": f"Payment {action}d successfully",
+        "application_id": application_id,
+        "application_number": app_number,
+        "notifications_sent": bool(applicant_email),
+    }
 
 
 # ============================================================
-# REVIEW WITH DOCUMENT (admin)
+# REVIEW WITH DOCUMENT (admin) — ✅ NOW NOTIFIES USER
 # ============================================================
 @router.post("/application/{application_id}/review-with-document")
 async def review_service_application_with_document(
@@ -594,8 +806,63 @@ async def review_service_application_with_document(
             }},
         )
 
-        return {"success": True, "message": "Review document uploaded",
-                "url": upload_result.get("url")}
+        # ✅ FIX: Resolve human-readable application number
+        app_number = _resolve_application_number(app_rec, application_id)
+        applicant_email = (
+            app_rec.get("applicant_email") or
+            app_rec.get("user_email")
+        )
+        service_title = _service_display_title(app_rec)
+
+        logger.info(
+            f"📋 Service REVIEW — app_number={app_number}, "
+            f"file={file.filename if file else 'unknown'}"
+        )
+
+        # ✅ FIX: Notify user with correct application_number
+        if applicant_email:
+            try:
+                from app.modules.notification.service import central_notification
+                await central_notification.send_notification(
+                    user_ids=[applicant_email],
+                    notification_type="application_status",
+                    title=f"📄 Service Document Submitted: {service_title}",
+                    message=(
+                        f"Your document '{file.filename}' has been submitted "
+                        f"for review for '{service_title}'.\n\n"
+                        f"📋 Application Number: {app_number}\n\n"
+                        "The admin is reviewing your document. "
+                        "You will be notified once the review is complete."
+                    ),
+                    related_id=app_number,
+                    metadata={
+                        "application_type": "service",
+                        "application_number": app_number,
+                        "application_id": app_number,
+                        "service_name": service_title,
+                        "job_title": service_title,
+                        "organization": service_title,
+                        "status": "review_application",
+                        "document_name": file.filename,
+                        "admin_notes": notes,
+                        "show_blue_bell": True,
+                        "submitted_document_url": upload_result.get("url"),
+                    },
+                    send_email=True,
+                    send_websocket=True,
+                )
+                logger.info(f"🔔 Review notification sent to: {applicant_email}")
+            except Exception as ne:
+                logger.warning(f"⚠️ Review notification failed: {ne}")
+
+        return {
+            "success": True,
+            "message": "Review document uploaded",
+            "application_id": application_id,
+            "application_number": app_number,
+            "url": upload_result.get("url"),
+            "notifications_sent": bool(applicant_email),
+        }
 
     except Exception as e:
         logger.error(f"❌ Review upload failed: {e}")
@@ -603,7 +870,7 @@ async def review_service_application_with_document(
 
 
 # ============================================================
-# FINAL SUBMIT (admin)
+# FINAL SUBMIT (admin) — ✅ NOW NOTIFIES USER
 # ============================================================
 @router.post("/application/{application_id}/final-submit-with-document")
 async def final_submit_service_application(
@@ -646,8 +913,64 @@ async def final_submit_service_application(
             }},
         )
 
-        return {"success": True, "message": "Final document uploaded",
-                "url": upload_result.get("url")}
+        # ✅ FIX: Resolve human-readable application number
+        app_number = _resolve_application_number(app_rec, application_id)
+        applicant_email = (
+            app_rec.get("applicant_email") or
+            app_rec.get("user_email")
+        )
+        service_title = _service_display_title(app_rec)
+
+        logger.info(
+            f"📋 Service FINAL SUBMIT — app_number={app_number}, "
+            f"file={file.filename if file else 'unknown'}"
+        )
+
+        # ✅ FIX: Notify user with correct application_number
+        if applicant_email:
+            try:
+                from app.modules.notification.service import central_notification
+                await central_notification.send_notification(
+                    user_ids=[applicant_email],
+                    notification_type="application_status",
+                    title=f"✅ FINAL SUBMISSION: {service_title}",
+                    message=(
+                        f"Your FINAL document '{file.filename}' for "
+                        f"'{service_title}' has been submitted successfully.\n\n"
+                        f"📋 Application Number: {app_number}\n\n"
+                        "This is your FINAL submission. "
+                        "No further changes are allowed."
+                    ),
+                    related_id=app_number,
+                    metadata={
+                        "application_type": "service",
+                        "application_number": app_number,
+                        "application_id": app_number,
+                        "service_name": service_title,
+                        "job_title": service_title,
+                        "organization": service_title,
+                        "status": "final_submitted",
+                        "document_name": file.filename,
+                        "admin_notes": notes,
+                        "is_final": True,
+                        "show_blue_bell": True,
+                        "final_document_url": upload_result.get("url"),
+                    },
+                    send_email=True,
+                    send_websocket=True,
+                )
+                logger.info(f"🔔 FINAL notification sent to: {applicant_email}")
+            except Exception as ne:
+                logger.warning(f"⚠️ FINAL notification failed: {ne}")
+
+        return {
+            "success": True,
+            "message": "Final document uploaded",
+            "application_id": application_id,
+            "application_number": app_number,
+            "url": upload_result.get("url"),
+            "notifications_sent": bool(applicant_email),
+        }
 
     except Exception as e:
         logger.error(f"❌ Final upload failed: {e}")
@@ -677,8 +1000,17 @@ async def user_confirm_service_application(
         }},
     )
 
-    return {"success": result.modified_count > 0,
-            "message": "Application confirmed" if result.modified_count > 0 else "Not found"}
+    if result.modified_count == 0:
+        return {"success": False, "message": "Not found"}
+
+    updated = await db.applications.find_one({"_id": ObjectId(application_id)})
+    app_number = _resolve_application_number(updated or {}, application_id)
+
+    return {
+        "success": True,
+        "message": "Application confirmed",
+        "application_number": app_number,
+    }
 
 
 # ============================================================
@@ -719,8 +1051,17 @@ async def user_submit_service_application_update(
         },
     )
 
-    return {"success": result.modified_count > 0,
-            "message": "Update submitted" if result.modified_count > 0 else "Not found"}
+    if result.modified_count == 0:
+        return {"success": False, "message": "Not found"}
+
+    updated = await db.applications.find_one({"_id": ObjectId(application_id)})
+    app_number = _resolve_application_number(updated or {}, application_id)
+
+    return {
+        "success": True,
+        "message": "Update submitted",
+        "application_number": app_number,
+    }
 
 
 # ============================================================
@@ -763,9 +1104,16 @@ async def upload_payment_screenshot_for_service(
             }},
         )
 
-        return {"success": True, "url": upload_result.get("url")}
+        app_number = _resolve_application_number(app_rec, application_id)
+
+        return {
+            "success": True,
+            "url": upload_result.get("url"),
+            "application_number": app_number,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # ============================================================
 # ✅ NEW: Upload TEMP document (before payment / before application exists)
@@ -912,6 +1260,10 @@ async def get_profile_data_for_service(
     service_service = ServiceService(db)
     return await service_service.get_profile_data(user_email)
 
-    
+
 print("✅ Services routes loaded with ENRICHMENT FIX")
 print("   payment_status='completed' + verification='pending' → 'approved'")
+print("   ✅ NEW: application_number propagated to ALL notifications")
+print("      (review / final submit / payment verify / status update)")
+print("      → email header shows YYYYMMDDSSSS, not the raw _id")
+print("   ✅ NEW: Previously-missing user notifications now fire")

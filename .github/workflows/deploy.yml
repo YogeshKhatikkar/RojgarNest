@@ -11,30 +11,30 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.12"]
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      
+
       - name: Install dependencies
         run: |
-          cd backend/rojgarnext
+          cd backend/rojgarnest
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
+
       - name: Lint with flake8
         run: |
-          cd backend/rojgarnext
+          cd backend/rojgarnest
           pip install flake8
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-      
+
       - name: Run tests
         run: |
-          cd backend/rojgarnext
+          cd backend/rojgarnest
           pip install pytest
           pytest tests/ || true
 
@@ -42,40 +42,40 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      
+
       - name: Build and push Backend
         uses: docker/build-push-action@v5
         with:
-          context: ./backend/rojgarnext
+          context: ./backend/rojgarnest
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/rojgarnext-backend:latest
-      
+          tags: ${{ secrets.DOCKER_USERNAME }}/rojgarnest-backend:latest
+
       - name: Build and push Frontend
         run: |
-          cd frontend/rojgarnext
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/rojgarnext-frontend:latest .
-          docker push ${{ secrets.DOCKER_USERNAME }}/rojgarnext-frontend:latest
+          cd frontend/rojgarnest
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/rojgarnest-frontend:latest .
+          docker push ${{ secrets.DOCKER_USERNAME }}/rojgarnest-frontend:latest
 
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Deploy to Server
         uses: appleboy/ssh-action@v0.1.5
         with:
@@ -83,7 +83,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /opt/rojgarnext
+            cd /opt/rojgarnest
             git pull
             docker-compose down
             docker-compose pull

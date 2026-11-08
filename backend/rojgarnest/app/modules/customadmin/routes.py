@@ -12,6 +12,9 @@
 # ✅ Payment Verification
 # ✅ Document Upload (Review/Final Submit)
 # ✅ Notifications to all parties
+# ✅ NEW (this build): application_number propagated through ALL
+#    review / final-submit / payment notifications, so the email header
+#    shows the human-readable YYYYMMDDSSSS number instead of the raw _id
 
 from fastapi import (
     APIRouter, Depends, HTTPException, Query, Body,
@@ -77,6 +80,54 @@ async def _get_admin_email(user: dict, db) -> str:
             if auth_user:
                 admin_email = auth_user.get("email")
     return admin_email or "customadmin@rojgarnest.com"
+
+
+def _resolve_application_number(application: dict, fallback_id: str) -> str:
+    """
+    ✅ Resolve the human-readable application number.
+
+    Priority:
+      1. application['application_number']  (YYYYMMDDSSSS)
+      2. application['application_id']      (legacy alias)
+      3. fallback_id                        (the raw _id passed in)
+    """
+    return (
+        (application or {}).get("application_number")
+        or (application or {}).get("application_id")
+        or fallback_id
+    )
+
+
+def _get_display_title(application: dict) -> tuple:
+    """
+    ✅ Build the (display_title, display_org) pair used for the email header,
+    resolved per application type so scheme / service / job emails never
+    show a blank organization.
+
+    Returns:
+        (display_title, display_org)
+    """
+    app_type = (application.get("application_type") or "job").lower()
+
+    if app_type == "schemes":
+        display_title = (
+            application.get("scheme_name")
+            or application.get("scheme_name_hindi")
+            or "Scheme Application"
+        )
+        display_org = display_title
+    elif app_type == "service":
+        display_title = (
+            application.get("sub_service_name")
+            or application.get("service_name")
+            or "Service Application"
+        )
+        display_org = display_title
+    else:
+        display_title = application.get("job_title") or "Job Application"
+        display_org = application.get("organization") or "Company"
+
+    return display_title, display_org
 
 
 # ============================================================
@@ -679,6 +730,7 @@ async def update_customadmin_application_status(
         if job.get("added_by") != admin_email:
             raise HTTPException(status_code=403, detail="Access denied")
         display_title = job.get("post_name", "Job")
+        display_org = job.get("organization", "Company")
         color_type = job.get("color_type", "blue")
     else:
         display_title = (
@@ -686,6 +738,7 @@ async def update_customadmin_application_status(
             application.get("service_name") or
             "Application"
         )
+        display_org = display_title
         color_type = application.get("color_type", "blue")
 
     old_status = application.get("status", "unknown")
@@ -693,6 +746,9 @@ async def update_customadmin_application_status(
         application.get("applicant_email") or
         application.get("user_email")
     )
+
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(application, application_id)
 
     update_data = {
         "status": status,
@@ -739,11 +795,13 @@ async def update_customadmin_application_status(
             message=status_messages.get(
                 status,
                 f"Your application status has been updated to {status} by {admin_name}."
-            ),
-            related_id=application_id,
+            ) + f"\n\n📋 Application Number: {app_number}",
+            related_id=app_number,
             metadata={
-                "application_id": application_id,
+                "application_number": app_number,
+                "application_id": app_number,
                 "job_title": display_title,
+                "organization": display_org,
                 "old_status": old_status,
                 "new_status": status,
                 "admin_notes": notes,
@@ -761,6 +819,7 @@ async def update_customadmin_application_status(
         "success": True,
         "message": f"Application status updated from {old_status} to {status}",
         "application_id": application_id,
+        "application_number": app_number,
         "status": status,
         "old_status": old_status,
         "updated_by": admin_email,
@@ -834,6 +893,10 @@ async def customadmin_review_application_status(
         )
         existing_doc_url = application.get("submitted_document_url")
 
+        # ✅ FIX: Resolve human-readable application number + display names
+        app_number = _resolve_application_number(application, application_id)
+        display_title, display_org = _get_display_title(application)
+
         update_data = {
             "status": "review_application",
             "last_status_update": datetime.utcnow(),
@@ -856,6 +919,7 @@ async def customadmin_review_application_status(
             user_title = f"📋 Application Under Review"
             user_message = (
                 f"Your application is now under REVIEW by {admin_name}.\n\n"
+                f"📋 Application Number: {app_number}\n\n"
                 "The admin is reviewing your documents. You will be notified once the review is complete."
             )
             if notes:
@@ -866,8 +930,12 @@ async def customadmin_review_application_status(
                 notification_type="application_status",
                 title=user_title,
                 message=user_message,
-                related_id=application_id,
+                related_id=app_number,
                 metadata={
+                    "application_number": app_number,
+                    "application_id": app_number,
+                    "job_title": display_title,
+                    "organization": display_org,
                     "status": "review_application",
                     "admin_notes": notes,
                     "admin_name": admin_name,
@@ -883,6 +951,7 @@ async def customadmin_review_application_status(
             "success": True,
             "message": f"Application status updated from {old_status} to review_application",
             "application_id": application_id,
+            "application_number": app_number,
             "status": "review_application",
             "old_status": old_status,
             "admin_notes": notes,
@@ -1000,10 +1069,17 @@ async def customadmin_submit_document(
         saved_url = updated_app.get("submitted_document_url") if updated_app else None
         logger.info(f"✅ VERIFIED: submitted_document_url = {saved_url}")
 
+        # ✅ FIX: Resolve human-readable application number + display names
+        app_number = _resolve_application_number(application, application_id)
+        display_title, display_org = _get_display_title(application)
+
+        logger.info(f"📋 Using application_number for emails: {app_number}")
+
         user_title = f"📄 Document Submitted"
         user_message = (
             f"Your document '{file.filename}' has been submitted successfully "
-            f"by {admin_name}."
+            f"by {admin_name}.\n\n"
+            f"📋 Application Number: {app_number}"
         )
         if notes:
             user_message += f"\n\nAdmin Notes: {notes}"
@@ -1013,8 +1089,12 @@ async def customadmin_submit_document(
             notification_type="application_status",
             title=user_title,
             message=user_message,
-            related_id=application_id,
+            related_id=app_number,
             metadata={
+                "application_number": app_number,
+                "application_id": app_number,
+                "job_title": display_title,
+                "organization": display_org,
                 "document_name": file.filename,
                 "admin_name": admin_name,
                 "admin_notes": notes,
@@ -1032,6 +1112,7 @@ async def customadmin_submit_document(
             "success": True,
             "message": "Document submitted successfully!",
             "application_id": application_id,
+            "application_number": app_number,
             "submitted_document_url": upload_result["url"],
             "submitted_document_name": file.filename,
             "admin_notes": notes,
@@ -1160,10 +1241,17 @@ async def customadmin_final_submit_with_document(
         saved_url = updated_app.get("submitted_document_url") if updated_app else None
         logger.info(f"✅ VERIFIED: submitted_document_url = {saved_url}")
 
+        # ✅ FIX: Resolve human-readable application number + display names
+        app_number = _resolve_application_number(application, application_id)
+        display_title, display_org = _get_display_title(application)
+
+        logger.info(f"📋 Using application_number for FINAL submit emails: {app_number}")
+
         user_title = f"✅ FINAL SUBMISSION"
         user_message = (
             f"Your FINAL document '{file.filename}' has been submitted successfully "
             f"by {admin_name}.\n\n"
+            f"📋 Application Number: {app_number}\n\n"
             "This is your FINAL submission. No further changes are allowed."
         )
         if notes:
@@ -1174,8 +1262,12 @@ async def customadmin_final_submit_with_document(
             notification_type="application_status",
             title=user_title,
             message=user_message,
-            related_id=application_id,
+            related_id=app_number,
             metadata={
+                "application_number": app_number,
+                "application_id": app_number,
+                "job_title": display_title,
+                "organization": display_org,
                 "document_name": file.filename,
                 "admin_name": admin_name,
                 "admin_notes": notes,
@@ -1194,6 +1286,7 @@ async def customadmin_final_submit_with_document(
             "success": True,
             "message": "FINAL application document submitted successfully!",
             "application_id": application_id,
+            "application_number": app_number,
             "status": "final_submitted",
             "old_status": old_status,
             "final_document_url": upload_result["url"],
@@ -1406,6 +1499,7 @@ async def customadmin_get_pending_payments(
 
         results.append({
             "id": str(app["_id"]),
+            "application_number": _resolve_application_number(app, str(app["_id"])),
             "type": "job",
             "user_email": app.get("applicant_email") or app.get("user_email"),
             "user_name": app.get("applicant_name") or app.get("user_name", "Unknown"),
@@ -1458,6 +1552,10 @@ async def customadmin_verify_payment(
     job_title = application.get("job_title", "Job Application")
     job_poster_email = application.get("added_by")
 
+    # ✅ FIX: Resolve human-readable application number + display names
+    app_number = _resolve_application_number(application, application_id)
+    display_title, display_org = _get_display_title(application)
+
     if action == "approve":
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
@@ -1477,7 +1575,8 @@ async def customadmin_verify_payment(
         title = f"✅ Payment Verified Successfully: {job_title}"
         message = (
             f"Your payment of ₹{amount} for '{job_title}' has been verified successfully. "
-            "Your application is now submitted."
+            f"Your application is now submitted.\n\n"
+            f"📋 Application Number: {app_number}"
         )
 
         await central_notification.send_notification(
@@ -1485,11 +1584,15 @@ async def customadmin_verify_payment(
             notification_type="application_status",
             title=title,
             message=message,
-            related_id=application_id,
+            related_id=app_number,
             metadata={
                 "status": status_msg,
                 "amount": amount,
                 "transaction_id": transaction_id,
+                "application_number": app_number,
+                "application_id": app_number,
+                "job_title": display_title,
+                "organization": display_org,
                 "show_blue_bell": True
             },
             send_email=True,
@@ -1501,6 +1604,7 @@ async def customadmin_verify_payment(
             "success": True,
             "message": "Payment approved successfully.",
             "application_id": application_id,
+            "application_number": app_number,
             "action": action,
             "notes": notes,
             "notifications_sent": True
@@ -1527,18 +1631,26 @@ async def customadmin_verify_payment(
 
         status_msg = "verification_rejected" if application_type == "job" else "rejected"
         title = f"❌ Payment Verification Failed: {job_title}"
-        message = f"Your payment of ₹{amount} for '{job_title}' has been REJECTED.\nReason: {notes}"
+        message = (
+            f"Your payment of ₹{amount} for '{job_title}' has been REJECTED.\n"
+            f"Reason: {notes}\n\n"
+            f"📋 Application Number: {app_number}"
+        )
 
         await central_notification.send_notification(
             user_ids=[user_email],
             notification_type="application_status",
             title=title,
             message=message,
-            related_id=application_id,
+            related_id=app_number,
             metadata={
                 "status": status_msg,
                 "amount": amount,
                 "rejection_reason": notes,
+                "application_number": app_number,
+                "application_id": app_number,
+                "job_title": display_title,
+                "organization": display_org,
                 "show_blue_bell": True
             },
             send_email=True,
@@ -1550,6 +1662,7 @@ async def customadmin_verify_payment(
             "success": True,
             "message": f"Payment rejected. Reason: {notes}",
             "application_id": application_id,
+            "application_number": app_number,
             "action": action,
             "notes": notes,
             "notifications_sent": True
@@ -1597,7 +1710,6 @@ async def customadmin_scheme_documents(
         db=db,
         current_user=user,
     )
-
 
 
 @router.post("/jobs/{job_id}/upload-advertisement")
@@ -1691,3 +1803,6 @@ print("   ✅ Job CRUD: Add, Get, Update, Delete, Publish")
 print("   ✅ Application Management: job + service + schemes")
 print("   ✅ Document Upload: Review, Final Submit")
 print("   ✅ Payment Verification: Approve, Reject")
+print("   ✅ NEW: application_number propagated to ALL notifications")
+print("      (review / final submit / payment / status update)")
+print("      → email header shows YYYYMMDDSSSS, not the raw _id")

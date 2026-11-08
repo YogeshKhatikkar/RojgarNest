@@ -1,90 +1,38 @@
-version: '3.9'
+# ============================================================
+# ROJGARNEST — DEVELOPMENT OVERRIDE
+# ============================================================
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+# ============================================================
 
 services:
   mongo:
-    image: mongo:7.0
-    container_name: rojgarnext_mongo
-    restart: unless-stopped
-    ports: ["27017:27017"]
-    environment:
-      MONGO_INITDB_DATABASE: rojgarnext
-    volumes:
-      - mongo_data:/data/db
-    networks: [rojgarnext_net]
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/rojgarnext --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    ports:
+      # Expose MongoDB locally for debugging (MongoDB Compass)
+      - "27017:27017"
 
   redis:
-    image: redis:7.4-alpine
-    container_name: rojgarnext_redis
-    restart: unless-stopped
-    ports: ["6379:6379"]
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
-    networks: [rojgarnext_net]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
+    ports:
+      # Expose Redis locally for debugging (redis-cli)
+      - "6379:6379"
 
   backend:
-    build:
-      context: ../backend/rojgarnext
-      dockerfile: Dockerfile.dev
-    container_name: rojgarnext_backend
-    restart: unless-stopped
-    ports: ["8000:8000"]
-    env_file:
-      - ../backend/rojgarnext/.env
     environment:
-      MONGO_URI: mongodb://mongo:27017/rojgarnext
-      REDIS_URL: redis://redis:6379
       ENVIRONMENT: development
-    volumes:
-      - ../backend/rojgarnext:/app
-      - backend_uploads:/app/uploads
-      - backend_models:/app/models
-    depends_on:
-      mongo: { condition: service_healthy }
-      redis: { condition: service_healthy }
-    networks: [rojgarnext_net]
+      MOBILE_OTP_BYPASS: "true"
+      DEV_MODE_LOG_ONLY: "false"
+      LOG_LEVEL: DEBUG
+    ports:
+      # Expose backend directly for testing (bypass frontend)
+      - "8000:8000"
+    # ✅ Dev: mount source code for live-reload (optional)
+    # volumes:
+    #   - ../backend/rojgarnest/app:/app/app:ro
 
   frontend:
     build:
-      context: ../frontend/rojgarnext
-      dockerfile: Dockerfile.dev
-    container_name: rojgarnext_frontend
-    restart: unless-stopped
-    ports: ["8080:8080"]
-    volumes:
-      - ../frontend/rojgarnext:/app
-    environment:
-      API_BASE_URL: http://localhost:8000
-    depends_on: [backend]
-    networks: [rojgarnext_net]
-
-  # Nginx optional for local testing reverse proxy
-  nginx:
-    image: nginx:1.27-alpine
-    container_name: rojgarnext_nginx
-    restart: unless-stopped
-    ports: ["80:80"]
-    volumes:
-      - ./nginx/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on: [backend, frontend]
-    networks: [rojgarnext_net]
-
-volumes:
-  mongo_data:
-  redis_data:
-  backend_uploads:
-  backend_models:
-
-networks:
-  rojgarnext_net:
-    driver: bridge
+      args:
+        API_BASE_URL: http://localhost:8000/api/v1
+        WS_BASE_URL: ws://localhost:8000/notification/ws
+    ports:
+      - "8080:80"   # Dev frontend on 8080, not 80

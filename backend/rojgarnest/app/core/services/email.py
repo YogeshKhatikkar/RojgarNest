@@ -3,8 +3,15 @@
 # 📧 UNIFIED EMAIL SERVICE WITH ADVANCED MODERN AI FORMATTING
 # Supports: SMTP (Gmail) | Brevo | SendGrid | Mailgun
 # Dynamically structures templates for Jobs, Services, and Schemes
+#
+# ✅ FIXED (2026-11):
+#    - Added get_application_number() — canonical resolver.
+#    - Added send_application_status_email() (async + sync).
+#    - build_modern_ai_notification_email() now NEVER shows Mongo _id
+#      in the "Reference ID" row if application_number exists.
 # ============================================================
 
+import re
 import smtplib
 import ssl
 import logging
@@ -17,6 +24,78 @@ from typing import Optional, List, Dict, Any
 from app.core.config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# ✅ APPLICATION NUMBER RESOLVER (canonical, single source of truth)
+# ============================================================
+_MONGO_OBJECT_ID_RE = re.compile(r"^[a-f0-9]{24}$", re.IGNORECASE)
+
+_PLACEHOLDER_STRINGS = {
+    "null", "undefined", "none", "n/a", "na", "-", "0", "false", "true",
+    "not found", "notfound", "not_found", "deleted", "removed", "empty",
+    "{}", "[]",
+}
+
+
+def _is_mongo_object_id(value: Any) -> bool:
+    """Return True if value looks like a MongoDB ObjectId (24-char hex)."""
+    if value is None:
+        return False
+    s = str(value).strip()
+    if not s:
+        return False
+    return bool(_MONGO_OBJECT_ID_RE.match(s))
+
+
+def _is_human_readable(value: Any) -> bool:
+    """Return True if value is non-empty, non-placeholder, and NOT a Mongo _id."""
+    if value is None:
+        return False
+    s = str(value).strip()
+    if not s:
+        return False
+    if s.lower() in _PLACEHOLDER_STRINGS:
+        return False
+    if _is_mongo_object_id(s):
+        return False
+    return True
+
+
+def get_application_number(app: Dict[str, Any], fallback: str = "N/A") -> str:
+    """
+    Resolve the human-readable application number from an application doc.
+
+    Priority:
+        1. app["application_number"]        (best — e.g. "20261000020")
+        2. app["application_id"]            (only if NOT a Mongo ObjectId)
+        3. app["_id"]                       (Mongo ObjectId → shortened to 8...4)
+        4. `fallback`
+    """
+    if not isinstance(app, dict):
+        return fallback
+
+    # 1) application_number
+    num = app.get("application_number")
+    if _is_human_readable(num):
+        return str(num).strip()
+
+    # 2) application_id — must not be a Mongo _id
+    app_id = app.get("application_id")
+    if _is_human_readable(app_id):
+        return str(app_id).strip()
+
+    # 3) _id — Mongo ObjectId, only if nothing else exists
+    mongo_id = app.get("_id")
+    if mongo_id is not None:
+        s = str(mongo_id).strip()
+        if s:
+            if _is_mongo_object_id(s) and len(s) > 12:
+                return f"{s[:8]}...{s[-4:]}"
+            return s
+
+    # 4) fallback
+    return fallback
 
 
 # ============================================================
@@ -476,9 +555,154 @@ async def send_email_async(
 
 
 # ============================================================
-# 🎨 MODERN AI-BASED TEMPLATE ENGINE (JOB, SERVICE, SCHEME)
+# ✅ HIGH-LEVEL APPLICATION EMAIL HELPERS (NEW)
+# ------------------------------------------------------------
+# Use these from routes instead of calling
+# build_modern_ai_notification_email() directly.
+#
+# They GUARANTEE the email always shows `application_number`,
+# never the raw Mongo `_id`.
 # ============================================================
 
+async def send_application_status_email(
+    app_doc: Dict[str, Any],
+    user_email: str,
+    user_name: str,
+    app_type: str,
+    title: str,
+    organization: str,
+    status: str,
+    details: Optional[Dict[str, Any]] = None,
+    action_url: Optional[str] = None,
+) -> bool:
+    """
+    Send an application status email (async).
+
+    ✅ Guarantees the email body shows `application_number`,
+       never the raw Mongo `_id`.
+    """
+    if not user_email:
+        logger.warning("send_application_status_email: empty user_email, skipping")
+        return False
+
+    reference_id = get_application_number(app_doc)
+
+    merged_details: Dict[str, Any] = {}
+    if details:
+        merged_details.update(details)
+
+    # Ensure "Application Number" row exists exactly once
+    has_app_number_key = any(
+        str(k).lower().replace("_", " ").strip() == "application number"
+        for k in merged_details.keys()
+    )
+    if not has_app_number_key:
+        merged_details["Application Number"] = reference_id
+
+    html_body = build_modern_ai_notification_email(
+        app_type=app_type,
+        title=title,
+        organization_or_dept=organization,
+        user_name=user_name or "Applicant",
+        status=status,
+        reference_id=reference_id,
+        details=merged_details,
+        action_url=action_url,
+    )
+
+    subject = f"RojgarNest | {status} | {title} | #{reference_id}"
+
+    text_body = (
+        f"Hello {user_name or 'Applicant'},\n\n"
+        f"Your {app_type} application '{title}' has been updated.\n"
+        f"Status: {status}\n"
+        f"Application Number: {reference_id}\n"
+        f"Organization: {organization}\n\n"
+        f"Track your status on https://www.rojgarnest.com\n"
+    )
+
+    logger.info(
+        f"📧 Sending application email → {user_email} | "
+        f"type={app_type} | ref={reference_id} | status={status}"
+    )
+
+    return await get_email_service().send_email(
+        to_email=user_email,
+        subject=subject,
+        html_body=html_body,
+        text_body=text_body,
+    )
+
+
+def send_application_status_email_sync(
+    app_doc: Dict[str, Any],
+    user_email: str,
+    user_name: str,
+    app_type: str,
+    title: str,
+    organization: str,
+    status: str,
+    details: Optional[Dict[str, Any]] = None,
+    action_url: Optional[str] = None,
+) -> bool:
+    """Sync variant of send_application_status_email()."""
+    if not user_email:
+        logger.warning(
+            "send_application_status_email_sync: empty user_email, skipping"
+        )
+        return False
+
+    reference_id = get_application_number(app_doc)
+
+    merged_details: Dict[str, Any] = {}
+    if details:
+        merged_details.update(details)
+
+    has_app_number_key = any(
+        str(k).lower().replace("_", " ").strip() == "application number"
+        for k in merged_details.keys()
+    )
+    if not has_app_number_key:
+        merged_details["Application Number"] = reference_id
+
+    html_body = build_modern_ai_notification_email(
+        app_type=app_type,
+        title=title,
+        organization_or_dept=organization,
+        user_name=user_name or "Applicant",
+        status=status,
+        reference_id=reference_id,
+        details=merged_details,
+        action_url=action_url,
+    )
+
+    subject = f"RojgarNest | {status} | {title} | #{reference_id}"
+
+    text_body = (
+        f"Hello {user_name or 'Applicant'},\n\n"
+        f"Your {app_type} application '{title}' has been updated.\n"
+        f"Status: {status}\n"
+        f"Application Number: {reference_id}\n"
+        f"Organization: {organization}\n\n"
+        f"Track your status on https://www.rojgarnest.com\n"
+    )
+
+    logger.info(
+        f"📧 [sync] Sending application email → {user_email} | "
+        f"type={app_type} | ref={reference_id} | status={status}"
+    )
+
+    return get_email_service().send_email_sync(
+        to_email=user_email,
+        subject=subject,
+        html_body=html_body,
+        text_body=text_body,
+    )
+
+
+# ============================================================
+# 🎨 OTP TEMPLATE
+# ============================================================
 def _build_otp_email_html(otp: str, purpose: str = "verification") -> str:
     return f"""<!DOCTYPE html>
 <html>
@@ -505,6 +729,9 @@ def _build_otp_email_html(otp: str, purpose: str = "verification") -> str:
 </body></html>"""
 
 
+# ============================================================
+# 🎨 MODERN AI-BASED TEMPLATE ENGINE (JOB, SERVICE, SCHEME)
+# ============================================================
 def build_modern_ai_notification_email(
     app_type: str,  # 'job', 'service', or 'scheme'
     title: str,
@@ -517,20 +744,27 @@ def build_modern_ai_notification_email(
 ) -> str:
     """
     Generates an advanced, ultra-modern AI formatted notification email
-    specifically separated and custom-styled by application type: Job, Service, or Scheme.
-    
-    ✅ DIFFERENT THEMES FOR EACH TYPE:
-       - job: Blue gradient (professional, career-focused)
-       - service: Emerald/Green gradient (government services)
-       - scheme: Amber/Gold gradient (government schemes)
-    
-    ✅ RICH DETAILS TABLE
-    ✅ GLASSMORPHISM DESIGN
-    ✅ RESPONSIVE CSS
-    ✅ ACTION BUTTON
+    specifically separated and custom-styled by application type.
+
+    ✅ reference_id MUST be a human-readable application number.
+       If a caller accidentally passes a Mongo ObjectId, we shorten it
+       (or use "N/A") so the email NEVER shows a raw 24-char ObjectId.
     """
     app_type_clean = app_type.lower().strip()
-    
+
+    # ✅ SAFETY: never show a raw Mongo ObjectId as reference_id
+    if reference_id is None:
+        safe_reference = "N/A"
+    else:
+        safe_str = str(reference_id).strip()
+        if not safe_str or safe_str.lower() in _PLACEHOLDER_STRINGS:
+            safe_reference = "N/A"
+        elif _is_mongo_object_id(safe_str) and len(safe_str) > 12:
+            # Shorten accidental Mongo ObjectId pass-through
+            safe_reference = f"{safe_str[:8]}...{safe_str[-4:]}"
+        else:
+            safe_reference = safe_str
+
     # ============================================================
     # THEME CONFIGURATION BASED ON APPLICATION TYPE
     # ============================================================
@@ -579,7 +813,7 @@ def build_modern_ai_notification_email(
         for k, v in details.items():
             if v is None or str(v).strip() == "":
                 continue
-            formatted_key = k.replace("_", " ").title()
+            formatted_key = str(k).replace("_", " ").title()
             details_html += f"""
             <tr>
                 <td style="padding: 12px 16px; color: #64748b; font-size: 14px; border-bottom: 1px solid #f1f5f9; width: 38%; font-weight: 600;">
@@ -851,10 +1085,10 @@ def build_modern_ai_notification_email(
           <table class="info-table" cellpadding="0" cellspacing="0" role="presentation">
             <tr>
               <td style="padding: 12px 16px; color: #64748b; font-size: 14px; border-bottom: 1px solid #f1f5f9; width: 38%; font-weight: 600;">
-                Reference ID
+                Application Number
               </td>
               <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
-                <span class="ref-id">{reference_id}</span>
+                <span class="ref-id">{safe_reference}</span>
               </td>
             </tr>
             <tr>
@@ -920,4 +1154,5 @@ print("✅ Modern Advanced AI Email Notification Service Loaded Successfully")
 print("   - Formatted for: Jobs, Services, and Schemes")
 print("   - Glassmorphism & Responsive CSS applied")
 print("   - build_modern_ai_notification_email() ready for use")
+print("   - send_application_status_email() / _sync() ready for routes")
 print("=" * 70)

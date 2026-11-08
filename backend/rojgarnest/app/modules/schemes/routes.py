@@ -7,6 +7,12 @@ Government Schemes API Routes
 ✅ FIXED: Documents stored in scheme_documents[]
 ✅ FIXED: /documents endpoint accepts BOTH _id AND application_id
 ✅ FIXED: /documents reads from BOTH documents[] AND scheme_documents[]
+✅ NEW (this build): application_number propagated through ALL
+   status / review / final-submit notifications, so the email header
+   shows the human-readable YYYYMMDDSSSS number instead of the raw _id
+✅ NEW (this build): application_type="schemes" added to every
+   notification metadata so the gold scheme-themed email template
+   is used (instead of the default blue job template)
 """
 
 import re
@@ -65,6 +71,36 @@ def _safe_doc_type(doc_type: str) -> str:
 def _is_admin_role(role: str) -> bool:
     return (role or "").strip().lower() in (
         "admin", "customadmin", "custom_admin", "superadmin"
+    )
+
+
+def _resolve_application_number(application: dict, fallback_id: str) -> str:
+    """
+    ✅ Resolve the human-readable application number.
+
+    Priority:
+      1. application['application_number']  (YYYYMMDDSSSS)
+      2. application['application_id']      (legacy alias)
+      3. fallback_id                        (the raw _id passed in)
+    """
+    return (
+        (application or {}).get("application_number")
+        or (application or {}).get("application_id")
+        or fallback_id
+    )
+
+
+def _scheme_display_name(application: dict) -> str:
+    """
+    ✅ Build the human-readable scheme name used for the email header.
+
+    Priority:
+      scheme_name → scheme_name_hindi → "Scheme Application"
+    """
+    return (
+        (application or {}).get("scheme_name")
+        or (application or {}).get("scheme_name_hindi")
+        or "Scheme Application"
     )
 
 
@@ -327,7 +363,8 @@ async def get_scheme_documents(
 
     actual_id = str(app_rec["_id"])
     stored_app_id = app_rec.get("application_id", "")
-    logger.info(f"✅ Found scheme application: _id={actual_id}, application_id={stored_app_id}")
+    app_number = _resolve_application_number(app_rec, actual_id)
+    logger.info(f"✅ Found scheme application: _id={actual_id}, application_number={app_number}")
 
     normalized_user_docs: List[Dict[str, Any]] = []
     seen_urls: set = set()
@@ -432,7 +469,7 @@ async def get_scheme_documents(
     return {
         "success": True,
         "application_id": actual_id,
-        "application_number": stored_app_id,
+        "application_number": app_number,
         "scheme_documents": normalized_user_docs,
         "admin_documents": admin_docs,
         "total": len(normalized_user_docs) + len(admin_docs),
@@ -569,7 +606,7 @@ async def upload_temp_document(
 
 
 # ============================================================
-# ✅ NEW: STATUS UPDATE (used by frontend customadmin screen)
+# ✅ STATUS UPDATE (used by frontend customadmin screen)
 # PUT /api/v1/schemes/application/{id}/status
 # Accepts query params: status, notes
 # OR body: {status, admin_notes, notes}
@@ -601,6 +638,9 @@ async def update_scheme_application_status(
     old_status = application.get("status", "unknown")
     admin_email = current_user.get("email") or "admin"
 
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(application, actual_id)
+
     update_data: Dict[str, Any] = {
         "status": status,
         "last_status_update": datetime.utcnow(),
@@ -615,27 +655,33 @@ async def update_scheme_application_status(
         {"$set": update_data}
     )
 
-    logger.info(f"✅ Scheme application {actual_id}: {old_status} → {status}")
+    logger.info(
+        f"✅ Scheme application {app_number}: {old_status} → {status}"
+    )
 
     # Notify applicant
     applicant_email = application.get("applicant_email") or application.get("user_email")
     if applicant_email:
         try:
             from app.modules.notification.service import central_notification
-            scheme_name = (
-                application.get("scheme_name")
-                or application.get("scheme_name_hindi")
-                or "Scheme Application"
-            )
+            scheme_name = _scheme_display_name(application)
+
             await central_notification.send_notification(
                 user_ids=[applicant_email],
                 notification_type="application_status",
                 title=f"📋 Application Status: {status.upper()}",
-                message=f"Your scheme application for '{scheme_name}' is now {status.upper()}.",
-                related_id=actual_id,
+                message=(
+                    f"Your scheme application for '{scheme_name}' is now "
+                    f"{status.upper()}.\n\n"
+                    f"📋 Application Number: {app_number}"
+                ),
+                related_id=app_number,
                 metadata={
-                    "application_id": actual_id,
+                    "application_type": "schemes",
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "scheme_name": scheme_name,
+                    "scheme_id": application.get("scheme_id"),
                     "old_status": old_status,
                     "new_status": status,
                     "admin_notes": notes,
@@ -651,13 +697,14 @@ async def update_scheme_application_status(
         "success": True,
         "message": f"Status updated from {old_status} to {status}",
         "application_id": actual_id,
+        "application_number": app_number,
         "status": status,
         "old_status": old_status,
     }
 
 
 # ============================================================
-# ✅ NEW: REVIEW WITH DOCUMENT
+# ✅ REVIEW WITH DOCUMENT
 # POST /api/v1/schemes/application/{id}/review-with-document
 # ============================================================
 @router.post("/application/{application_id}/review-with-document")
@@ -735,21 +782,36 @@ async def scheme_review_with_document(
 
     await db.applications.update_one({"_id": application["_id"]}, {"$set": update_data})
 
-    logger.info(f"✅ Status: {old_status} → review_application")
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(application, actual_id)
+    scheme_name = _scheme_display_name(application)
+
+    logger.info(
+        f"✅ Status: {old_status} → review_application "
+        f"(app_number={app_number})"
+    )
 
     if applicant_email:
         try:
             from app.modules.notification.service import central_notification
-            scheme_name = application.get("scheme_name") or application.get("scheme_name_hindi") or "Scheme"
             await central_notification.send_notification(
                 user_ids=[applicant_email],
                 notification_type="application_status",
                 title=f"📋 Application Under Review: {scheme_name}",
-                message=f"Your scheme application for '{scheme_name}' is now under REVIEW.",
-                related_id=actual_id,
+                message=(
+                    f"Your scheme application for '{scheme_name}' is now "
+                    f"under REVIEW.\n\n"
+                    f"📋 Application Number: {app_number}\n\n"
+                    "The admin is reviewing your documents. "
+                    "You will be notified once the review is complete."
+                ),
+                related_id=app_number,
                 metadata={
-                    "application_id": actual_id,
+                    "application_type": "schemes",
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "scheme_name": scheme_name,
+                    "scheme_id": application.get("scheme_id"),
                     "status": "review_application",
                     "document_name": file.filename,
                     "admin_notes": notes,
@@ -766,6 +828,7 @@ async def scheme_review_with_document(
         "success": True,
         "message": "Review document submitted successfully",
         "application_id": actual_id,
+        "application_number": app_number,
         "status": "review_application",
         "old_status": old_status,
         "submitted_document_url": upload_result["url"],
@@ -775,7 +838,7 @@ async def scheme_review_with_document(
 
 
 # ============================================================
-# ✅ NEW: FINAL SUBMIT WITH DOCUMENT
+# ✅ FINAL SUBMIT WITH DOCUMENT
 # POST /api/v1/schemes/application/{id}/final-submit-with-document
 # ============================================================
 @router.post("/application/{application_id}/final-submit-with-document")
@@ -869,21 +932,36 @@ async def scheme_final_submit_with_document(
 
     await db.applications.update_one({"_id": application["_id"]}, {"$set": update_data})
 
-    logger.info(f"✅ Status: {old_status} → final_submitted")
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(application, actual_id)
+    scheme_name = _scheme_display_name(application)
+
+    logger.info(
+        f"✅ Status: {old_status} → final_submitted "
+        f"(app_number={app_number})"
+    )
 
     if applicant_email:
         try:
             from app.modules.notification.service import central_notification
-            scheme_name = application.get("scheme_name") or application.get("scheme_name_hindi") or "Scheme"
             await central_notification.send_notification(
                 user_ids=[applicant_email],
                 notification_type="application_status",
                 title=f"✅ FINAL SUBMISSION: {scheme_name}",
-                message=f"Your FINAL document for '{scheme_name}' has been submitted successfully.",
-                related_id=actual_id,
+                message=(
+                    f"Your FINAL document for '{scheme_name}' has been "
+                    f"submitted successfully.\n\n"
+                    f"📋 Application Number: {app_number}\n\n"
+                    "This is your FINAL submission. "
+                    "No further changes are allowed."
+                ),
+                related_id=app_number,
                 metadata={
-                    "application_id": actual_id,
+                    "application_type": "schemes",
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "scheme_name": scheme_name,
+                    "scheme_id": application.get("scheme_id"),
                     "status": "final_submitted",
                     "document_name": file.filename,
                     "admin_notes": notes,
@@ -901,6 +979,7 @@ async def scheme_final_submit_with_document(
         "success": True,
         "message": "FINAL document submitted successfully!",
         "application_id": actual_id,
+        "application_number": app_number,
         "status": "final_submitted",
         "old_status": old_status,
         "final_document_url": upload_result["url"],
@@ -1045,6 +1124,11 @@ print("   ✅ /application/{id}/status (query + body)")
 print("   ✅ /application/{id}/documents")
 print("   ✅ /application/{id}/upload-document")
 print("   ✅ /admin/application/{id}/status")
+print("   ✅ NEW: application_number propagated to ALL notifications")
+print("      (status update / review / final submit)")
+print("      → email header shows YYYYMMDDSSSS, not the raw _id")
+print("   ✅ NEW: application_type='schemes' added to notification metadata")
+print("      → gold scheme-themed email template always used")
 print("=" * 70)
 for r in router.routes:
     methods = ",".join(r.methods) if hasattr(r, "methods") else "?"

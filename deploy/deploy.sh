@@ -1,143 +1,162 @@
 #!/usr/bin/env bash
 # ============================================================
-# ONE-CLICK VPS DEPLOY SCRIPT
-# Works on: Ubuntu 20.04/22.04/24.04, Debian 11/12
+# ROJGARNEST — DEPLOYMENT HELPER
 # ============================================================
 set -euo pipefail
 
-BLUE='\033[0;34m'
+cd "$(dirname "$0")"
+
+# Colors
 GREEN='\033[0;32m'
-RED='\033[0;31m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
-log() { echo -e "${BLUE}[$(date +'%H:%M:%S')]${NC} $*"; }
-ok()  { echo -e "${GREEN}✅ $*${NC}"; }
-fail(){ echo -e "${RED}❌ $*${NC}"; exit 1; }
-warn(){ echo -e "${YELLOW}⚠️  $*${NC}"; }
+# ============================================================
+# HELPERS
+# ============================================================
+log()      { echo -e "${CYAN}[deploy]${NC} $*"; }
+success()  { echo -e "${GREEN}[ok]${NC} $*"; }
+warn()     { echo -e "${YELLOW}[warn]${NC} $*"; }
+error()    { echo -e "${RED}[error]${NC} $*" >&2; exit 1; }
 
-APP_DIR="${APP_DIR:-/opt/rojgarnext}"
-REPO_URL="${REPO_URL:-}"
-BRANCH="${BRANCH:-main}"
-DOMAIN="${DOMAIN:-www.rojgarnest.com}"
-EMAIL="${EMAIL:-admin@rojgarnest.com}"
+# ============================================================
+# COMMANDS
+# ============================================================
+cmd_dev_up() {
+    log "Starting DEVELOPMENT stack..."
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.dev.yml \
+        --env-file .env.dev \
+        up --build -d
+    success "Development stack up. Frontend: http://localhost:8080 | Backend: http://localhost:8000"
+}
 
-# 1. Check requirements
-if [ "$EUID" -eq 0 ]; then
-  fail "Do NOT run this script as root. Use a regular sudo user."
-fi
+cmd_dev_down() {
+    log "Stopping DEVELOPMENT stack..."
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.dev.yml \
+        --env-file .env.dev \
+        down
+    success "Development stack down"
+}
 
-# 2. Install Docker
-if ! command -v docker &>/dev/null; then
-  log "Installing Docker..."
-  curl -fsSL https://get.docker.com | sh
-  sudo usermod -aG docker "$USER"
-  ok "Docker installed. You may need to log out and back in."
-fi
+cmd_dev_logs() {
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.dev.yml \
+        --env-file .env.dev \
+        logs -f
+}
 
-if ! docker compose version &>/dev/null; then
-  log "Installing Docker Compose plugin..."
-  sudo apt-get update
-  sudo apt-get install -y docker-compose-plugin
-  ok "Docker Compose installed"
-fi
+cmd_prod_up() {
+    log "Starting PRODUCTION stack..."
+    [ -f .env.prod ] || error ".env.prod not found — copy .env.prod.example"
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.prod.yml \
+        --env-file .env.prod \
+        up --build -d
+    success "Production stack up. Frontend: http://localhost | Backend: internal"
+}
 
-# 3. Clone or pull repo
-if [ ! -d "$APP_DIR" ]; then
-  if [ -z "$REPO_URL" ]; then
-    fail "APP_DIR does not exist and REPO_URL not set. Set REPO_URL=https://github.com/your/repo.git"
-  fi
-  log "Cloning repo to $APP_DIR..."
-  sudo mkdir -p "$APP_DIR"
-  sudo chown "$USER:$USER" "$APP_DIR"
-  git clone --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
-else
-  log "Pulling latest changes..."
-  cd "$APP_DIR"
-  git fetch origin
-  git reset --hard "origin/$BRANCH"
-fi
+cmd_prod_down() {
+    log "Stopping PRODUCTION stack..."
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.prod.yml \
+        --env-file .env.prod \
+        down
+    success "Production stack down"
+}
 
-cd "$APP_DIR"
+cmd_prod_logs() {
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.prod.yml \
+        --env-file .env.prod \
+        logs -f
+}
 
-# 4. Check .env
-ENV_FILE="$APP_DIR/backend/rojgarnext/.env"
-if [ ! -f "$ENV_FILE" ]; then
-  warn ".env not found. Copying from .env.example..."
-  if [ -f "$APP_DIR/backend/rojgarnext/.env.example" ]; then
-    cp "$APP_DIR/backend/rojgarnext/.env.example" "$ENV_FILE"
-    warn "⚠️  EDIT $ENV_FILE with real values before continuing!"
-    exit 0
-  else
-    fail ".env and .env.example both missing. Cannot continue."
-  fi
-fi
+cmd_backup_db() {
+    log "Backing up MongoDB..."
+    local ts=$(date +%Y%m%d_%H%M%S)
+    local out="backups/mongo_${ts}.gz"
+    mkdir -p backups
+    docker compose exec -T mongo mongodump --archive --gzip > "$out"
+    success "Backup saved: $out"
+}
 
-# 5. Create required directories
-mkdir -p backend/rojgarnext/{uploads,secure,models,logs,backups}
+cmd_restore_db() {
+    local file="${1:-}"
+    [ -n "$file" ] || error "Usage: ./deploy.sh restore-db <backup.gz>"
+    [ -f "$file" ] || error "File not found: $file"
+    log "Restoring MongoDB from $file..."
+    docker compose exec -T mongo mongorestore --archive --gzip < "$file"
+    success "Restore complete"
+}
 
-# 6. SSL certificates
-if [ ! -d "deploy/certbot/conf/live/$DOMAIN" ]; then
-  log "Setting up SSL certificates for $DOMAIN..."
-  mkdir -p deploy/certbot/conf deploy/certbot/www
+cmd_seed() {
+    log "Seeding schemes..."
+    docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.dev.yml \
+        --env-file .env.dev \
+        exec backend python seed_schemes.py
+    success "Seeding complete"
+}
 
-  docker run -d --name temp-nginx \
-    -p 80:80 \
-    -v "$(pwd)/deploy/certbot/www:/var/www/certbot:ro" \
-    nginx:alpine || true
-  sleep 3
+cmd_status() {
+    docker compose ps
+}
 
-  docker run --rm \
-    -v "$(pwd)/deploy/certbot/conf:/etc/letsencrypt" \
-    -v "$(pwd)/deploy/certbot/www:/var/www/certbot" \
-    certbot/certbot certonly --webroot \
-    -w /var/www/certbot \
-    --email "$EMAIL" \
-    --agree-tos --no-eff-email \
-    -d "$DOMAIN" -d "${DOMAIN#www.}" || warn "Certbot failed — continuing without SSL"
+cmd_health() {
+    log "Checking health..."
+    curl -fsS http://localhost:8000/api/v1/health && echo
+    curl -fsS http://localhost:8080/healthz && echo
+    success "All healthy"
+}
 
-  docker stop temp-nginx 2>/dev/null || true
-  docker rm temp-nginx 2>/dev/null || true
-fi
+# ============================================================
+# ROUTER
+# ============================================================
+case "${1:-help}" in
+    dev-up)      cmd_dev_up ;;
+    dev-down)    cmd_dev_down ;;
+    dev-logs)    cmd_dev_logs ;;
+    prod-up)     cmd_prod_up ;;
+    prod-down)   cmd_prod_down ;;
+    prod-logs)   cmd_prod_logs ;;
+    backup-db)   cmd_backup_db ;;
+    restore-db)  shift; cmd_restore_db "${1:-}" ;;
+    seed)        cmd_seed ;;
+    status)      cmd_status ;;
+    health)      cmd_health ;;
+    *)
+        cat <<EOF
+Usage: ./deploy.sh <command>
 
-# 7. Build & deploy
-log "Building Docker images (5-10 min)..."
-cd deploy
+DEV:
+  dev-up       Start development stack
+  dev-down     Stop development stack
+  dev-logs     Follow development logs
 
-export GITHUB_REPOSITORY_OWNER="${GITHUB_REPOSITORY_OWNER:-your-org}"
-export IMAGE_TAG="${IMAGE_TAG:-latest}"
+PROD:
+  prod-up      Start production stack
+  prod-down    Stop production stack
+  prod-logs    Follow production logs
 
-docker compose -f docker-compose.prod.yml build --parallel
+DB:
+  seed         Seed schemes into MongoDB
+  backup-db    Backup MongoDB to deploy/backups/
+  restore-db   Restore MongoDB from backup file
 
-log "Starting services..."
-docker compose -f docker-compose.prod.yml up -d --remove-orphans
-
-# 8. Health check
-log "Waiting for services to become healthy..."
-for i in $(seq 1 60); do
-  if curl -sf http://localhost/api/v1/health >/dev/null 2>&1; then
-    ok "Backend healthy after ${i}s"
-    break
-  fi
-  if [ "$i" -eq 60 ]; then
-    fail "Health check failed after 120s. Check: docker compose logs backend"
-  fi
-  sleep 2
-done
-
-# 9. Cleanup
-docker image prune -f >/dev/null 2>&1 || true
-docker builder prune -f --filter "until=72h" >/dev/null 2>&1 || true
-
-# 10. Summary
-echo ""
-echo "============================================================"
-ok "🎉 DEPLOYMENT SUCCESSFUL"
-echo "============================================================"
-echo "   🌐 Web App:     https://$DOMAIN"
-echo "   📚 API Docs:    https://$DOMAIN/docs"
-echo ""
-echo "   Logs:   cd $APP_DIR/deploy && docker compose -f docker-compose.prod.yml logs -f"
-echo "   Stop:   cd $APP_DIR/deploy && docker compose -f docker-compose.prod.yml down"
-echo "   Status: cd $APP_DIR/deploy && docker compose -f docker-compose.prod.yml ps"
-echo "============================================================"
+UTIL:
+  status       Show container status
+  health       Check endpoints
+EOF
+        ;;
+esac

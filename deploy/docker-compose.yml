@@ -1,0 +1,131 @@
+# ============================================================
+# ROJGARNEST — DOCKER COMPOSE (BASE)
+# ============================================================
+# Usage:
+#   Dev:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#   Prod: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+# ============================================================
+
+services:
+  # ==========================================================
+  # MONGODB
+  # ==========================================================
+  mongo:
+    image: mongo:7
+    container_name: rojgarnest-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: RojgarNest
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - rojgarnest-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ==========================================================
+  # REDIS
+  # ==========================================================
+  redis:
+    image: redis:7-alpine
+    container_name: rojgarnest-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - rojgarnest-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ==========================================================
+  # BACKEND (FastAPI)
+  # ==========================================================
+  backend:
+    build:
+      context: ../backend/rojgarnest
+      dockerfile: Dockerfile
+    container_name: rojgarnest-backend
+    restart: unless-stopped
+    environment:
+      # ✅ Override .env localhost values with Docker service names
+      MONGO_URI: mongodb://mongo:27017/RojgarNest
+      DATABASE_NAME: RojgarNest
+      REDIS_URL: redis://redis:6379
+      PORT: "8000"
+      # ENVIRONMENT overridden by docker-compose.dev.yml or .prod.yml
+    env_file:
+      - ../backend/rojgarnest/.env
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_secure:/app/secure
+      - backend_models:/app/models
+      - backend_logs:/app/logs
+      - backend_backups:/app/backups
+    networks:
+      - rojgarnest-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+
+  # ==========================================================
+  # FRONTEND (Flutter Web + Nginx)
+  # ==========================================================
+  frontend:
+    build:
+      context: ../frontend/rojgarnest
+      dockerfile: Dockerfile
+      args:
+        # Overridden by .dev.yml or .prod.yml
+        API_BASE_URL: http://localhost:8000/api/v1
+        WS_BASE_URL: ws://localhost:8000/notification/ws
+    container_name: rojgarnest-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    networks:
+      - rojgarnest-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+# ============================================================
+# NETWORKS
+# ============================================================
+networks:
+  rojgarnest-net:
+    driver: bridge
+
+# ============================================================
+# VOLUMES
+# ============================================================
+volumes:
+  mongo_data:
+  redis_data:
+  backend_uploads:
+  backend_secure:
+  backend_models:
+  backend_logs:
+  backend_backups:

@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BACKUP_DIR="/opt/rojgarnext/backups"
+BACKUP_DIR="/opt/rojgarnest/backups"
 TS=$(date +%Y%m%d_%H%M%S)
 mkdir -p "$BACKUP_DIR"
 
 # Mongo
-docker exec rojgarnext_mongo mongodump --db=rojgarnext --archive --gzip > \
+docker exec rojgarnest_mongo mongodump --db=RojgarNest --archive --gzip > \
   "$BACKUP_DIR/mongo_${TS}.archive.gz" 2>/dev/null || true
 
 # Redis
-docker exec rojgarnext_redis redis-cli SAVE >/dev/null 2>&1 || true
-docker cp rojgarnext_redis:/data/dump.rdb \
+docker exec rojgarnest_redis redis-cli SAVE >/dev/null 2>&1 || true
+docker cp rojgarnest_redis:/data/dump.rdb \
   "$BACKUP_DIR/redis_${TS}.rdb" 2>/dev/null || true
 
 # Retention 7 days

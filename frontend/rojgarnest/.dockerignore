@@ -1,0 +1,65 @@
+# ============================================================
+# ROJGARNEST FRONTEND — DOCKERIGNORE
+# ============================================================
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Flutter / Dart build artifacts
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Platform folders (not needed for web)
+android/
+ios/
+linux/
+macos/
+windows/
+
+# Test / coverage
+coverage/
+test/
+integration_test/
+
+# Scripts
+fix_wakelock.ps1
+*.sh
+*.bat
+
+# Logs
+*.log
+logs/
+
+# Environment files (secrets)
+.env
+.env.*
+!.env.example
+
+# Docs
+README.md
+CHANGELOG.md
+LICENSE
+docs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

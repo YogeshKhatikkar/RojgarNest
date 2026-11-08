@@ -9,7 +9,7 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-echo "🚀 Setting up RojgarNext server..."
+echo "🚀 Setting up RojgarNest server..."
 
 # 1. System update
 apt-get update && apt-get upgrade -y
@@ -49,8 +49,8 @@ if [ ! -f /swapfile ]; then
 fi
 
 # 9. App dir
-mkdir -p /opt/rojgarnext
-chown -R "${SUDO_USER:-root}:${SUDO_USER:-root}" /opt/rojgarnext
+mkdir -p /opt/rojgarnest
+chown -R "${SUDO_USER:-root}:${SUDO_USER:-root}" /opt/rojgarnest
 
 # 10. Docker log rotation
 cat > /etc/docker/daemon.json <<EOF
@@ -65,8 +65,8 @@ systemctl restart docker
 echo ""
 echo "✅ Server ready!"
 echo "   Next:"
-echo "   1. cd /opt/rojgarnext && git clone <repo> ."
+echo "   1. cd /opt/rojgarnest && git clone <repo> ."
 echo "   2. cd deploy"
-echo "   3. cp ../backend/rojgarnext/.env.example ../backend/rojgarnext/.env"
-echo "   4. nano ../backend/rojgarnext/.env"
+echo "   3. cp ../backend/rojgarnest/.env.example ../backend/rojgarnest/.env"
+echo "   4. nano ../backend/rojgarnest/.env"
 echo "   5. ./scripts/deploy-server.sh production"

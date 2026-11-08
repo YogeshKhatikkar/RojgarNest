@@ -1,7 +1,7 @@
 ================================================================================
 ROJARGAR NEXT BACKEND - COMPLETE CODE EXPORT (SANITIZED)
 ================================================================================
-Generated: 2026-11-05 19:54:37
+Generated: 2026-11-08 12:12:23
 Source: E:\YOGESH\website\RojgarNest\backend\rojgarnest
 Total Files: 171
   - Python Files: 167
@@ -249,29 +249,61 @@ Total Files: 171
 
 ================================================================================
 [   1/ 171] 📄 TEXT FILE: .dockerignore
-📏 SIZE: 95 bytes
-🕐 MODIFIED: 2026-07-10 20:23:54
+📏 SIZE: 553 bytes
+🕐 MODIFIED: 2026-11-06 11:55:11
 
 ================================================================================
 
+# ============================================================
+# BACKEND .dockerignore
+# ============================================================
 .env
+.env.*
+!.env.example
 __pycache__
 *.pyc
 *.pyo
+*.pyd
+.Python
+*.so
 .git
+.gitignore
 .venv
+venv
+env
+ENV
 uploads/
 secure/
-models/
+models/*.pkl
+models/*.joblib
+logs/
+backups/
 *.log
 *.db
 *.sqlite
+*.sqlite3
+.pytest_cache
+.coverage
+htmlcov/
+.mypy_cache
+.ruff_cache
+dist/
+build/
+*.egg-info/
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+tests/
+docs/
+README.md
+service-account-key.json
 
 
 ================================================================================
 [   2/ 171] 🔐 ENV FILE (SANITIZED - Dummy Values Only): .env
-📏 SIZE: 23,636 bytes
-🕐 MODIFIED: 2026-10-12 22:33:47
+📏 SIZE: 23,638 bytes
+🕐 MODIFIED: 2026-11-07 19:17:04
 
 ⚠️  NOTE: This .env file has been sanitized. All original values replaced with dummy placeholders.
 
@@ -673,67 +705,99 @@ LOG_LEVEL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
 TWILIO_LOG_LEVEL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
 
 
+
 ================================================================================
 [   3/ 171] 📄 TEXT FILE: Dockerfile
-📏 SIZE: 1,601 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 2,534 bytes
+🕐 MODIFIED: 2026-11-07 16:07:28
 
 ================================================================================
 
 # ============================================================
-# STAGE 1: Builder
+# ROJGARNEST BACKEND DOCKERFILE — PRODUCTION READY
+# Multi-stage build, non-root user, works for dev + prod
 # ============================================================
+
+# ------------------------------------------------------------
+# STAGE 1: Builder
+# ------------------------------------------------------------
 FROM python:3.12-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
+# Build dependencies (needed to compile some packages)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ libpq-dev curl \
+    gcc \
+    g++ \
+    build-essential \
+    libffi-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Virtual environment inside image
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
+# Install Python dependencies first (better layer caching)
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 
-# ============================================================
+# ------------------------------------------------------------
 # STAGE 2: Runtime
-# ============================================================
+# ------------------------------------------------------------
 FROM python:3.12-slim AS runtime
 
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=utf-8 \
+    PYTHONUTF8=1 \
+    PATH="/opt/venv/bin:$PATH"
+
+# Non-root user
+RUN groupadd -r appuser && useradd -r -g appuser -m appuser
+
+# Runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
+# Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
 
+# Copy application code
 COPY --chown=appuser:appuser . .
 
-RUN mkdir -p uploads secure models logs && \
-    chown -R appuser:appuser uploads secure models logs
+# Create writable directories
+RUN mkdir -p uploads secure models logs backups && \
+    chown -R appuser:appuser /app
 
 USER appuser
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/api/v1/health || exit 1
-
 EXPOSE 8000
 
-CMD ["gunicorn", "app.main:app", \
-     "--workers", "4", \
-     "--worker-class", "uvicorn.workers.UvicornWorker", \
-     "--bind", "0.0.0.0:8000", \
-     "--timeout", "120", \
-     "--keep-alive", "5", \
-     "--access-logfile", "-", \
-     "--error-logfile", "-"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5 \
+    CMD curl -fsS http://localhost:8000/api/v1/health || exit 1
+
+# ✅ FIXED: Single-worker uvicorn (prevents scheduler duplication)
+# ✅ Uses --proxy-headers for correct IP detection behind Nginx
+CMD ["uvicorn", "app.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "1", \
+     "--proxy-headers", \
+     "--forwarded-allow-ips", "*", \
+     "--timeout-keep-alive", "5", \
+     "--access-log"]
 
 
 ================================================================================
@@ -6718,163 +6782,288 @@ __all__ = [
 
 ================================================================================
 [  35/ 171] 🐍 PYTHON FILE: app\core\security\encryption.py
-📏 SIZE: 5,110 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 10,696 bytes
+🕐 MODIFIED: 2026-11-07 18:39:21
 
 ================================================================================
 
 # app/core/encryption.py
 """
 Military-Grade Encryption for Sensitive Data
-- AES-256 encryption
-- Secure key management
+- AES-256 (Fernet) encryption
+- Safe key derivation with validation
 - Data masking
 - Field-level encryption
+
+FIXED: Invalid ENCRYPTION_KEY no longer crashes the app.
+      Validates key is exactly 32 bytes before use.
 """
 
 import base64
 import hashlib
-import os
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC  # Fixed import
-from typing import Any, Dict, Optional
 import json
+import logging
+from typing import Any, Dict, Optional
+
+from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from app.core.config.settings import settings
+
+logger = logging.getLogger(__name__)
+
+_FERNET_KEY_BYTES = 32           # Fernet requires exactly 32 raw bytes
+_FERNET_KEY_B64_LEN = 44         # 32 bytes → 44 chars base64 (with '=' padding)
+_PBKDF2_SALT = b"rojgarnest_salt_2024"
+_PBKDF2_ITERATIONS = 100_000
+_HASH_SALT = b"rojgarnest_hash_salt"
 
 
 class EncryptionManager:
     """
-    Enterprise-grade encryption for sensitive data
+    Enterprise-grade encryption for sensitive data.
+
+    Key resolution order:
+      1. settings.ENCRYPTION_KEY  — if it's a valid Fernet key (44-char b64, 32 bytes decoded)
+      2. PBKDF2(SECRET_KEY)       — deterministic fallback if #1 missing/invalid
+      3. None                     — encryption disabled (encrypt/decrypt become pass-through)
     """
-    
+
     def __init__(self):
-        self.key = self._get_or_create_key()
-        self.cipher = Fernet(self.key) if self.key else None
-    
-    def _get_or_create_key(self) -> bytes:
-        """Get or create encryption key"""
-        if settings.ENCRYPTION_KEY:
+        self.key: Optional[bytes] = self._resolve_key()
+        self.cipher: Optional[Fernet] = None
+
+        if self.key is not None:
             try:
-                return base64.b64decode(settings.ENCRYPTION_KEY)
-            except:
-                pass
-        
-        # Generate new key using PBKDF2HMAC
-        salt = b'rojgarnest_salt_2024'
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
+                self.cipher = Fernet(self.key)
+                logger.info("✅ EncryptionManager ready (Fernet AES-256).")
+            except Exception as e:
+                # Should never happen because _resolve_key validates, but belt-and-braces
+                logger.error("❌ Fernet init failed despite validated key: %s", e)
+                self.cipher = None
+        else:
+            logger.warning(
+                "⚠️  Encryption DISABLED — no valid ENCRYPTION_KEY and no SECRET_KEY fallback."
+            )
+
+    # ------------------------------------------------------------
+    # KEY RESOLUTION
+    # ------------------------------------------------------------
+    def _resolve_key(self) -> Optional[bytes]:
+        """
+        Return a 32-byte Fernet key, or None if encryption is disabled.
+
+        Priority:
+          1. settings.ENCRYPTION_KEY  (validated strictly)
+          2. Derive from settings.SECRET_KEY via PBKDF2
+        """
+        raw_env = (getattr(settings, "ENCRYPTION_KEY", "") or "").strip()
+
+        # ---- Path 1: explicit ENCRYPTION_KEY ----
+        if raw_env:
+            key = self._validate_fernet_key(raw_env)
+            if key is not None:
+                logger.info("🔐 Using ENCRYPTION_KEY from settings.")
+                return key
+            else:
+                logger.warning(
+                    "⚠️  ENCRYPTION_KEY is set but INVALID (must be 44-char urlsafe "
+                    "base64 of 32 bytes, e.g. from Fernet.generate_key()). "
+                    "Falling back to PBKDF2(SECRET_KEY)."
+                )
+                logger.warning(
+                    "    Generate a valid key with: "
+                    "python -c \"from cryptography.fernet import Fernet; "
+                    "print(Fernet.generate_key().decode())\""
+                )
+
+        # ---- Path 2: derive from SECRET_KEY ----
+        secret = (getattr(settings, "SECRET_KEY", "") or "").strip()
+        if secret:
+            try:
+                kdf = PBKDF2HMAC(
+                    algorithm=hashes.SHA256(),
+                    length=_FERNET_KEY_BYTES,
+                    salt=_PBKDF2_SALT,
+                    iterations=_PBKDF2_ITERATIONS,
+                )
+                derived = base64.urlsafe_b64encode(kdf.derive(secret.encode()))
+                # Validate before returning
+                validated = self._validate_fernet_key(derived.decode())
+                if validated is not None:
+                    logger.info("🔐 Using PBKDF2-derived key from SECRET_KEY.")
+                    return validated
+                else:
+                    logger.error("❌ PBKDF2-derived key failed validation — this should never happen.")
+                    return None
+            except Exception as e:
+                logger.error("❌ PBKDF2 key derivation failed: %s", e)
+                return None
+
+        # ---- Path 3: disabled ----
+        logger.error(
+            "❌ Neither ENCRYPTION_KEY nor SECRET_KEY is set. Encryption is disabled."
         )
-        key = base64.urlsafe_b64encode(kdf.derive(settings.SECRET_KEY.encode()))
-        return key
-    
-    def encrypt(self, data: Any) -> str:
-        """Encrypt any data type"""
-        if not self.cipher or data is None:
-            return str(data) if data else ""
-        
+        return None
+
+    @staticmethod
+    def _validate_fernet_key(candidate: str) -> Optional[bytes]:
+        """
+        Return a valid 32-byte Fernet key if `candidate` is correct, else None.
+        Checks:
+          - length (44 chars)
+          - decodes as urlsafe base64
+          - decoded byte-length == 32
+          - Fernet() constructor accepts it
+        """
+        s = candidate.strip()
+        if not s:
+            return None
+
+        # Fernet keys are always exactly 44 chars (32 bytes → b64 with padding)
+        if len(s) != _FERNET_KEY_B64_LEN:
+            return None
+
         try:
-            json_str = json.dumps(data, default=str)
-            encrypted = self.cipher.encrypt(json_str.encode())
-            return base64.b64encode(encrypted).decode()
-        except Exception as e:
-            return str(data)
-    
-    def decrypt(self, encrypted_data: str) -> Any:
-        """Decrypt encrypted data"""
-        if not self.cipher or not encrypted_data:
-            return encrypted_data
-        
-        try:
-            encrypted_bytes = base64.b64decode(encrypted_data)
-            decrypted = self.cipher.decrypt(encrypted_bytes)
-            return json.loads(decrypted.decode())
+            decoded = base64.urlsafe_b64decode(s.encode())
         except Exception:
+            return None
+
+        if len(decoded) != _FERNET_KEY_BYTES:
+            return None
+
+        try:
+            Fernet(decoded)  # final authority — raises if wrong
+        except Exception:
+            return None
+
+        return decoded
+
+    # ------------------------------------------------------------
+    # ENCRYPT / DECRYPT
+    # ------------------------------------------------------------
+    def encrypt(self, data: Any) -> str:
+        """
+        Encrypt any JSON-serializable value.
+        Returns a base64 string of the Fernet token.
+        If encryption is disabled or value is None, returns str(data) (pass-through).
+        """
+        if data is None:
+            return ""
+        if self.cipher is None:
+            return str(data)
+        try:
+            json_str = json.dumps(data, default=str, ensure_ascii=False)
+            token = self.cipher.encrypt(json_str.encode("utf-8"))
+            return base64.b64encode(token).decode()
+        except Exception as e:
+            logger.error("❌ encrypt() failed: %s", e)
+            return str(data)
+
+    def decrypt(self, encrypted_data: Any) -> Any:
+        """
+        Reverse of encrypt().
+        If the value doesn't look like our token (or decryption fails), returns it unchanged.
+        """
+        if encrypted_data is None or encrypted_data == "":
             return encrypted_data
-    
+        if self.cipher is None:
+            return encrypted_data
+        try:
+            token_bytes = base64.b64decode(encrypted_data)
+            plaintext = self.cipher.decrypt(token_bytes)
+            return json.loads(plaintext.decode("utf-8"))
+        except (InvalidToken, ValueError, TypeError):
+            # Not ours / already plaintext / wrong key — return as-is
+            return encrypted_data
+        except Exception as e:
+            logger.error("❌ decrypt() failed: %s", e)
+            return encrypted_data
+
+    # ------------------------------------------------------------
+    # HASHING
+    # ------------------------------------------------------------
     def hash_sensitive_data(self, data: str) -> str:
-        """Hash sensitive data for comparison (without storing original)"""
+        """Irreversible PBKDF2-HMAC-SHA256 hash — for equality checks only."""
         if not data:
             return ""
-        
-        salt = b'rojgarnest_hash_salt'
         return hashlib.pbkdf2_hmac(
-            'sha256',
-            data.encode(),
-            salt,
-            100000
+            "sha256", data.encode("utf-8"), _HASH_SALT, _PBKDF2_ITERATIONS
         ).hex()
-    
+
+    # ------------------------------------------------------------
+    # MASKING
+    # ------------------------------------------------------------
     def mask_personal_info(self, text: str, start: int = 2, end: int = 2) -> str:
-        """Mask personal information (email, phone, etc.)"""
         if not text or len(text) < start + end:
             return "*" * 8
-        
         visible_start = text[:start]
         visible_end = text[-end:] if end > 0 else ""
         masked = "*" * (len(text) - start - end)
-        
         return f"{visible_start}{masked}{visible_end}"
-    
+
     def mask_email(self, email: str) -> str:
-        """Mask email address"""
         if not email or "@" not in email:
             return email
-        
         local, domain = email.split("@", 1)
-        masked_local = self.mask_personal_info(local, 2, 1)
-        return f"{masked_local}@{domain}"
-    
+        return f"{self.mask_personal_info(local, 2, 1)}@{domain}"
+
     def mask_phone(self, phone: str) -> str:
-        """Mask phone number"""
         if not phone or len(phone) < 10:
             return phone
-        
         return self.mask_personal_info(phone, 3, 2)
-    
+
+    # ------------------------------------------------------------
+    # FIELD ENCRYPTION HELPER
+    # ------------------------------------------------------------
     def encrypt_field(self, field_name: str, value: Any) -> Dict[str, Any]:
-        """Encrypt specific field for storage"""
         return {
             f"{field_name}_encrypted": self.encrypt(value),
-            f"{field_name}_masked": self.mask_personal_info(str(value)) if isinstance(value, str) else None
+            f"{field_name}_masked": (
+                self.mask_personal_info(str(value)) if isinstance(value, str) else None
+            ),
         }
 
 
+# ------------------------------------------------------------------
+# Singleton — created once at import time
+# ------------------------------------------------------------------
 encryption_manager = EncryptionManager()
 
 
+# ------------------------------------------------------------------
+# DataProtector — unchanged public API
+# ------------------------------------------------------------------
 class DataProtector:
-    """Protect sensitive data at field level"""
-    
+    """Protect sensitive data at field level."""
+
     SENSITIVE_FIELDS = [
-        'password', 'pin', 'refresh_token', 'session_hash',
-        'mobile', 'phone', 'email', 'address', 'aadhar',
-        'pan', 'bank_account', 'credit_card'
+        "password", "pin", "refresh_token", "session_hash",
+        "mobile", "phone", "email", "address", "aadhar",
+        "pan", "bank_account", "credit_card",
     ]
-    
+
     @classmethod
     def protect_document(cls, doc: Dict) -> Dict:
-        """Protect sensitive fields in document"""
         if not doc:
             return doc
-        
+
         protected = doc.copy()
-        
+
         for field in cls.SENSITIVE_FIELDS:
             if field in protected:
-                if field in ['password', 'pin', 'refresh_token', 'session_hash']:
+                if field in ("password", "pin", "refresh_token", "session_hash"):
                     protected[field] = "[PROTECTED]"
-                elif field in ['mobile', 'phone']:
+                elif field in ("mobile", "phone"):
                     protected[field] = encryption_manager.mask_phone(str(protected[field]))
-                elif field == 'email':
+                elif field == "email":
                     protected[field] = encryption_manager.mask_email(str(protected[field]))
                 else:
-                    protected[field] = encryption_manager.mask_personal_info(str(protected[field]))
-        
+                    protected[field] = encryption_manager.mask_personal_info(
+                        str(protected[field])
+                    )
+
         return protected
 
 
@@ -8622,8 +8811,8 @@ def role_required(allowed_roles: Union[str, List[str]]):
 
 ================================================================================
 [  43/ 171] 🐍 PYTHON FILE: app\core\services\email.py
-📏 SIZE: 31,516 bytes
-🕐 MODIFIED: 2026-11-05 08:00:26
+📏 SIZE: 39,259 bytes
+🕐 MODIFIED: 2026-11-08 11:46:55
 
 ================================================================================
 
@@ -8632,8 +8821,15 @@ def role_required(allowed_roles: Union[str, List[str]]):
 # 📧 UNIFIED EMAIL SERVICE WITH ADVANCED MODERN AI FORMATTING
 # Supports: SMTP (Gmail) | Brevo | SendGrid | Mailgun
 # Dynamically structures templates for Jobs, Services, and Schemes
+#
+# ✅ FIXED (2026-11):
+#    - Added get_application_number() — canonical resolver.
+#    - Added send_application_status_email() (async + sync).
+#    - build_modern_ai_notification_email() now NEVER shows Mongo _id
+#      in the "Reference ID" row if application_number exists.
 # ============================================================
 
+import re
 import smtplib
 import ssl
 import logging
@@ -8646,6 +8842,78 @@ from typing import Optional, List, Dict, Any
 from app.core.config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# ✅ APPLICATION NUMBER RESOLVER (canonical, single source of truth)
+# ============================================================
+_MONGO_OBJECT_ID_RE = re.compile(r"^[a-f0-9]{24}$", re.IGNORECASE)
+
+_PLACEHOLDER_STRINGS = {
+    "null", "undefined", "none", "n/a", "na", "-", "0", "false", "true",
+    "not found", "notfound", "not_found", "deleted", "removed", "empty",
+    "{}", "[]",
+}
+
+
+def _is_mongo_object_id(value: Any) -> bool:
+    """Return True if value looks like a MongoDB ObjectId (24-char hex)."""
+    if value is None:
+        return False
+    s = str(value).strip()
+    if not s:
+        return False
+    return bool(_MONGO_OBJECT_ID_RE.match(s))
+
+
+def _is_human_readable(value: Any) -> bool:
+    """Return True if value is non-empty, non-placeholder, and NOT a Mongo _id."""
+    if value is None:
+        return False
+    s = str(value).strip()
+    if not s:
+        return False
+    if s.lower() in _PLACEHOLDER_STRINGS:
+        return False
+    if _is_mongo_object_id(s):
+        return False
+    return True
+
+
+def get_application_number(app: Dict[str, Any], fallback: str = "N/A") -> str:
+    """
+    Resolve the human-readable application number from an application doc.
+
+    Priority:
+        1. app["application_number"]        (best — e.g. "20261000020")
+        2. app["application_id"]            (only if NOT a Mongo ObjectId)
+        3. app["_id"]                       (Mongo ObjectId → shortened to 8...4)
+        4. `fallback`
+    """
+    if not isinstance(app, dict):
+        return fallback
+
+    # 1) application_number
+    num = app.get("application_number")
+    if _is_human_readable(num):
+        return str(num).strip()
+
+    # 2) application_id — must not be a Mongo _id
+    app_id = app.get("application_id")
+    if _is_human_readable(app_id):
+        return str(app_id).strip()
+
+    # 3) _id — Mongo ObjectId, only if nothing else exists
+    mongo_id = app.get("_id")
+    if mongo_id is not None:
+        s = str(mongo_id).strip()
+        if s:
+            if _is_mongo_object_id(s) and len(s) > 12:
+                return f"{s[:8]}...{s[-4:]}"
+            return s
+
+    # 4) fallback
+    return fallback
 
 
 # ============================================================
@@ -9105,9 +9373,154 @@ async def send_email_async(
 
 
 # ============================================================
-# 🎨 MODERN AI-BASED TEMPLATE ENGINE (JOB, SERVICE, SCHEME)
+# ✅ HIGH-LEVEL APPLICATION EMAIL HELPERS (NEW)
+# ------------------------------------------------------------
+# Use these from routes instead of calling
+# build_modern_ai_notification_email() directly.
+#
+# They GUARANTEE the email always shows `application_number`,
+# never the raw Mongo `_id`.
 # ============================================================
 
+async def send_application_status_email(
+    app_doc: Dict[str, Any],
+    user_email: str,
+    user_name: str,
+    app_type: str,
+    title: str,
+    organization: str,
+    status: str,
+    details: Optional[Dict[str, Any]] = None,
+    action_url: Optional[str] = None,
+) -> bool:
+    """
+    Send an application status email (async).
+
+    ✅ Guarantees the email body shows `application_number`,
+       never the raw Mongo `_id`.
+    """
+    if not user_email:
+        logger.warning("send_application_status_email: empty user_email, skipping")
+        return False
+
+    reference_id = get_application_number(app_doc)
+
+    merged_details: Dict[str, Any] = {}
+    if details:
+        merged_details.update(details)
+
+    # Ensure "Application Number" row exists exactly once
+    has_app_number_key = any(
+        str(k).lower().replace("_", " ").strip() == "application number"
+        for k in merged_details.keys()
+    )
+    if not has_app_number_key:
+        merged_details["Application Number"] = reference_id
+
+    html_body = build_modern_ai_notification_email(
+        app_type=app_type,
+        title=title,
+        organization_or_dept=organization,
+        user_name=user_name or "Applicant",
+        status=status,
+        reference_id=reference_id,
+        details=merged_details,
+        action_url=action_url,
+    )
+
+    subject = f"RojgarNest | {status} | {title} | #{reference_id}"
+
+    text_body = (
+        f"Hello {user_name or 'Applicant'},\n\n"
+        f"Your {app_type} application '{title}' has been updated.\n"
+        f"Status: {status}\n"
+        f"Application Number: {reference_id}\n"
+        f"Organization: {organization}\n\n"
+        f"Track your status on https://www.rojgarnest.com\n"
+    )
+
+    logger.info(
+        f"📧 Sending application email → {user_email} | "
+        f"type={app_type} | ref={reference_id} | status={status}"
+    )
+
+    return await get_email_service().send_email(
+        to_email=user_email,
+        subject=subject,
+        html_body=html_body,
+        text_body=text_body,
+    )
+
+
+def send_application_status_email_sync(
+    app_doc: Dict[str, Any],
+    user_email: str,
+    user_name: str,
+    app_type: str,
+    title: str,
+    organization: str,
+    status: str,
+    details: Optional[Dict[str, Any]] = None,
+    action_url: Optional[str] = None,
+) -> bool:
+    """Sync variant of send_application_status_email()."""
+    if not user_email:
+        logger.warning(
+            "send_application_status_email_sync: empty user_email, skipping"
+        )
+        return False
+
+    reference_id = get_application_number(app_doc)
+
+    merged_details: Dict[str, Any] = {}
+    if details:
+        merged_details.update(details)
+
+    has_app_number_key = any(
+        str(k).lower().replace("_", " ").strip() == "application number"
+        for k in merged_details.keys()
+    )
+    if not has_app_number_key:
+        merged_details["Application Number"] = reference_id
+
+    html_body = build_modern_ai_notification_email(
+        app_type=app_type,
+        title=title,
+        organization_or_dept=organization,
+        user_name=user_name or "Applicant",
+        status=status,
+        reference_id=reference_id,
+        details=merged_details,
+        action_url=action_url,
+    )
+
+    subject = f"RojgarNest | {status} | {title} | #{reference_id}"
+
+    text_body = (
+        f"Hello {user_name or 'Applicant'},\n\n"
+        f"Your {app_type} application '{title}' has been updated.\n"
+        f"Status: {status}\n"
+        f"Application Number: {reference_id}\n"
+        f"Organization: {organization}\n\n"
+        f"Track your status on https://www.rojgarnest.com\n"
+    )
+
+    logger.info(
+        f"📧 [sync] Sending application email → {user_email} | "
+        f"type={app_type} | ref={reference_id} | status={status}"
+    )
+
+    return get_email_service().send_email_sync(
+        to_email=user_email,
+        subject=subject,
+        html_body=html_body,
+        text_body=text_body,
+    )
+
+
+# ============================================================
+# 🎨 OTP TEMPLATE
+# ============================================================
 def _build_otp_email_html(otp: str, purpose: str = "verification") -> str:
     return f"""<!DOCTYPE html>
 <html>
@@ -9134,6 +9547,9 @@ def _build_otp_email_html(otp: str, purpose: str = "verification") -> str:
 </body></html>"""
 
 
+# ============================================================
+# 🎨 MODERN AI-BASED TEMPLATE ENGINE (JOB, SERVICE, SCHEME)
+# ============================================================
 def build_modern_ai_notification_email(
     app_type: str,  # 'job', 'service', or 'scheme'
     title: str,
@@ -9146,20 +9562,27 @@ def build_modern_ai_notification_email(
 ) -> str:
     """
     Generates an advanced, ultra-modern AI formatted notification email
-    specifically separated and custom-styled by application type: Job, Service, or Scheme.
-    
-    ✅ DIFFERENT THEMES FOR EACH TYPE:
-       - job: Blue gradient (professional, career-focused)
-       - service: Emerald/Green gradient (government services)
-       - scheme: Amber/Gold gradient (government schemes)
-    
-    ✅ RICH DETAILS TABLE
-    ✅ GLASSMORPHISM DESIGN
-    ✅ RESPONSIVE CSS
-    ✅ ACTION BUTTON
+    specifically separated and custom-styled by application type.
+
+    ✅ reference_id MUST be a human-readable application number.
+       If a caller accidentally passes a Mongo ObjectId, we shorten it
+       (or use "N/A") so the email NEVER shows a raw 24-char ObjectId.
     """
     app_type_clean = app_type.lower().strip()
-    
+
+    # ✅ SAFETY: never show a raw Mongo ObjectId as reference_id
+    if reference_id is None:
+        safe_reference = "N/A"
+    else:
+        safe_str = str(reference_id).strip()
+        if not safe_str or safe_str.lower() in _PLACEHOLDER_STRINGS:
+            safe_reference = "N/A"
+        elif _is_mongo_object_id(safe_str) and len(safe_str) > 12:
+            # Shorten accidental Mongo ObjectId pass-through
+            safe_reference = f"{safe_str[:8]}...{safe_str[-4:]}"
+        else:
+            safe_reference = safe_str
+
     # ============================================================
     # THEME CONFIGURATION BASED ON APPLICATION TYPE
     # ============================================================
@@ -9208,7 +9631,7 @@ def build_modern_ai_notification_email(
         for k, v in details.items():
             if v is None or str(v).strip() == "":
                 continue
-            formatted_key = k.replace("_", " ").title()
+            formatted_key = str(k).replace("_", " ").title()
             details_html += f"""
             <tr>
                 <td style="padding: 12px 16px; color: #64748b; font-size: 14px; border-bottom: 1px solid #f1f5f9; width: 38%; font-weight: 600;">
@@ -9480,10 +9903,10 @@ def build_modern_ai_notification_email(
           <table class="info-table" cellpadding="0" cellspacing="0" role="presentation">
             <tr>
               <td style="padding: 12px 16px; color: #64748b; font-size: 14px; border-bottom: 1px solid #f1f5f9; width: 38%; font-weight: 600;">
-                Reference ID
+                Application Number
               </td>
               <td style="padding: 12px 16px; border-bottom: 1px solid #f1f5f9;">
-                <span class="ref-id">{reference_id}</span>
+                <span class="ref-id">{safe_reference}</span>
               </td>
             </tr>
             <tr>
@@ -9549,6 +9972,7 @@ print("✅ Modern Advanced AI Email Notification Service Loaded Successfully")
 print("   - Formatted for: Jobs, Services, and Schemes")
 print("   - Glassmorphism & Responsive CSS applied")
 print("   - build_modern_ai_notification_email() ready for use")
+print("   - send_application_status_email() / _sync() ready for routes")
 print("=" * 70)
 
 
@@ -14333,12 +14757,13 @@ print("=" * 60)
 
 ================================================================================
 [  65/ 171] 🐍 PYTHON FILE: app\main.py
-📏 SIZE: 21,634 bytes
-🕐 MODIFIED: 2026-10-18 09:00:16
+📏 SIZE: 26,770 bytes
+🕐 MODIFIED: 2026-11-05 22:06:12
 
 ================================================================================
 
-# app/main.py - COMPLETE FIXED VERSION (NO CONFLICT MARKERS)
+# app/main.py - COMPLETE PRODUCTION-READY VERSION
+# ============================================================
 # ✅ FIXED: Removed Git merge conflict markers
 # ✅ FIXED: Removed duplicate schemes_router registration
 # ✅ FIXED: Removed duplicate schemes_router import
@@ -14346,6 +14771,17 @@ print("=" * 60)
 # ✅ FIXED: Startup banner shows registered /schemes routes for debugging
 # ✅ FIXED: Safe rate-limit cleanup to prevent memory leak
 # ✅ FIXED: Docs paths excluded from security headers injection issues
+# ============================================================
+# 🚀 PRODUCTION FIXES (this version):
+# ✅ NEW: /health and /api/v1/health — ultra-fast (no DB call)
+# ✅ NEW: /ready — deep readiness probe (DB + Redis)
+# ✅ NEW: Upload directory auto-create (Docker volume safety)
+# ✅ NEW: Safe startup — missing env vars logged, app does NOT crash
+# ✅ NEW: Trusted proxy IP detection (Nginx/Railway/Cloudflare)
+# ✅ NEW: Rate-limiter memory leak fix (periodic cleanup)
+# ✅ NEW: CORS includes Railway preview URLs
+# ✅ NEW: Static file mounting guarded by try/except
+# ============================================================
 
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -14357,11 +14793,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from contextlib import asynccontextmanager
 import uuid
 import time
-from datetime import datetime, timedelta
-from typing import Optional
 import os
 import sys
 import subprocess
+from datetime import datetime, timedelta
+from typing import Optional
 
 # ================= DATABASE & CORE =================
 from app.db.connection import connect_db, close_db, get_db
@@ -14413,7 +14849,37 @@ async def verify_token(
     return credentials.credentials
 
 
-# ================= LIFESPAN =================
+# ============================================================
+# ✅ CLIENT IP RESOLVER — Trusted proxy aware
+# Supports: Nginx X-Forwarded-For, X-Real-IP, Cloudflare, Railway
+# ============================================================
+def get_client_ip(request: Request) -> str:
+    """
+    Resolve real client IP behind proxies.
+    Order: X-Forwarded-For → X-Real-IP → CF-Connecting-IP → request.client.host
+    """
+    # Railway / Cloudflare / generic proxy headers
+    xff = request.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+
+    xri = request.headers.get("X-Real-IP")
+    if xri:
+        return xri.strip()
+
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip.strip()
+
+    if request.client and request.client.host:
+        return request.client.host
+
+    return "0.0.0.0"
+
+
+# ============================================================
+# ✅ LIFESPAN — Startup & Shutdown
+# ============================================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("=" * 60)
@@ -14421,6 +14887,30 @@ async def lifespan(app: FastAPI):
     print("=" * 60)
 
     start_time = time.time()
+
+    # ✅ SAFE: Verify critical env vars (do not crash)
+    try:
+        required_env = ["MONGO_URI", "SECRET_KEY", "JWT_SECRET_KEY"]
+        missing = [k for k in required_env if not getattr(settings, k, None)]
+        if missing:
+            logger.error(f"❌ Missing critical env vars: {missing}")
+            logger.error("   App will start but DB/auth features may fail")
+        else:
+            logger.info("✅ All critical env vars present")
+    except Exception as e:
+        logger.warning(f"⚠️ Env var check failed: {e}")
+
+    # ✅ SAFE: Ensure upload directory exists (Docker volume mount)
+    try:
+        upload_dir = os.getenv("UPLOAD_DIR", "/app/uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+        # Ensure 'uploads' folder relative to cwd also exists
+        os.makedirs("./uploads", exist_ok=True)
+        logger.info(f"✅ Upload dir ready: {upload_dir}")
+    except PermissionError as e:
+        logger.warning(f"⚠️ Cannot write to upload dir: {e}")
+    except Exception as e:
+        logger.warning(f"⚠️ Upload dir setup failed: {e}")
 
     # ✅ Connect MongoDB
     try:
@@ -14541,6 +15031,7 @@ async def lifespan(app: FastAPI):
     print("   - No automatic job fetching will run")
     print("   - Jobs can only be added manually by admins")
     print(f"📚 API Docs: http://localhost:8000/docs")
+    print(f"❤️  Health:    http://localhost:8000/api/v1/health")
     print("=" * 60)
 
     # ✅ PRINT ALL REGISTERED SCHEMES ROUTES FOR DEBUGGING
@@ -14562,7 +15053,10 @@ async def lifespan(app: FastAPI):
             scheduler.shutdown(wait=False)
     except Exception:
         pass
-    await close_db()
+    try:
+        await close_db()
+    except Exception as e:
+        logger.warning(f"⚠️ close_db failed: {e}")
     print("👋 Shutdown Complete")
 
 
@@ -14583,13 +15077,19 @@ app = FastAPI(
     }
 )
 
-# ================= STATIC FILES =================
-UPLOAD_DIR = "./uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-if os.path.exists(UPLOAD_DIR):
-    app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-    logger.info("✅ Static files mounted for uploads")
+# ================= STATIC FILES (SAFE MOUNT) =================
+try:
+    UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    if os.path.exists(UPLOAD_DIR):
+        app.mount(
+            "/uploads",
+            StaticFiles(directory=UPLOAD_DIR),
+            name="uploads",
+        )
+        logger.info(f"✅ Static files mounted from: {UPLOAD_DIR}")
+except Exception as e:
+    logger.warning(f"⚠️ Static files mount failed: {e}")
 
 
 # ================= MIDDLEWARES =================
@@ -14603,19 +15103,20 @@ async def ip_blacklist_middleware(request: Request, call_next):
     if is_docs_path(request.url.path):
         return await call_next(request)
 
-    client_ip = request.headers.get("X-Forwarded-For", request.client.host)
-    if client_ip:
-        client_ip = client_ip.split(",")[0].strip()
+    client_ip = get_client_ip(request)
 
-    if await ip_blacklist.is_blacklisted(client_ip):
-        return JSONResponse(
-            status_code=403,
-            content={
-                "success": False,
-                "message": "Access denied",
-                "code": "E403"
-            }
-        )
+    try:
+        if await ip_blacklist.is_blacklisted(client_ip):
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "success": False,
+                    "message": "Access denied",
+                    "code": "E403"
+                }
+            )
+    except Exception as e:
+        logger.warning(f"⚠️ IP blacklist check failed: {e}")
 
     return await call_next(request)
 
@@ -14659,6 +15160,7 @@ async def request_logging_middleware(request: Request, call_next):
     return response
 
 
+# ✅ Rate limiter state
 request_counts = {}
 
 
@@ -14667,9 +15169,11 @@ async def rate_limit_middleware(request: Request, call_next):
     if is_docs_path(request.url.path):
         return await call_next(request)
 
-    client_ip = request.headers.get("X-Forwarded-For", request.client.host)
-    if client_ip:
-        client_ip = client_ip.split(",")[0].strip()
+    # ✅ Health endpoints must never be rate-limited
+    if request.url.path in ("/health", "/api/v1/health", "/api/v1/ready"):
+        return await call_next(request)
+
+    client_ip = get_client_ip(request)
 
     now = time.time()
     window = 60
@@ -14678,6 +15182,7 @@ async def rate_limit_middleware(request: Request, call_next):
     if client_ip not in request_counts:
         request_counts[client_ip] = []
 
+    # Keep only timestamps within window
     request_counts[client_ip] = [
         t for t in request_counts[client_ip] if t > now - window
     ]
@@ -14694,7 +15199,7 @@ async def rate_limit_middleware(request: Request, call_next):
 
     request_counts[client_ip].append(now)
 
-    # ✅ Periodic cleanup: drop empty buckets so dict doesn't grow forever
+    # ✅ Periodic cleanup: drop stale buckets so dict doesn't grow forever
     if len(request_counts) > 10000:
         stale = [
             ip for ip, ts in request_counts.items()
@@ -14706,10 +15211,11 @@ async def rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 
-# CORS Middleware
+# ================= CORS MIDDLEWARE =================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        # Local dev
         "http://localhost",
         "http://127.0.0.1",
         "http://localhost:3000",
@@ -14723,9 +15229,12 @@ app.add_middleware(
         "http://127.0.0.1:5000",
         "http://localhost:8081",
         "http://127.0.0.1:8081",
+        # Production
         "https://www.rojgarnest.com",
         "https://rojgarnest.com",
     ],
+    # ✅ NEW: Allow Railway / Render / Vercel preview URLs
+    allow_origin_regex=r"https://.*\.(up\.railway\.app|onrender\.com|vercel\.app|netlify\.app)",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
@@ -14908,38 +15417,69 @@ async def api_v1_root():
     )
 
 
-@app.get("/health", tags=["Root"])
+# ============================================================
+# ✅ ULTRA-FAST HEALTH CHECK (used by Docker / Nginx / Railway)
+# Does NOT touch the database — always responds in < 5 ms
+# ============================================================
+@app.get("/health", tags=["Health"])
+@app.get("/api/v1/health", tags=["Health"])
 async def health_check():
-    """Health check endpoint - FAST response"""
-    db_status = "connected" if get_db() is not None else "disconnected"
+    """Ultra-fast liveness probe — no DB call"""
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "services": {
-            "database": db_status,
-            "api": "running",
-        },
         "version": "5.0.0",
         "auto_job_fetch": "disabled",
-        "response_time_ms": 100,
+        "uptime_check": "ok",
     }
 
 
-@app.get("/api/v1/health", tags=["Root"])
-async def api_v1_health_check():
-    db_status = "connected" if get_db() is not None else "disconnected"
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "services": {
-            "database": db_status,
-            "api": "running",
+# ============================================================
+# ✅ DEEP READINESS PROBE (optional — checks DB and Redis)
+# Used by Kubernetes / orchestrators that need true readiness
+# ============================================================
+@app.get("/ready", tags=["Health"])
+@app.get("/api/v1/ready", tags=["Health"])
+async def readiness_check():
+    """Deep readiness probe — checks DB + Redis"""
+    services = {}
+    overall_status = "ready"
+
+    # Check MongoDB
+    try:
+        db = get_db()
+        if db is not None:
+            await db.command("ping")
+            services["database"] = "connected"
+        else:
+            services["database"] = "disconnected"
+            overall_status = "not_ready"
+    except Exception as e:
+        services["database"] = f"error: {str(e)[:50]}"
+        overall_status = "not_ready"
+
+    # Check Redis (optional)
+    try:
+        if settings.REDIS_URL:
+            import redis.asyncio as redis
+            r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+            await r.ping()
+            services["redis"] = "connected"
+        else:
+            services["redis"] = "not_configured"
+    except Exception as e:
+        services["redis"] = f"error: {str(e)[:50]}"
+
+    status_code = 200 if overall_status == "ready" else 503
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "status": overall_status,
+            "timestamp": datetime.utcnow().isoformat(),
+            "services": services,
+            "version": "5.0.0",
         },
-        "version": "5.0.0",
-        "api_version": "v1",
-        "auto_job_fetch": "disabled",
-        "response_time_ms": 100,
-    }
+    )
 
 
 @app.get("/security/status", tags=["Security"])
@@ -14983,12 +15523,17 @@ async def security_status():
     )
 
 
+# ============================================================
+# 🎉 STARTUP BANNER
+# ============================================================
 print("=" * 60)
 print("✅ RojgarNest Backend Loaded Successfully!")
 print("⚠️⚠️⚠️ AUTO JOB FETCH: COMPLETELY DISABLED ⚠️⚠️⚠️")
 print("   - No automatic job fetching will run")
 print("   - Jobs can only be added manually by admins")
-print(f"📚 API Docs: http://localhost:8000/docs")
+print(f"📚 API Docs:  http://localhost:8000/docs")
+print(f"❤️  Health:    http://localhost:8000/api/v1/health")
+print(f"✅ Ready:     http://localhost:8000/api/v1/ready")
 print("=" * 60)
 
 
@@ -18834,8 +19379,8 @@ Return ONLY JSON:
 
 ================================================================================
 [  82/ 171] 🐍 PYTHON FILE: app\modules\admin\routes.py
-📏 SIZE: 91,121 bytes
-🕐 MODIFIED: 2026-10-29 20:46:20
+📏 SIZE: 97,018 bytes
+🕐 MODIFIED: 2026-11-08 11:01:00
 
 ================================================================================
 
@@ -18851,6 +19396,9 @@ Return ONLY JSON:
 # ✅ Document Upload (Review/Final Submit)
 # ✅ Notifications to all parties
 # ✅ All original functionality preserved
+# ✅ NEW (this build): application_number propagated through ALL
+#    review / final-submit / payment notifications, so the email header
+#    shows the human-readable YYYYMMDDSSSS number instead of the raw _id
 
 from fastapi import (
     APIRouter, Depends, HTTPException, Query, Body,
@@ -18903,6 +19451,22 @@ async def _get_admin_email(user: dict, db) -> str:
             if auth_user:
                 admin_email = auth_user.get("email")
     return admin_email or "admin@rojgarnest.com"
+
+
+def _resolve_application_number(application: dict, fallback_id: str) -> str:
+    """
+    ✅ Resolve the human-readable application number.
+
+    Priority:
+      1. application['application_number']  (YYYYMMDDSSSS)
+      2. application['application_id']      (legacy alias)
+      3. fallback_id                        (the raw _id passed in)
+    """
+    return (
+        (application or {}).get("application_number")
+        or (application or {}).get("application_id")
+        or fallback_id
+    )
 
 
 # ============================================================
@@ -19661,6 +20225,7 @@ async def update_application_status(
         raise HTTPException(status_code=403, detail="Access denied")
 
     old_status = application.get("status", "unknown")
+    app_number = _resolve_application_number(application, application_id)
 
     update_data = {
         "status": status,
@@ -19701,10 +20266,12 @@ async def update_application_status(
                 status,
                 f"Your application status has been updated to {status}."
             ),
-            related_id=application_id,
+            related_id=app_number,
             metadata={
-                "application_id": application_id,
+                "application_number": app_number,
+                "application_id": app_number,
                 "job_title": job.get("post_name") if job else "",
+                "organization": job.get("organization") if job else "",
                 "old_status": old_status,
                 "new_status": status,
                 "notes": notes,
@@ -19724,9 +20291,10 @@ async def update_application_status(
             title=f"📋 Application Status Changed: {job.get('post_name', 'Job') if job else 'Job'}",
             message=f"Application by {application.get('applicant_name', 'Candidate')} "
                     f"changed from {old_status} to {status}",
-            related_id=application_id,
+            related_id=app_number,
             metadata={
-                "application_id": application_id,
+                "application_number": app_number,
+                "application_id": app_number,
                 "applicant_email": applicant_email,
                 "old_status": old_status,
                 "new_status": status,
@@ -19746,9 +20314,10 @@ async def update_application_status(
                 title=f"📋 Application Update: {job.get('post_name', 'Job') if job else 'Job'}",
                 message=f"Application by {applicant_email} for "
                         f"'{job.get('post_name', 'Job') if job else 'Job'}' is now {status}",
-                related_id=application_id,
+                related_id=app_number,
                 metadata={
-                    "application_id": application_id,
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "applicant_email": applicant_email,
                     "new_status": status,
                     "show_blue_bell": True,
@@ -19761,6 +20330,7 @@ async def update_application_status(
         "success": True,
         "message": f"Application status updated from {old_status} to {status}",
         "application_id": application_id,
+        "application_number": app_number,
         "status": status,
         "old_status": old_status,
         "updated_by": admin_email,
@@ -19847,6 +20417,7 @@ async def fast_search_applications(
 
         results = [{
             "_id": str(app["_id"]),
+            "application_number": _resolve_application_number(app, str(app["_id"])),
             "job_title": app.get("job_title", ""),
             "organization": app.get("organization", ""),
             "applicant_name": app.get("applicant_name", ""),
@@ -19965,9 +20536,14 @@ async def admin_submit_document(
         job_title = job.get("post_name", "Job")
         organization = job.get("organization", "Company")
 
+        # ✅ FIX: Resolve human-readable application number
+        app_number = _resolve_application_number(application, application_id)
+        logger.info(f"📋 Using application_number for emails: {app_number}")
+
         user_message = (
             f"Your document '{file.filename}' has been submitted successfully "
-            f"by {admin_name} for the position '{job_title}' at {organization}."
+            f"by {admin_name} for the position '{job_title}' at {organization}.\n\n"
+            f"📋 Application Number: {app_number}"
         )
         if notes:
             user_message += f"\n\nAdmin Notes: {notes}"
@@ -19977,9 +20553,12 @@ async def admin_submit_document(
             notification_type="application_status",
             title=f"📄 Document Submitted: {job_title}",
             message=user_message,
-            related_id=application_id,
+            related_id=app_number,
             metadata={
                 "job_title": job_title,
+                "organization": organization,
+                "application_number": app_number,
+                "application_id": app_number,
                 "document_name": file.filename,
                 "admin_name": admin_name,
                 "admin_notes": notes,
@@ -19998,10 +20577,14 @@ async def admin_submit_document(
                 notification_type="admin_alert",
                 title=f"📄 Document Submitted for {job_title}",
                 message=f"Document '{file.filename}' submitted by {admin_name} "
-                        f"for application from {applicant_email}",
-                related_id=application_id,
+                        f"for application from {applicant_email}\n\n"
+                        f"📋 Application Number: {app_number}",
+                related_id=app_number,
                 metadata={
                     "job_title": job_title,
+                    "organization": organization,
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "applicant_email": applicant_email,
                     "document_name": file.filename,
                     "admin_name": admin_name,
@@ -20022,10 +20605,14 @@ async def admin_submit_document(
                     notification_type="customadmin_alert",
                     title=f"📄 Document Submitted for {job_title}",
                     message=f"Document submitted by {admin_name} for "
-                            f"application from {applicant_email}",
-                    related_id=application_id,
+                            f"application from {applicant_email}\n\n"
+                            f"📋 Application Number: {app_number}",
+                    related_id=app_number,
                     metadata={
                         "job_title": job_title,
+                        "organization": organization,
+                        "application_number": app_number,
+                        "application_id": app_number,
                         "applicant_email": applicant_email,
                         "admin_name": admin_name,
                         "show_blue_bell": True,
@@ -20039,6 +20626,7 @@ async def admin_submit_document(
             "success": True,
             "message": "Document submitted successfully!",
             "application_id": application_id,
+            "application_number": app_number,
             "submitted_document_url": upload_result["url"],
             "submitted_document_name": file.filename,
             "admin_notes": notes,
@@ -20162,9 +20750,14 @@ async def admin_final_submit_with_document(
         job_title = job.get("post_name", "Job")
         organization = job.get("organization", "Company")
 
+        # ✅ FIX: Resolve human-readable application number
+        app_number = _resolve_application_number(application, application_id)
+        logger.info(f"📋 Using application_number for FINAL submit emails: {app_number}")
+
         user_message = (
             f"Your FINAL document '{file.filename}' has been submitted successfully "
             f"by {admin_name} for the position '{job_title}' at {organization}.\n\n"
+            f"📋 Application Number: {app_number}\n\n"
             "This is your FINAL submission. No further changes are allowed."
         )
         if notes:
@@ -20175,9 +20768,12 @@ async def admin_final_submit_with_document(
             notification_type="application_status",
             title=f"✅ FINAL SUBMISSION: {job_title}",
             message=user_message,
-            related_id=application_id,
+            related_id=app_number,
             metadata={
                 "job_title": job_title,
+                "organization": organization,
+                "application_number": app_number,
+                "application_id": app_number,
                 "document_name": file.filename,
                 "admin_name": admin_name,
                 "admin_notes": notes,
@@ -20197,10 +20793,14 @@ async def admin_final_submit_with_document(
                 notification_type="admin_alert",
                 title=f"✅ FINAL DOCUMENT Submitted for {job_title}",
                 message=f"FINAL document '{file.filename}' submitted by {admin_name} "
-                        f"for application from {applicant_email}",
-                related_id=application_id,
+                        f"for application from {applicant_email}\n\n"
+                        f"📋 Application Number: {app_number}",
+                related_id=app_number,
                 metadata={
                     "job_title": job_title,
+                    "organization": organization,
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "applicant_email": applicant_email,
                     "document_name": file.filename,
                     "admin_name": admin_name,
@@ -20222,10 +20822,14 @@ async def admin_final_submit_with_document(
                     notification_type="customadmin_alert",
                     title="✅ FINAL DOCUMENT Submitted",
                     message=f"FINAL document submitted by {admin_name} for "
-                            f"application from {applicant_email} for '{job_title}'",
-                    related_id=application_id,
+                            f"application from {applicant_email} for '{job_title}'\n\n"
+                            f"📋 Application Number: {app_number}",
+                    related_id=app_number,
                     metadata={
                         "job_title": job_title,
+                        "organization": organization,
+                        "application_number": app_number,
+                        "application_id": app_number,
                         "applicant_email": applicant_email,
                         "admin_name": admin_name,
                         "is_final": True,
@@ -20240,6 +20844,7 @@ async def admin_final_submit_with_document(
             "success": True,
             "message": "FINAL application document submitted successfully!",
             "application_id": application_id,
+            "application_number": app_number,
             "status": "final_submitted",
             "old_status": old_status,
             "final_document_url": upload_result["url"],
@@ -20297,6 +20902,9 @@ async def admin_review_application_status(
         applicant_email = application.get("applicant_email")
         existing_doc_url = application.get("submitted_document_url")
 
+        # ✅ FIX: Resolve human-readable application number
+        app_number = _resolve_application_number(application, application_id)
+
         update_data = {
             "status": "review_application",
             "last_status_update": datetime.utcnow(),
@@ -20319,7 +20927,8 @@ async def admin_review_application_status(
             user_message = (
                 f"Your application for '{job_title}' at {organization} is now under REVIEW "
                 f"by {admin_name}.\n\nThe admin is reviewing your documents. "
-                "You will be notified once the review is complete."
+                "You will be notified once the review is complete.\n\n"
+                f"📋 Application Number: {app_number}"
             )
             if notes:
                 user_message += f"\n\nAdmin Notes: {notes}"
@@ -20329,9 +20938,12 @@ async def admin_review_application_status(
                 notification_type="application_status",
                 title=f"📋 Application Under Review: {job_title}",
                 message=user_message,
-                related_id=application_id,
+                related_id=app_number,
                 metadata={
                     "job_title": job_title,
+                    "organization": organization,
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "status": "review_application",
                     "admin_notes": notes,
                     "admin_name": admin_name,
@@ -20349,10 +20961,14 @@ async def admin_review_application_status(
                 notification_type="admin_alert",
                 title=f"📋 Application Under Review: {job_title}",
                 message=f"Application from {applicant_email} for '{job_title}' "
-                        f"is now under REVIEW by {admin_name}.",
-                related_id=application_id,
+                        f"is now under REVIEW by {admin_name}.\n\n"
+                        f"📋 Application Number: {app_number}",
+                related_id=app_number,
                 metadata={
                     "job_title": job_title,
+                    "organization": organization,
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "applicant_email": applicant_email,
                     "status": "review_application",
                     "admin_notes": notes,
@@ -20367,6 +20983,7 @@ async def admin_review_application_status(
             "success": True,
             "message": f"Application status updated from {old_status} to review_application",
             "application_id": application_id,
+            "application_number": app_number,
             "status": "review_application",
             "old_status": old_status,
             "admin_notes": notes,
@@ -20412,6 +21029,7 @@ async def get_pending_payments(
             job = await db.job.find_one({"_id": ObjectId(app["job_id"])})
         job_results.append({
             "id": str(app["_id"]),
+            "application_number": _resolve_application_number(app, str(app["_id"])),
             "type": "job",
             "user_email": app.get("applicant_email") or app.get("user_email"),
             "user_name": app.get("applicant_name") or app.get("user_name", "Unknown"),
@@ -20432,6 +21050,7 @@ async def get_pending_payments(
     for app in service_pending:
         service_results.append({
             "id": str(app["_id"]),
+            "application_number": _resolve_application_number(app, str(app["_id"])),
             "type": "service",
             "user_email": app.get("user_email"),
             "user_name": app.get("user_name", "Unknown"),
@@ -20489,6 +21108,9 @@ async def admin_verify_payment(
     job_title = application.get("job_title", "Job Application")
     job_poster_email = application.get("added_by")
 
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(application, application_id)
+
     if action == "approve":
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
@@ -20511,12 +21133,17 @@ async def admin_verify_payment(
             notification_type="application_status",
             title=f"✅ Payment Verified Successfully: {job_title}",
             message=f"Your payment of ₹{amount} for '{job_title}' has been verified successfully. "
-                    "Your application is now submitted.",
-            related_id=application_id,
+                    f"Your application is now submitted.\n\n"
+                    f"📋 Application Number: {app_number}",
+            related_id=app_number,
             metadata={
                 "status": status_msg,
                 "amount": amount,
                 "transaction_id": transaction_id,
+                "application_number": app_number,
+                "application_id": app_number,
+                "job_title": job_title,
+                "organization": application.get("organization", ""),
                 "show_blue_bell": True,
             },
             send_email=True,
@@ -20530,12 +21157,16 @@ async def admin_verify_payment(
                 notification_type="admin_alert",
                 title="💰 Payment Approved",
                 message=f"Payment of ₹{amount} from {user_email} for '{job_title}' "
-                        f"has been APPROVED by {admin_name}.",
-                related_id=application_id,
+                        f"has been APPROVED by {admin_name}.\n\n"
+                        f"📋 Application Number: {app_number}",
+                related_id=app_number,
                 metadata={
                     "status": "payment_approved",
                     "amount": amount,
                     "job_title": job_title,
+                    "organization": application.get("organization", ""),
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "applicant_email": user_email,
                     "approved_by": admin_email,
                     "show_blue_bell": True,
@@ -20553,12 +21184,16 @@ async def admin_verify_payment(
                     notification_type="customadmin_alert",
                     title="💰 Payment Approved",
                     message=f"Payment of ₹{amount} from {user_email} for '{job_title}' "
-                            f"has been APPROVED by {admin_name}",
-                    related_id=application_id,
+                            f"has been APPROVED by {admin_name}\n\n"
+                            f"📋 Application Number: {app_number}",
+                    related_id=app_number,
                     metadata={
                         "status": "payment_approved",
                         "amount": amount,
                         "job_title": job_title,
+                        "organization": application.get("organization", ""),
+                        "application_number": app_number,
+                        "application_id": app_number,
                         "approved_by": admin_email,
                         "show_blue_bell": True,
                     },
@@ -20570,6 +21205,7 @@ async def admin_verify_payment(
             "success": True,
             "message": "Payment approved successfully.",
             "application_id": application_id,
+            "application_number": app_number,
             "action": action,
             "notes": notes,
             "notifications_sent": True,
@@ -20600,12 +21236,17 @@ async def admin_verify_payment(
             user_ids=[user_email],
             notification_type="application_status",
             title=f"❌ Payment Verification Failed: {job_title}",
-            message=f"Your payment of ₹{amount} for '{job_title}' has been REJECTED.\nReason: {notes}",
-            related_id=application_id,
+            message=f"Your payment of ₹{amount} for '{job_title}' has been REJECTED.\nReason: {notes}\n\n"
+                    f"📋 Application Number: {app_number}",
+            related_id=app_number,
             metadata={
                 "status": status_msg,
                 "amount": amount,
                 "rejection_reason": notes,
+                "application_number": app_number,
+                "application_id": app_number,
+                "job_title": job_title,
+                "organization": application.get("organization", ""),
                 "show_blue_bell": True,
             },
             send_email=True,
@@ -20619,12 +21260,16 @@ async def admin_verify_payment(
                 notification_type="admin_alert",
                 title="💰 Payment Rejected",
                 message=f"Payment of ₹{amount} from {user_email} for '{job_title}' "
-                        f"has been REJECTED by {admin_name}.\nReason: {notes}",
-                related_id=application_id,
+                        f"has been REJECTED by {admin_name}.\nReason: {notes}\n\n"
+                        f"📋 Application Number: {app_number}",
+                related_id=app_number,
                 metadata={
                     "status": "payment_rejected",
                     "amount": amount,
                     "job_title": job_title,
+                    "organization": application.get("organization", ""),
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "rejection_reason": notes,
                     "show_blue_bell": True,
                 },
@@ -20641,12 +21286,16 @@ async def admin_verify_payment(
                     notification_type="customadmin_alert",
                     title="💰 Payment Rejected",
                     message=f"Payment of ₹{amount} from {user_email} for '{job_title}' "
-                            f"has been REJECTED by {admin_name}.\nReason: {notes}",
-                    related_id=application_id,
+                            f"has been REJECTED by {admin_name}.\nReason: {notes}\n\n"
+                            f"📋 Application Number: {app_number}",
+                    related_id=app_number,
                     metadata={
                         "status": "payment_rejected",
                         "amount": amount,
                         "job_title": job_title,
+                        "organization": application.get("organization", ""),
+                        "application_number": app_number,
+                        "application_id": app_number,
                         "rejection_reason": notes,
                         "show_blue_bell": True,
                     },
@@ -20658,6 +21307,7 @@ async def admin_verify_payment(
             "success": True,
             "message": f"Payment rejected. Reason: {notes}",
             "application_id": application_id,
+            "application_number": app_number,
             "action": action,
             "notes": notes,
             "notifications_sent": True,
@@ -20773,6 +21423,7 @@ async def get_ranked_applications(
 
         ranked_apps = [{
             "application_id": str(app["_id"]),
+            "application_number": _resolve_application_number(app, str(app["_id"])),
             "candidate_name": app.get("applicant_name", "N/A"),
             "candidate_email": app.get("applicant_email", "N/A"),
             "job_title": app.get("job_title", "N/A"),
@@ -21065,6 +21716,9 @@ print("   ✅ Document Upload: Review, Final Submit")
 print("   ✅ Payment Verification: Approve, Reject")
 print("   ✅ AI Dashboard & Rankings")
 print("   ✅ Notifications to all parties")
+print("   ✅ NEW: application_number propagated to ALL notifications")
+print("      (review / final submit / payment / status update)")
+print("      → email header shows YYYYMMDDSSSS, not the raw _id")
 
 
 ================================================================================
@@ -24562,8 +25216,8 @@ def get_ai_client():
 
 ================================================================================
 [  93/ 171] 🐍 PYTHON FILE: app\modules\customadmin\routes.py
-📏 SIZE: 64,774 bytes
-🕐 MODIFIED: 2026-10-29 20:47:03
+📏 SIZE: 69,866 bytes
+🕐 MODIFIED: 2026-11-08 11:02:41
 
 ================================================================================
 
@@ -24581,6 +25235,9 @@ def get_ai_client():
 # ✅ Payment Verification
 # ✅ Document Upload (Review/Final Submit)
 # ✅ Notifications to all parties
+# ✅ NEW (this build): application_number propagated through ALL
+#    review / final-submit / payment notifications, so the email header
+#    shows the human-readable YYYYMMDDSSSS number instead of the raw _id
 
 from fastapi import (
     APIRouter, Depends, HTTPException, Query, Body,
@@ -24646,6 +25303,54 @@ async def _get_admin_email(user: dict, db) -> str:
             if auth_user:
                 admin_email = auth_user.get("email")
     return admin_email or "customadmin@rojgarnest.com"
+
+
+def _resolve_application_number(application: dict, fallback_id: str) -> str:
+    """
+    ✅ Resolve the human-readable application number.
+
+    Priority:
+      1. application['application_number']  (YYYYMMDDSSSS)
+      2. application['application_id']      (legacy alias)
+      3. fallback_id                        (the raw _id passed in)
+    """
+    return (
+        (application or {}).get("application_number")
+        or (application or {}).get("application_id")
+        or fallback_id
+    )
+
+
+def _get_display_title(application: dict) -> tuple:
+    """
+    ✅ Build the (display_title, display_org) pair used for the email header,
+    resolved per application type so scheme / service / job emails never
+    show a blank organization.
+
+    Returns:
+        (display_title, display_org)
+    """
+    app_type = (application.get("application_type") or "job").lower()
+
+    if app_type == "schemes":
+        display_title = (
+            application.get("scheme_name")
+            or application.get("scheme_name_hindi")
+            or "Scheme Application"
+        )
+        display_org = display_title
+    elif app_type == "service":
+        display_title = (
+            application.get("sub_service_name")
+            or application.get("service_name")
+            or "Service Application"
+        )
+        display_org = display_title
+    else:
+        display_title = application.get("job_title") or "Job Application"
+        display_org = application.get("organization") or "Company"
+
+    return display_title, display_org
 
 
 # ============================================================
@@ -25248,6 +25953,7 @@ async def update_customadmin_application_status(
         if job.get("added_by") != admin_email:
             raise HTTPException(status_code=403, detail="Access denied")
         display_title = job.get("post_name", "Job")
+        display_org = job.get("organization", "Company")
         color_type = job.get("color_type", "blue")
     else:
         display_title = (
@@ -25255,6 +25961,7 @@ async def update_customadmin_application_status(
             application.get("service_name") or
             "Application"
         )
+        display_org = display_title
         color_type = application.get("color_type", "blue")
 
     old_status = application.get("status", "unknown")
@@ -25262,6 +25969,9 @@ async def update_customadmin_application_status(
         application.get("applicant_email") or
         application.get("user_email")
     )
+
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(application, application_id)
 
     update_data = {
         "status": status,
@@ -25308,11 +26018,13 @@ async def update_customadmin_application_status(
             message=status_messages.get(
                 status,
                 f"Your application status has been updated to {status} by {admin_name}."
-            ),
-            related_id=application_id,
+            ) + f"\n\n📋 Application Number: {app_number}",
+            related_id=app_number,
             metadata={
-                "application_id": application_id,
+                "application_number": app_number,
+                "application_id": app_number,
                 "job_title": display_title,
+                "organization": display_org,
                 "old_status": old_status,
                 "new_status": status,
                 "admin_notes": notes,
@@ -25330,6 +26042,7 @@ async def update_customadmin_application_status(
         "success": True,
         "message": f"Application status updated from {old_status} to {status}",
         "application_id": application_id,
+        "application_number": app_number,
         "status": status,
         "old_status": old_status,
         "updated_by": admin_email,
@@ -25403,6 +26116,10 @@ async def customadmin_review_application_status(
         )
         existing_doc_url = application.get("submitted_document_url")
 
+        # ✅ FIX: Resolve human-readable application number + display names
+        app_number = _resolve_application_number(application, application_id)
+        display_title, display_org = _get_display_title(application)
+
         update_data = {
             "status": "review_application",
             "last_status_update": datetime.utcnow(),
@@ -25425,6 +26142,7 @@ async def customadmin_review_application_status(
             user_title = f"📋 Application Under Review"
             user_message = (
                 f"Your application is now under REVIEW by {admin_name}.\n\n"
+                f"📋 Application Number: {app_number}\n\n"
                 "The admin is reviewing your documents. You will be notified once the review is complete."
             )
             if notes:
@@ -25435,8 +26153,12 @@ async def customadmin_review_application_status(
                 notification_type="application_status",
                 title=user_title,
                 message=user_message,
-                related_id=application_id,
+                related_id=app_number,
                 metadata={
+                    "application_number": app_number,
+                    "application_id": app_number,
+                    "job_title": display_title,
+                    "organization": display_org,
                     "status": "review_application",
                     "admin_notes": notes,
                     "admin_name": admin_name,
@@ -25452,6 +26174,7 @@ async def customadmin_review_application_status(
             "success": True,
             "message": f"Application status updated from {old_status} to review_application",
             "application_id": application_id,
+            "application_number": app_number,
             "status": "review_application",
             "old_status": old_status,
             "admin_notes": notes,
@@ -25569,10 +26292,17 @@ async def customadmin_submit_document(
         saved_url = updated_app.get("submitted_document_url") if updated_app else None
         logger.info(f"✅ VERIFIED: submitted_document_url = {saved_url}")
 
+        # ✅ FIX: Resolve human-readable application number + display names
+        app_number = _resolve_application_number(application, application_id)
+        display_title, display_org = _get_display_title(application)
+
+        logger.info(f"📋 Using application_number for emails: {app_number}")
+
         user_title = f"📄 Document Submitted"
         user_message = (
             f"Your document '{file.filename}' has been submitted successfully "
-            f"by {admin_name}."
+            f"by {admin_name}.\n\n"
+            f"📋 Application Number: {app_number}"
         )
         if notes:
             user_message += f"\n\nAdmin Notes: {notes}"
@@ -25582,8 +26312,12 @@ async def customadmin_submit_document(
             notification_type="application_status",
             title=user_title,
             message=user_message,
-            related_id=application_id,
+            related_id=app_number,
             metadata={
+                "application_number": app_number,
+                "application_id": app_number,
+                "job_title": display_title,
+                "organization": display_org,
                 "document_name": file.filename,
                 "admin_name": admin_name,
                 "admin_notes": notes,
@@ -25601,6 +26335,7 @@ async def customadmin_submit_document(
             "success": True,
             "message": "Document submitted successfully!",
             "application_id": application_id,
+            "application_number": app_number,
             "submitted_document_url": upload_result["url"],
             "submitted_document_name": file.filename,
             "admin_notes": notes,
@@ -25729,10 +26464,17 @@ async def customadmin_final_submit_with_document(
         saved_url = updated_app.get("submitted_document_url") if updated_app else None
         logger.info(f"✅ VERIFIED: submitted_document_url = {saved_url}")
 
+        # ✅ FIX: Resolve human-readable application number + display names
+        app_number = _resolve_application_number(application, application_id)
+        display_title, display_org = _get_display_title(application)
+
+        logger.info(f"📋 Using application_number for FINAL submit emails: {app_number}")
+
         user_title = f"✅ FINAL SUBMISSION"
         user_message = (
             f"Your FINAL document '{file.filename}' has been submitted successfully "
             f"by {admin_name}.\n\n"
+            f"📋 Application Number: {app_number}\n\n"
             "This is your FINAL submission. No further changes are allowed."
         )
         if notes:
@@ -25743,8 +26485,12 @@ async def customadmin_final_submit_with_document(
             notification_type="application_status",
             title=user_title,
             message=user_message,
-            related_id=application_id,
+            related_id=app_number,
             metadata={
+                "application_number": app_number,
+                "application_id": app_number,
+                "job_title": display_title,
+                "organization": display_org,
                 "document_name": file.filename,
                 "admin_name": admin_name,
                 "admin_notes": notes,
@@ -25763,6 +26509,7 @@ async def customadmin_final_submit_with_document(
             "success": True,
             "message": "FINAL application document submitted successfully!",
             "application_id": application_id,
+            "application_number": app_number,
             "status": "final_submitted",
             "old_status": old_status,
             "final_document_url": upload_result["url"],
@@ -25975,6 +26722,7 @@ async def customadmin_get_pending_payments(
 
         results.append({
             "id": str(app["_id"]),
+            "application_number": _resolve_application_number(app, str(app["_id"])),
             "type": "job",
             "user_email": app.get("applicant_email") or app.get("user_email"),
             "user_name": app.get("applicant_name") or app.get("user_name", "Unknown"),
@@ -26027,6 +26775,10 @@ async def customadmin_verify_payment(
     job_title = application.get("job_title", "Job Application")
     job_poster_email = application.get("added_by")
 
+    # ✅ FIX: Resolve human-readable application number + display names
+    app_number = _resolve_application_number(application, application_id)
+    display_title, display_org = _get_display_title(application)
+
     if action == "approve":
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
@@ -26046,7 +26798,8 @@ async def customadmin_verify_payment(
         title = f"✅ Payment Verified Successfully: {job_title}"
         message = (
             f"Your payment of ₹{amount} for '{job_title}' has been verified successfully. "
-            "Your application is now submitted."
+            f"Your application is now submitted.\n\n"
+            f"📋 Application Number: {app_number}"
         )
 
         await central_notification.send_notification(
@@ -26054,11 +26807,15 @@ async def customadmin_verify_payment(
             notification_type="application_status",
             title=title,
             message=message,
-            related_id=application_id,
+            related_id=app_number,
             metadata={
                 "status": status_msg,
                 "amount": amount,
                 "transaction_id": transaction_id,
+                "application_number": app_number,
+                "application_id": app_number,
+                "job_title": display_title,
+                "organization": display_org,
                 "show_blue_bell": True
             },
             send_email=True,
@@ -26070,6 +26827,7 @@ async def customadmin_verify_payment(
             "success": True,
             "message": "Payment approved successfully.",
             "application_id": application_id,
+            "application_number": app_number,
             "action": action,
             "notes": notes,
             "notifications_sent": True
@@ -26096,18 +26854,26 @@ async def customadmin_verify_payment(
 
         status_msg = "verification_rejected" if application_type == "job" else "rejected"
         title = f"❌ Payment Verification Failed: {job_title}"
-        message = f"Your payment of ₹{amount} for '{job_title}' has been REJECTED.\nReason: {notes}"
+        message = (
+            f"Your payment of ₹{amount} for '{job_title}' has been REJECTED.\n"
+            f"Reason: {notes}\n\n"
+            f"📋 Application Number: {app_number}"
+        )
 
         await central_notification.send_notification(
             user_ids=[user_email],
             notification_type="application_status",
             title=title,
             message=message,
-            related_id=application_id,
+            related_id=app_number,
             metadata={
                 "status": status_msg,
                 "amount": amount,
                 "rejection_reason": notes,
+                "application_number": app_number,
+                "application_id": app_number,
+                "job_title": display_title,
+                "organization": display_org,
                 "show_blue_bell": True
             },
             send_email=True,
@@ -26119,6 +26885,7 @@ async def customadmin_verify_payment(
             "success": True,
             "message": f"Payment rejected. Reason: {notes}",
             "application_id": application_id,
+            "application_number": app_number,
             "action": action,
             "notes": notes,
             "notifications_sent": True
@@ -26166,7 +26933,6 @@ async def customadmin_scheme_documents(
         db=db,
         current_user=user,
     )
-
 
 
 @router.post("/jobs/{job_id}/upload-advertisement")
@@ -26260,6 +27026,9 @@ print("   ✅ Job CRUD: Add, Get, Update, Delete, Publish")
 print("   ✅ Application Management: job + service + schemes")
 print("   ✅ Document Upload: Review, Final Submit")
 print("   ✅ Payment Verification: Approve, Reject")
+print("   ✅ NEW: application_number propagated to ALL notifications")
+print("      (review / final submit / payment / status update)")
+print("      → email header shows YYYYMMDDSSSS, not the raw _id")
 
 
 ================================================================================
@@ -45819,8 +46588,8 @@ __all__ = ['router', 'SchemeService']
 
 ================================================================================
 [ 133/ 171] 🐍 PYTHON FILE: app\modules\schemes\routes.py
-📏 SIZE: 43,779 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 47,049 bytes
+🕐 MODIFIED: 2026-11-08 11:08:00
 
 ================================================================================
 
@@ -45833,6 +46602,12 @@ Government Schemes API Routes
 ✅ FIXED: Documents stored in scheme_documents[]
 ✅ FIXED: /documents endpoint accepts BOTH _id AND application_id
 ✅ FIXED: /documents reads from BOTH documents[] AND scheme_documents[]
+✅ NEW (this build): application_number propagated through ALL
+   status / review / final-submit notifications, so the email header
+   shows the human-readable YYYYMMDDSSSS number instead of the raw _id
+✅ NEW (this build): application_type="schemes" added to every
+   notification metadata so the gold scheme-themed email template
+   is used (instead of the default blue job template)
 """
 
 import re
@@ -45891,6 +46666,36 @@ def _safe_doc_type(doc_type: str) -> str:
 def _is_admin_role(role: str) -> bool:
     return (role or "").strip().lower() in (
         "admin", "customadmin", "custom_admin", "superadmin"
+    )
+
+
+def _resolve_application_number(application: dict, fallback_id: str) -> str:
+    """
+    ✅ Resolve the human-readable application number.
+
+    Priority:
+      1. application['application_number']  (YYYYMMDDSSSS)
+      2. application['application_id']      (legacy alias)
+      3. fallback_id                        (the raw _id passed in)
+    """
+    return (
+        (application or {}).get("application_number")
+        or (application or {}).get("application_id")
+        or fallback_id
+    )
+
+
+def _scheme_display_name(application: dict) -> str:
+    """
+    ✅ Build the human-readable scheme name used for the email header.
+
+    Priority:
+      scheme_name → scheme_name_hindi → "Scheme Application"
+    """
+    return (
+        (application or {}).get("scheme_name")
+        or (application or {}).get("scheme_name_hindi")
+        or "Scheme Application"
     )
 
 
@@ -46153,7 +46958,8 @@ async def get_scheme_documents(
 
     actual_id = str(app_rec["_id"])
     stored_app_id = app_rec.get("application_id", "")
-    logger.info(f"✅ Found scheme application: _id={actual_id}, application_id={stored_app_id}")
+    app_number = _resolve_application_number(app_rec, actual_id)
+    logger.info(f"✅ Found scheme application: _id={actual_id}, application_number={app_number}")
 
     normalized_user_docs: List[Dict[str, Any]] = []
     seen_urls: set = set()
@@ -46258,7 +47064,7 @@ async def get_scheme_documents(
     return {
         "success": True,
         "application_id": actual_id,
-        "application_number": stored_app_id,
+        "application_number": app_number,
         "scheme_documents": normalized_user_docs,
         "admin_documents": admin_docs,
         "total": len(normalized_user_docs) + len(admin_docs),
@@ -46395,7 +47201,7 @@ async def upload_temp_document(
 
 
 # ============================================================
-# ✅ NEW: STATUS UPDATE (used by frontend customadmin screen)
+# ✅ STATUS UPDATE (used by frontend customadmin screen)
 # PUT /api/v1/schemes/application/{id}/status
 # Accepts query params: status, notes
 # OR body: {status, admin_notes, notes}
@@ -46427,6 +47233,9 @@ async def update_scheme_application_status(
     old_status = application.get("status", "unknown")
     admin_email = current_user.get("email") or "admin"
 
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(application, actual_id)
+
     update_data: Dict[str, Any] = {
         "status": status,
         "last_status_update": datetime.utcnow(),
@@ -46441,27 +47250,33 @@ async def update_scheme_application_status(
         {"$set": update_data}
     )
 
-    logger.info(f"✅ Scheme application {actual_id}: {old_status} → {status}")
+    logger.info(
+        f"✅ Scheme application {app_number}: {old_status} → {status}"
+    )
 
     # Notify applicant
     applicant_email = application.get("applicant_email") or application.get("user_email")
     if applicant_email:
         try:
             from app.modules.notification.service import central_notification
-            scheme_name = (
-                application.get("scheme_name")
-                or application.get("scheme_name_hindi")
-                or "Scheme Application"
-            )
+            scheme_name = _scheme_display_name(application)
+
             await central_notification.send_notification(
                 user_ids=[applicant_email],
                 notification_type="application_status",
                 title=f"📋 Application Status: {status.upper()}",
-                message=f"Your scheme application for '{scheme_name}' is now {status.upper()}.",
-                related_id=actual_id,
+                message=(
+                    f"Your scheme application for '{scheme_name}' is now "
+                    f"{status.upper()}.\n\n"
+                    f"📋 Application Number: {app_number}"
+                ),
+                related_id=app_number,
                 metadata={
-                    "application_id": actual_id,
+                    "application_type": "schemes",
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "scheme_name": scheme_name,
+                    "scheme_id": application.get("scheme_id"),
                     "old_status": old_status,
                     "new_status": status,
                     "admin_notes": notes,
@@ -46477,13 +47292,14 @@ async def update_scheme_application_status(
         "success": True,
         "message": f"Status updated from {old_status} to {status}",
         "application_id": actual_id,
+        "application_number": app_number,
         "status": status,
         "old_status": old_status,
     }
 
 
 # ============================================================
-# ✅ NEW: REVIEW WITH DOCUMENT
+# ✅ REVIEW WITH DOCUMENT
 # POST /api/v1/schemes/application/{id}/review-with-document
 # ============================================================
 @router.post("/application/{application_id}/review-with-document")
@@ -46561,21 +47377,36 @@ async def scheme_review_with_document(
 
     await db.applications.update_one({"_id": application["_id"]}, {"$set": update_data})
 
-    logger.info(f"✅ Status: {old_status} → review_application")
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(application, actual_id)
+    scheme_name = _scheme_display_name(application)
+
+    logger.info(
+        f"✅ Status: {old_status} → review_application "
+        f"(app_number={app_number})"
+    )
 
     if applicant_email:
         try:
             from app.modules.notification.service import central_notification
-            scheme_name = application.get("scheme_name") or application.get("scheme_name_hindi") or "Scheme"
             await central_notification.send_notification(
                 user_ids=[applicant_email],
                 notification_type="application_status",
                 title=f"📋 Application Under Review: {scheme_name}",
-                message=f"Your scheme application for '{scheme_name}' is now under REVIEW.",
-                related_id=actual_id,
+                message=(
+                    f"Your scheme application for '{scheme_name}' is now "
+                    f"under REVIEW.\n\n"
+                    f"📋 Application Number: {app_number}\n\n"
+                    "The admin is reviewing your documents. "
+                    "You will be notified once the review is complete."
+                ),
+                related_id=app_number,
                 metadata={
-                    "application_id": actual_id,
+                    "application_type": "schemes",
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "scheme_name": scheme_name,
+                    "scheme_id": application.get("scheme_id"),
                     "status": "review_application",
                     "document_name": file.filename,
                     "admin_notes": notes,
@@ -46592,6 +47423,7 @@ async def scheme_review_with_document(
         "success": True,
         "message": "Review document submitted successfully",
         "application_id": actual_id,
+        "application_number": app_number,
         "status": "review_application",
         "old_status": old_status,
         "submitted_document_url": upload_result["url"],
@@ -46601,7 +47433,7 @@ async def scheme_review_with_document(
 
 
 # ============================================================
-# ✅ NEW: FINAL SUBMIT WITH DOCUMENT
+# ✅ FINAL SUBMIT WITH DOCUMENT
 # POST /api/v1/schemes/application/{id}/final-submit-with-document
 # ============================================================
 @router.post("/application/{application_id}/final-submit-with-document")
@@ -46695,21 +47527,36 @@ async def scheme_final_submit_with_document(
 
     await db.applications.update_one({"_id": application["_id"]}, {"$set": update_data})
 
-    logger.info(f"✅ Status: {old_status} → final_submitted")
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(application, actual_id)
+    scheme_name = _scheme_display_name(application)
+
+    logger.info(
+        f"✅ Status: {old_status} → final_submitted "
+        f"(app_number={app_number})"
+    )
 
     if applicant_email:
         try:
             from app.modules.notification.service import central_notification
-            scheme_name = application.get("scheme_name") or application.get("scheme_name_hindi") or "Scheme"
             await central_notification.send_notification(
                 user_ids=[applicant_email],
                 notification_type="application_status",
                 title=f"✅ FINAL SUBMISSION: {scheme_name}",
-                message=f"Your FINAL document for '{scheme_name}' has been submitted successfully.",
-                related_id=actual_id,
+                message=(
+                    f"Your FINAL document for '{scheme_name}' has been "
+                    f"submitted successfully.\n\n"
+                    f"📋 Application Number: {app_number}\n\n"
+                    "This is your FINAL submission. "
+                    "No further changes are allowed."
+                ),
+                related_id=app_number,
                 metadata={
-                    "application_id": actual_id,
+                    "application_type": "schemes",
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "scheme_name": scheme_name,
+                    "scheme_id": application.get("scheme_id"),
                     "status": "final_submitted",
                     "document_name": file.filename,
                     "admin_notes": notes,
@@ -46727,6 +47574,7 @@ async def scheme_final_submit_with_document(
         "success": True,
         "message": "FINAL document submitted successfully!",
         "application_id": actual_id,
+        "application_number": app_number,
         "status": "final_submitted",
         "old_status": old_status,
         "final_document_url": upload_result["url"],
@@ -46871,6 +47719,11 @@ print("   ✅ /application/{id}/status (query + body)")
 print("   ✅ /application/{id}/documents")
 print("   ✅ /application/{id}/upload-document")
 print("   ✅ /admin/application/{id}/status")
+print("   ✅ NEW: application_number propagated to ALL notifications")
+print("      (status update / review / final submit)")
+print("      → email header shows YYYYMMDDSSSS, not the raw _id")
+print("   ✅ NEW: application_type='schemes' added to notification metadata")
+print("      → gold scheme-themed email template always used")
 print("=" * 70)
 for r in router.routes:
     methods = ",".join(r.methods) if hasattr(r, "methods") else "?"
@@ -49356,8 +50209,8 @@ class ServiceMasterData:
 
 ================================================================================
 [ 138/ 171] 🐍 PYTHON FILE: app\modules\services\routes.py
-📏 SIZE: 34,500 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 48,775 bytes
+🕐 MODIFIED: 2026-11-08 11:06:30
 
 ================================================================================
 
@@ -49366,6 +50219,11 @@ class ServiceMasterData:
 # ✅ All user/admin endpoints now use ServiceService._enrich_application_for_frontend()
 # ✅ payment_status='completed' + verification='pending' → auto-corrected to 'approved'
 # ✅ Frontend will NEVER see "Payment Pending" once gateway says completed
+# ✅ NEW (this build): application_number propagated through ALL review /
+#    final-submit / payment / status notifications, so the email header
+#    shows the human-readable YYYYMMDDSSSS number instead of the raw _id
+# ✅ NEW (this build): Previously-missing user notifications for
+#    review / final-submit / payment-verify / status-update now fire
 
 from fastapi import (
     APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
@@ -49408,6 +50266,37 @@ def _safe_doc_type(doc_type: str) -> str:
     return doc_type[:60] or "document"
 
 
+def _resolve_application_number(application: dict, fallback_id: str) -> str:
+    """
+    ✅ Resolve the human-readable application number.
+
+    Priority:
+      1. application['application_number']  (YYYYMMDDSSSS)
+      2. application['application_id']      (legacy alias)
+      3. fallback_id                        (the raw _id passed in)
+    """
+    return (
+        (application or {}).get("application_number")
+        or (application or {}).get("application_id")
+        or fallback_id
+    )
+
+
+def _service_display_title(application: dict) -> str:
+    """
+    ✅ Build a human-readable title for the service application
+    used by the email header.
+
+    Priority:
+      sub_service_name → service_name → "Service Application"
+    """
+    return (
+        (application or {}).get("sub_service_name")
+        or (application or {}).get("service_name")
+        or "Service Application"
+    )
+
+
 # ============================================================
 # ✅ STEP 1: CREATE DRAFT SERVICE APPLICATION
 # ============================================================
@@ -49440,6 +50329,9 @@ async def create_draft_service_application(
         return {
             "success": True,
             "application_id": str(existing["_id"]),
+            "application_number": _resolve_application_number(
+                existing, str(existing["_id"])
+            ),
             "message": "Existing draft reused",
             "is_new": False,
         }
@@ -49619,6 +50511,7 @@ async def get_service_application_documents(
     return {
         "success": True,
         "application_id": application_id,
+        "application_number": _resolve_application_number(app_rec, application_id),
         "service_documents": service_docs,
         "admin_documents": admin_docs,
         "total": len(service_docs) + len(admin_docs),
@@ -49658,12 +50551,26 @@ async def finalize_service_application(
     if result.modified_count == 0:
         existing = await db.applications.find_one({"_id": ObjectId(application_id)})
         if existing and existing.get("is_draft") is False:
-            return {"success": True, "application_id": application_id,
-                    "message": "Already finalized"}
+            return {
+                "success": True,
+                "application_id": application_id,
+                "application_number": _resolve_application_number(
+                    existing, application_id
+                ),
+                "message": "Already finalized",
+            }
         raise HTTPException(status_code=404, detail="Draft not found")
 
-    return {"success": True, "application_id": application_id,
-            "message": "Application finalized"}
+    # Read back for app_number
+    updated = await db.applications.find_one({"_id": ObjectId(application_id)})
+    app_number = _resolve_application_number(updated or {}, application_id)
+
+    return {
+        "success": True,
+        "application_id": application_id,
+        "application_number": app_number,
+        "message": "Application finalized",
+    }
 
 
 # ============================================================
@@ -49723,8 +50630,11 @@ async def submit_service_application(
         })
 
     result = await db.applications.insert_one(application)
-    return {"success": True, "application_id": str(result.inserted_id),
-            "message": "Service application submitted"}
+    return {
+        "success": True,
+        "application_id": str(result.inserted_id),
+        "message": "Service application submitted",
+    }
 
 
 # ============================================================
@@ -49756,8 +50666,15 @@ async def get_my_service_applications(
     for a in apps:
         a["_id"] = str(a["_id"])
 
+        # Preserve original app_number BEFORE enrichment
+        original_app_number = _resolve_application_number(a, a["_id"])
+
         # ✅ THIS IS THE FIX — enrich + auto-correct status
         a = service_service._enrich_application_for_frontend(a)
+
+        # Ensure application_number is always present in the payload
+        if not a.get("application_number"):
+            a["application_number"] = original_app_number
 
         # Lightweight listing — omit full docs
         a.pop("service_documents", None)
@@ -49786,7 +50703,14 @@ async def get_all_service_applications(
     out: List[Dict[str, Any]] = []
     for a in apps:
         a["_id"] = str(a["_id"])
+
+        original_app_number = _resolve_application_number(a, a["_id"])
+
         a = service_service._enrich_application_for_frontend(a)
+
+        if not a.get("application_number"):
+            a["application_number"] = original_app_number
+
         a.pop("service_documents", None)
         out.append(a)
 
@@ -49820,15 +50744,20 @@ async def get_service_application_detail(
 
     app_rec["_id"] = str(app_rec["_id"])
 
+    original_app_number = _resolve_application_number(app_rec, application_id)
+
     # ✅ Enrich + auto-correct
     service_service = ServiceService(db)
     app_rec = service_service._enrich_application_for_frontend(app_rec)
+
+    if not app_rec.get("application_number"):
+        app_rec["application_number"] = original_app_number
 
     return {"success": True, "data": app_rec}
 
 
 # ============================================================
-# STATUS UPDATE (admin)
+# STATUS UPDATE (admin) — ✅ NOW NOTIFIES USER
 # ============================================================
 @router.put("/application/{application_id}/status")
 async def update_service_application_status(
@@ -49847,6 +50776,13 @@ async def update_service_application_status(
     if not status:
         raise HTTPException(status_code=400, detail="status is required")
 
+    # ✅ Read current app BEFORE update for notification data
+    app_rec = await db.applications.find_one({"_id": ObjectId(application_id)})
+    if not app_rec:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    old_status = app_rec.get("status", "unknown")
+
     update: Dict[str, Any] = {
         "status": status,
         "updated_at": datetime.utcnow(),
@@ -49861,12 +50797,68 @@ async def update_service_application_status(
         {"$set": update},
     )
 
-    return {"success": result.modified_count > 0,
-            "message": "Status updated" if result.modified_count > 0 else "Not found"}
+    if result.modified_count == 0:
+        return {"success": False, "message": "Not found or status unchanged"}
+
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(app_rec, application_id)
+    applicant_email = (
+        app_rec.get("applicant_email") or
+        app_rec.get("user_email")
+    )
+    service_title = _service_display_title(app_rec)
+
+    logger.info(
+        f"📋 Service STATUS UPDATE — app_number={app_number}, "
+        f"status={old_status} → {status}"
+    )
+
+    # ✅ FIX: Notify user with correct application_number
+    if applicant_email:
+        try:
+            from app.modules.notification.service import central_notification
+            await central_notification.send_notification(
+                user_ids=[applicant_email],
+                notification_type="application_status",
+                title=f"Application Status: {status.upper()}",
+                message=(
+                    f"Your service application for '{service_title}' is "
+                    f"now {status.upper()}.\n\n"
+                    f"📋 Application Number: {app_number}"
+                ),
+                related_id=app_number,
+                metadata={
+                    "application_type": "service",
+                    "application_number": app_number,
+                    "application_id": app_number,
+                    "service_name": service_title,
+                    "job_title": service_title,
+                    "organization": service_title,
+                    "old_status": old_status,
+                    "new_status": status,
+                    "admin_notes": admin_notes,
+                    "show_blue_bell": True,
+                },
+                send_email=True,
+                send_websocket=True,
+            )
+            logger.info(f"🔔 Status notification sent to: {applicant_email}")
+        except Exception as ne:
+            logger.warning(f"⚠️ Status notification failed: {ne}")
+
+    return {
+        "success": True,
+        "message": "Status updated",
+        "application_id": application_id,
+        "application_number": app_number,
+        "status": status,
+        "old_status": old_status,
+        "notifications_sent": bool(applicant_email),
+    }
 
 
 # ============================================================
-# VERIFY PAYMENT (admin)
+# VERIFY PAYMENT (admin) — ✅ NOW NOTIFIES USER
 # ============================================================
 @router.post("/application/{application_id}/verify-payment")
 async def verify_service_application_payment(
@@ -49885,6 +50877,11 @@ async def verify_service_application_payment(
 
     if action not in ("approve", "reject"):
         raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'")
+
+    # ✅ Read current app BEFORE update
+    app_rec = await db.applications.find_one({"_id": ObjectId(application_id)})
+    if not app_rec:
+        raise HTTPException(status_code=404, detail="Application not found")
 
     if action == "approve":
         update = {
@@ -49909,11 +50906,79 @@ async def verify_service_application_payment(
         {"$set": update},
     )
 
-    return {"success": True, "message": f"Payment {action}d successfully"}
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(app_rec, application_id)
+    applicant_email = (
+        app_rec.get("applicant_email") or
+        app_rec.get("user_email")
+    )
+    service_title = _service_display_title(app_rec)
+    amount = app_rec.get("payment_amount", 0)
+
+    logger.info(
+        f"📋 Service PAYMENT VERIFY — app_number={app_number}, "
+        f"action={action}, amount=₹{amount}"
+    )
+
+    # ✅ FIX: Notify user with correct application_number
+    if applicant_email:
+        try:
+            from app.modules.notification.service import central_notification
+
+            if action == "approve":
+                title = f"✅ Service Payment Verified: {service_title}"
+                message = (
+                    f"Your payment of ₹{amount} for '{service_title}' has been "
+                    f"verified successfully.\n\n"
+                    f"📋 Application Number: {app_number}"
+                )
+                status_val = "payment_verified"
+            else:
+                title = f"❌ Service Payment Rejected: {service_title}"
+                message = (
+                    f"Your payment of ₹{amount} for '{service_title}' has been "
+                    f"REJECTED.\nReason: {notes or 'Please contact support'}\n\n"
+                    f"📋 Application Number: {app_number}"
+                )
+                status_val = "rejected"
+
+            await central_notification.send_notification(
+                user_ids=[applicant_email],
+                notification_type="application_status",
+                title=title,
+                message=message,
+                related_id=app_number,
+                metadata={
+                    "application_type": "service",
+                    "application_number": app_number,
+                    "application_id": app_number,
+                    "service_name": service_title,
+                    "job_title": service_title,
+                    "organization": service_title,
+                    "status": status_val,
+                    "amount": amount,
+                    "admin_notes": notes,
+                    "show_blue_bell": True,
+                },
+                send_email=True,
+                send_sms=True,
+                send_websocket=True,
+            )
+            logger.info(f"🔔 Payment notification sent to: {applicant_email}")
+        except Exception as ne:
+            logger.warning(f"⚠️ Payment notification failed: {ne}")
+
+    return {
+        "success": True,
+        "message": f"Payment {action}d successfully",
+        "application_id": application_id,
+        "application_number": app_number,
+        "notifications_sent": bool(applicant_email),
+    }
 
 
 # ============================================================
-# REVIEW WITH DOCUMENT (admin)
+# REVIEW WITH DOCUMENT (admin) — ✅ NOW NOTIFIES USER
 # ============================================================
 @router.post("/application/{application_id}/review-with-document")
 async def review_service_application_with_document(
@@ -49957,8 +51022,63 @@ async def review_service_application_with_document(
             }},
         )
 
-        return {"success": True, "message": "Review document uploaded",
-                "url": upload_result.get("url")}
+        # ✅ FIX: Resolve human-readable application number
+        app_number = _resolve_application_number(app_rec, application_id)
+        applicant_email = (
+            app_rec.get("applicant_email") or
+            app_rec.get("user_email")
+        )
+        service_title = _service_display_title(app_rec)
+
+        logger.info(
+            f"📋 Service REVIEW — app_number={app_number}, "
+            f"file={file.filename if file else 'unknown'}"
+        )
+
+        # ✅ FIX: Notify user with correct application_number
+        if applicant_email:
+            try:
+                from app.modules.notification.service import central_notification
+                await central_notification.send_notification(
+                    user_ids=[applicant_email],
+                    notification_type="application_status",
+                    title=f"📄 Service Document Submitted: {service_title}",
+                    message=(
+                        f"Your document '{file.filename}' has been submitted "
+                        f"for review for '{service_title}'.\n\n"
+                        f"📋 Application Number: {app_number}\n\n"
+                        "The admin is reviewing your document. "
+                        "You will be notified once the review is complete."
+                    ),
+                    related_id=app_number,
+                    metadata={
+                        "application_type": "service",
+                        "application_number": app_number,
+                        "application_id": app_number,
+                        "service_name": service_title,
+                        "job_title": service_title,
+                        "organization": service_title,
+                        "status": "review_application",
+                        "document_name": file.filename,
+                        "admin_notes": notes,
+                        "show_blue_bell": True,
+                        "submitted_document_url": upload_result.get("url"),
+                    },
+                    send_email=True,
+                    send_websocket=True,
+                )
+                logger.info(f"🔔 Review notification sent to: {applicant_email}")
+            except Exception as ne:
+                logger.warning(f"⚠️ Review notification failed: {ne}")
+
+        return {
+            "success": True,
+            "message": "Review document uploaded",
+            "application_id": application_id,
+            "application_number": app_number,
+            "url": upload_result.get("url"),
+            "notifications_sent": bool(applicant_email),
+        }
 
     except Exception as e:
         logger.error(f"❌ Review upload failed: {e}")
@@ -49966,7 +51086,7 @@ async def review_service_application_with_document(
 
 
 # ============================================================
-# FINAL SUBMIT (admin)
+# FINAL SUBMIT (admin) — ✅ NOW NOTIFIES USER
 # ============================================================
 @router.post("/application/{application_id}/final-submit-with-document")
 async def final_submit_service_application(
@@ -50009,8 +51129,64 @@ async def final_submit_service_application(
             }},
         )
 
-        return {"success": True, "message": "Final document uploaded",
-                "url": upload_result.get("url")}
+        # ✅ FIX: Resolve human-readable application number
+        app_number = _resolve_application_number(app_rec, application_id)
+        applicant_email = (
+            app_rec.get("applicant_email") or
+            app_rec.get("user_email")
+        )
+        service_title = _service_display_title(app_rec)
+
+        logger.info(
+            f"📋 Service FINAL SUBMIT — app_number={app_number}, "
+            f"file={file.filename if file else 'unknown'}"
+        )
+
+        # ✅ FIX: Notify user with correct application_number
+        if applicant_email:
+            try:
+                from app.modules.notification.service import central_notification
+                await central_notification.send_notification(
+                    user_ids=[applicant_email],
+                    notification_type="application_status",
+                    title=f"✅ FINAL SUBMISSION: {service_title}",
+                    message=(
+                        f"Your FINAL document '{file.filename}' for "
+                        f"'{service_title}' has been submitted successfully.\n\n"
+                        f"📋 Application Number: {app_number}\n\n"
+                        "This is your FINAL submission. "
+                        "No further changes are allowed."
+                    ),
+                    related_id=app_number,
+                    metadata={
+                        "application_type": "service",
+                        "application_number": app_number,
+                        "application_id": app_number,
+                        "service_name": service_title,
+                        "job_title": service_title,
+                        "organization": service_title,
+                        "status": "final_submitted",
+                        "document_name": file.filename,
+                        "admin_notes": notes,
+                        "is_final": True,
+                        "show_blue_bell": True,
+                        "final_document_url": upload_result.get("url"),
+                    },
+                    send_email=True,
+                    send_websocket=True,
+                )
+                logger.info(f"🔔 FINAL notification sent to: {applicant_email}")
+            except Exception as ne:
+                logger.warning(f"⚠️ FINAL notification failed: {ne}")
+
+        return {
+            "success": True,
+            "message": "Final document uploaded",
+            "application_id": application_id,
+            "application_number": app_number,
+            "url": upload_result.get("url"),
+            "notifications_sent": bool(applicant_email),
+        }
 
     except Exception as e:
         logger.error(f"❌ Final upload failed: {e}")
@@ -50040,8 +51216,17 @@ async def user_confirm_service_application(
         }},
     )
 
-    return {"success": result.modified_count > 0,
-            "message": "Application confirmed" if result.modified_count > 0 else "Not found"}
+    if result.modified_count == 0:
+        return {"success": False, "message": "Not found"}
+
+    updated = await db.applications.find_one({"_id": ObjectId(application_id)})
+    app_number = _resolve_application_number(updated or {}, application_id)
+
+    return {
+        "success": True,
+        "message": "Application confirmed",
+        "application_number": app_number,
+    }
 
 
 # ============================================================
@@ -50082,8 +51267,17 @@ async def user_submit_service_application_update(
         },
     )
 
-    return {"success": result.modified_count > 0,
-            "message": "Update submitted" if result.modified_count > 0 else "Not found"}
+    if result.modified_count == 0:
+        return {"success": False, "message": "Not found"}
+
+    updated = await db.applications.find_one({"_id": ObjectId(application_id)})
+    app_number = _resolve_application_number(updated or {}, application_id)
+
+    return {
+        "success": True,
+        "message": "Update submitted",
+        "application_number": app_number,
+    }
 
 
 # ============================================================
@@ -50126,9 +51320,16 @@ async def upload_payment_screenshot_for_service(
             }},
         )
 
-        return {"success": True, "url": upload_result.get("url")}
+        app_number = _resolve_application_number(app_rec, application_id)
+
+        return {
+            "success": True,
+            "url": upload_result.get("url"),
+            "application_number": app_number,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # ============================================================
 # ✅ NEW: Upload TEMP document (before payment / before application exists)
@@ -50275,9 +51476,13 @@ async def get_profile_data_for_service(
     service_service = ServiceService(db)
     return await service_service.get_profile_data(user_email)
 
-    
+
 print("✅ Services routes loaded with ENRICHMENT FIX")
 print("   payment_status='completed' + verification='pending' → 'approved'")
+print("   ✅ NEW: application_number propagated to ALL notifications")
+print("      (review / final submit / payment verify / status update)")
+print("      → email header shows YYYYMMDDSSSS, not the raw _id")
+print("   ✅ NEW: Previously-missing user notifications now fire")
 
 
 ================================================================================
@@ -60484,151 +61689,179 @@ print("=" * 70)
 
 ================================================================================
 [ 163/ 171] 📄 TEXT FILE: requirements.txt
-📏 SIZE: 5,234 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 6,908 bytes
+🕐 MODIFIED: 2026-11-07 16:07:09
 
 ================================================================================
 
-aiofiles==25.1.0
-aiohappyeyeballs==2.6.1
+# ============================================================
+# ROJGARNEXT BACKEND REQUIREMENTS
+# ============================================================
+# NOTE: uvicorn[standard] includes httptools, uvloop, websockets,
+#       watchfiles, python-dotenv, PyYAML
+# ============================================================
+
+# ============ WEB FRAMEWORK ============
+fastapi==0.128.0
+uvicorn[standard]==0.40.0
+starlette==0.50.0
+gunicorn==25.3.0
+python-multipart==0.0.22
+
+# ============ DATABASE ============
+motor==3.7.1
+pymongo==4.17.0
+redis==7.4.0
+
+# ============ AUTH & SECURITY ============
+bcrypt==4.0.1
+passlib==1.7.4
+python-jose==3.5.0
+PyJWT==2.13.0
+cryptography==42.0.8
+pyOpenSSL==24.0.0
+pycryptodome==3.23.0
+pyotp==2.9.0
+itsdangerous==2.2.0
+email-validator==2.3.0
+ecdsa==0.19.1
+rsa==4.9.1
+pyasn1==0.6.3
+pyasn1_modules==0.4.2
+cffi==2.0.0
+pycparser==3.0
+
+# ============ AI & ML ============
+openai==2.16.0
+scikit-learn==1.8.0
+scipy==1.17.1
+numpy==2.4.4
+pandas==3.0.2
+joblib==1.5.3
+threadpoolctl==3.6.0
+
+# ============ HTTP CLIENTS ============
+httpx==0.28.1
 aiohttp==3.13.3
 aiohttp-retry==2.9.1
+aiohappyeyeballs==2.6.1
 aiosignal==1.4.0
-annotated-doc==0.0.4
-annotated-types==0.7.0
+requests==2.31.0
+requests-oauthlib==2.0.0
+urllib3==1.26.12
+certifi==2026.7.22
+charset-normalizer==3.5.1
+idna==3.19
+h11==0.16.0
+httpcore==1.0.9
+httptools==0.7.1
+httpx==0.28.1
+sniffio==1.3.1
 anyio==4.14.2
-APScheduler==3.10.1
+frozenlist==1.8.0
+multidict==6.7.1
+propcache==0.4.1
+yarl==1.23.0
 attrs==26.1.0
-bcrypt==4.3.0
+watchfiles==1.1.1
+websockets==16.0
+
+# ============ FILE / WEB SCRAPING ============
+aiofiles==25.1.0
 beautifulsoup4==4.14.3
 bs4==0.0.2
-cachetools==5.5.2
-certifi==2026.7.22
-cffi==2.0.0
-charset-normalizer==3.5.1
-click==8.3.1
+soupsieve==2.8.3
+lxml==6.0.2
+PyPDF2==3.0.1
+python-docx==1.2.0
+mammoth==1.11.0
+Pillow==12.1.0
+qrcode==8.2
+reportlab==4.4.9
+
+# ============ CLOUD / STORAGE ============
 cloudinary==1.41.0
-cobble==0.1.4
-colorama==0.4.6
-cryptography==42.0.8
-dataclasses-json==0.5.8
-Deprecated==1.3.1
-distro==1.9.0
-dnspython==2.8.0
-dotenv==0.9.9
-ecdsa==0.19.1
-email-validator==2.3.0
-exception==0.1.0
-fastapi==0.128.0
-fastapi-cli==0.0.24
-fastapi-cloud-cli==0.14.0
-fastapi-limiter==0.2.0
-fastar==0.8.0
-frozenlist==1.8.0
 google-api-core==2.30.3
 google-api-python-client==2.124.0
 google-auth==2.29.0
 google-auth-httplib2==0.4.0
 google-auth-oauthlib==1.2.0
 googleapis-common-protos==1.75.0
-gunicorn==25.3.0
-h11==0.16.0
-httpcore==1.0.9
-httplib2==0.31.2
-httptools==0.7.1
-httpx==0.28.1
-idna==3.19
-itsdangerous==2.2.0
-Jinja2==3.1.6
-jiter==0.12.0
-joblib==1.5.3
-jwt==1.4.0
-limits==5.8.0
-lxml==6.0.2
-mammoth==1.11.0
-markdown-it-py==4.0.0
-MarkupSafe==3.0.3
-marshmallow==3.26.2
-marshmallow-enum==1.5.1
-mdurl==0.1.2
-motor==3.7.1
-multidict==6.7.1
-mypy_extensions==1.1.0
-numpy==2.4.4
-oauthlib==3.3.1
-openai==2.16.0
-orjson==3.11.7
-packaging==26.0
-pandas==3.0.2
-passlib==1.7.4
-phonepe-pg-sdk-python==2.1.9
-pillow==12.1.0
-propcache==0.4.1
 proto-plus==1.28.0
 protobuf==7.34.1
-psutil==7.2.2
-pyasn1==0.6.3
-pyasn1_modules==0.4.2
-pycparser==3.0
-pycryptodome==3.23.0
+uritemplate==4.2.0
+
+# ============ PAYMENT ============
+razorpay==2.0.1
+phonepe-pg-sdk-python==2.1.9
+
+# ============ SMS / EMAIL ============
+twilio==9.10.4
+
+# ============ UTILITIES ============
+python-dotenv==1.0.1
 pydantic==2.12.5
-pydantic-extra-types==2.11.0
 pydantic-settings==2.13.1
 pydantic_core==2.41.5
-Pygments==2.19.2
-PyJWT==2.13.0
-pymongo==4.17.0
-pyOpenSSL==24.0.0
-pyotp==2.9.0
-pyparsing==3.3.2
-PyPDF2==3.0.1
-pyrate-limiter==4.1.0
-python-dateutil==2.9.0.post0
-python-docx==1.2.0
-python-dotenv==1.0.1
-python-jose==3.5.0
-python-multipart==0.0.22
-pytz==2026.2
-PyYAML==6.0.3
-qrcode==8.2
-razorpay==2.0.1
-redis==7.4.0
-reportlab==4.4.9
-requests==2.31.0
-requests-oauthlib==2.0.0
-rich==14.3.3
-rich-toolkit==0.19.7
-rignore==0.7.6
-rsa==4.9.1
-scikit-learn==1.8.0
-scipy==1.17.1
-sentry-sdk==2.53.0
-setuptools==69.5.1
-shellingham==1.5.4
-six==1.17.0
-slowapi==0.1.9
-sniffio==1.3.1
-soupsieve==2.8.3
-starlette==0.50.0
-tenacity==9.1.2
-threadpoolctl==3.6.0
-tqdm==4.67.2
-twilio==9.10.4
-typer==0.24.1
-typing-inspect==0.9.0
-typing-inspection==0.4.2
+pydantic-extra-types==2.11.0
 typing_extensions==4.15.0
+typing-inspection==0.4.2
+annotated-types==0.7.0
+annotated-doc==0.0.4
+APScheduler==3.10.1
+pytz==2026.2
 tzdata==2026.1
 tzlocal==5.3.1
-uritemplate==4.2.0
-urllib3==1.26.12
-uvicorn==0.40.0
-watchfiles==1.1.1
-websockets==16.0
-wheel==0.47.0
+python-dateutil==2.9.0.post0
+six==1.17.0
+psutil==7.2.2
+tenacity==9.1.2
+orjson==3.11.7
+cachetools==5.5.2
+click==8.3.1
+colorama==0.4.6
+distro==1.9.0
+jiter==0.12.0
+tqdm==4.67.2
+packaging==26.0
+limits==5.8.0
+Deprecated==1.3.1
 wrapt==2.1.2
-yarl==1.23.0
+fastapi-limiter==0.2.0
+fastapi-cli==0.0.24
+fastapi-cloud-cli==0.14.0
+slowapi==0.1.9
+pyrate-limiter==4.1.0
+cobble==0.1.4
+shellingham==1.5.4
+rich==14.3.3
+rich-toolkit==0.19.7
+markdown-it-py==4.0.0
+mdurl==0.1.2
+Pygments==2.19.2
+typer==0.24.1
+sentry-sdk==2.53.0
+fastar==0.8.0
+rignore==0.7.6
+python-multipart==0.0.22
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+PyYAML==6.0.3
+exception==0.1.0
+marshmallow==3.26.2
+marshmallow-enum==1.5.1
+dataclasses-json==0.5.8
+typing-inspect==0.9.0
+mypy_extensions==1.1.0
+jwt==1.4.0
+pyparsing==3.3.2
+oauthlib==3.3.1
+brotli==1.1.0
+dotenv==0.9.9
 
+# ============ BUILD ============
+setuptools<82.0.0
+wheel==0.47.0
 
 
 ================================================================================

@@ -10,6 +10,9 @@
 # ✅ Document Upload (Review/Final Submit)
 # ✅ Notifications to all parties
 # ✅ All original functionality preserved
+# ✅ NEW (this build): application_number propagated through ALL
+#    review / final-submit / payment notifications, so the email header
+#    shows the human-readable YYYYMMDDSSSS number instead of the raw _id
 
 from fastapi import (
     APIRouter, Depends, HTTPException, Query, Body,
@@ -62,6 +65,22 @@ async def _get_admin_email(user: dict, db) -> str:
             if auth_user:
                 admin_email = auth_user.get("email")
     return admin_email or "admin@rojgarnest.com"
+
+
+def _resolve_application_number(application: dict, fallback_id: str) -> str:
+    """
+    ✅ Resolve the human-readable application number.
+
+    Priority:
+      1. application['application_number']  (YYYYMMDDSSSS)
+      2. application['application_id']      (legacy alias)
+      3. fallback_id                        (the raw _id passed in)
+    """
+    return (
+        (application or {}).get("application_number")
+        or (application or {}).get("application_id")
+        or fallback_id
+    )
 
 
 # ============================================================
@@ -820,6 +839,7 @@ async def update_application_status(
         raise HTTPException(status_code=403, detail="Access denied")
 
     old_status = application.get("status", "unknown")
+    app_number = _resolve_application_number(application, application_id)
 
     update_data = {
         "status": status,
@@ -860,10 +880,12 @@ async def update_application_status(
                 status,
                 f"Your application status has been updated to {status}."
             ),
-            related_id=application_id,
+            related_id=app_number,
             metadata={
-                "application_id": application_id,
+                "application_number": app_number,
+                "application_id": app_number,
                 "job_title": job.get("post_name") if job else "",
+                "organization": job.get("organization") if job else "",
                 "old_status": old_status,
                 "new_status": status,
                 "notes": notes,
@@ -883,9 +905,10 @@ async def update_application_status(
             title=f"📋 Application Status Changed: {job.get('post_name', 'Job') if job else 'Job'}",
             message=f"Application by {application.get('applicant_name', 'Candidate')} "
                     f"changed from {old_status} to {status}",
-            related_id=application_id,
+            related_id=app_number,
             metadata={
-                "application_id": application_id,
+                "application_number": app_number,
+                "application_id": app_number,
                 "applicant_email": applicant_email,
                 "old_status": old_status,
                 "new_status": status,
@@ -905,9 +928,10 @@ async def update_application_status(
                 title=f"📋 Application Update: {job.get('post_name', 'Job') if job else 'Job'}",
                 message=f"Application by {applicant_email} for "
                         f"'{job.get('post_name', 'Job') if job else 'Job'}' is now {status}",
-                related_id=application_id,
+                related_id=app_number,
                 metadata={
-                    "application_id": application_id,
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "applicant_email": applicant_email,
                     "new_status": status,
                     "show_blue_bell": True,
@@ -920,6 +944,7 @@ async def update_application_status(
         "success": True,
         "message": f"Application status updated from {old_status} to {status}",
         "application_id": application_id,
+        "application_number": app_number,
         "status": status,
         "old_status": old_status,
         "updated_by": admin_email,
@@ -1006,6 +1031,7 @@ async def fast_search_applications(
 
         results = [{
             "_id": str(app["_id"]),
+            "application_number": _resolve_application_number(app, str(app["_id"])),
             "job_title": app.get("job_title", ""),
             "organization": app.get("organization", ""),
             "applicant_name": app.get("applicant_name", ""),
@@ -1124,9 +1150,14 @@ async def admin_submit_document(
         job_title = job.get("post_name", "Job")
         organization = job.get("organization", "Company")
 
+        # ✅ FIX: Resolve human-readable application number
+        app_number = _resolve_application_number(application, application_id)
+        logger.info(f"📋 Using application_number for emails: {app_number}")
+
         user_message = (
             f"Your document '{file.filename}' has been submitted successfully "
-            f"by {admin_name} for the position '{job_title}' at {organization}."
+            f"by {admin_name} for the position '{job_title}' at {organization}.\n\n"
+            f"📋 Application Number: {app_number}"
         )
         if notes:
             user_message += f"\n\nAdmin Notes: {notes}"
@@ -1136,9 +1167,12 @@ async def admin_submit_document(
             notification_type="application_status",
             title=f"📄 Document Submitted: {job_title}",
             message=user_message,
-            related_id=application_id,
+            related_id=app_number,
             metadata={
                 "job_title": job_title,
+                "organization": organization,
+                "application_number": app_number,
+                "application_id": app_number,
                 "document_name": file.filename,
                 "admin_name": admin_name,
                 "admin_notes": notes,
@@ -1157,10 +1191,14 @@ async def admin_submit_document(
                 notification_type="admin_alert",
                 title=f"📄 Document Submitted for {job_title}",
                 message=f"Document '{file.filename}' submitted by {admin_name} "
-                        f"for application from {applicant_email}",
-                related_id=application_id,
+                        f"for application from {applicant_email}\n\n"
+                        f"📋 Application Number: {app_number}",
+                related_id=app_number,
                 metadata={
                     "job_title": job_title,
+                    "organization": organization,
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "applicant_email": applicant_email,
                     "document_name": file.filename,
                     "admin_name": admin_name,
@@ -1181,10 +1219,14 @@ async def admin_submit_document(
                     notification_type="customadmin_alert",
                     title=f"📄 Document Submitted for {job_title}",
                     message=f"Document submitted by {admin_name} for "
-                            f"application from {applicant_email}",
-                    related_id=application_id,
+                            f"application from {applicant_email}\n\n"
+                            f"📋 Application Number: {app_number}",
+                    related_id=app_number,
                     metadata={
                         "job_title": job_title,
+                        "organization": organization,
+                        "application_number": app_number,
+                        "application_id": app_number,
                         "applicant_email": applicant_email,
                         "admin_name": admin_name,
                         "show_blue_bell": True,
@@ -1198,6 +1240,7 @@ async def admin_submit_document(
             "success": True,
             "message": "Document submitted successfully!",
             "application_id": application_id,
+            "application_number": app_number,
             "submitted_document_url": upload_result["url"],
             "submitted_document_name": file.filename,
             "admin_notes": notes,
@@ -1321,9 +1364,14 @@ async def admin_final_submit_with_document(
         job_title = job.get("post_name", "Job")
         organization = job.get("organization", "Company")
 
+        # ✅ FIX: Resolve human-readable application number
+        app_number = _resolve_application_number(application, application_id)
+        logger.info(f"📋 Using application_number for FINAL submit emails: {app_number}")
+
         user_message = (
             f"Your FINAL document '{file.filename}' has been submitted successfully "
             f"by {admin_name} for the position '{job_title}' at {organization}.\n\n"
+            f"📋 Application Number: {app_number}\n\n"
             "This is your FINAL submission. No further changes are allowed."
         )
         if notes:
@@ -1334,9 +1382,12 @@ async def admin_final_submit_with_document(
             notification_type="application_status",
             title=f"✅ FINAL SUBMISSION: {job_title}",
             message=user_message,
-            related_id=application_id,
+            related_id=app_number,
             metadata={
                 "job_title": job_title,
+                "organization": organization,
+                "application_number": app_number,
+                "application_id": app_number,
                 "document_name": file.filename,
                 "admin_name": admin_name,
                 "admin_notes": notes,
@@ -1356,10 +1407,14 @@ async def admin_final_submit_with_document(
                 notification_type="admin_alert",
                 title=f"✅ FINAL DOCUMENT Submitted for {job_title}",
                 message=f"FINAL document '{file.filename}' submitted by {admin_name} "
-                        f"for application from {applicant_email}",
-                related_id=application_id,
+                        f"for application from {applicant_email}\n\n"
+                        f"📋 Application Number: {app_number}",
+                related_id=app_number,
                 metadata={
                     "job_title": job_title,
+                    "organization": organization,
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "applicant_email": applicant_email,
                     "document_name": file.filename,
                     "admin_name": admin_name,
@@ -1381,10 +1436,14 @@ async def admin_final_submit_with_document(
                     notification_type="customadmin_alert",
                     title="✅ FINAL DOCUMENT Submitted",
                     message=f"FINAL document submitted by {admin_name} for "
-                            f"application from {applicant_email} for '{job_title}'",
-                    related_id=application_id,
+                            f"application from {applicant_email} for '{job_title}'\n\n"
+                            f"📋 Application Number: {app_number}",
+                    related_id=app_number,
                     metadata={
                         "job_title": job_title,
+                        "organization": organization,
+                        "application_number": app_number,
+                        "application_id": app_number,
                         "applicant_email": applicant_email,
                         "admin_name": admin_name,
                         "is_final": True,
@@ -1399,6 +1458,7 @@ async def admin_final_submit_with_document(
             "success": True,
             "message": "FINAL application document submitted successfully!",
             "application_id": application_id,
+            "application_number": app_number,
             "status": "final_submitted",
             "old_status": old_status,
             "final_document_url": upload_result["url"],
@@ -1456,6 +1516,9 @@ async def admin_review_application_status(
         applicant_email = application.get("applicant_email")
         existing_doc_url = application.get("submitted_document_url")
 
+        # ✅ FIX: Resolve human-readable application number
+        app_number = _resolve_application_number(application, application_id)
+
         update_data = {
             "status": "review_application",
             "last_status_update": datetime.utcnow(),
@@ -1478,7 +1541,8 @@ async def admin_review_application_status(
             user_message = (
                 f"Your application for '{job_title}' at {organization} is now under REVIEW "
                 f"by {admin_name}.\n\nThe admin is reviewing your documents. "
-                "You will be notified once the review is complete."
+                "You will be notified once the review is complete.\n\n"
+                f"📋 Application Number: {app_number}"
             )
             if notes:
                 user_message += f"\n\nAdmin Notes: {notes}"
@@ -1488,9 +1552,12 @@ async def admin_review_application_status(
                 notification_type="application_status",
                 title=f"📋 Application Under Review: {job_title}",
                 message=user_message,
-                related_id=application_id,
+                related_id=app_number,
                 metadata={
                     "job_title": job_title,
+                    "organization": organization,
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "status": "review_application",
                     "admin_notes": notes,
                     "admin_name": admin_name,
@@ -1508,10 +1575,14 @@ async def admin_review_application_status(
                 notification_type="admin_alert",
                 title=f"📋 Application Under Review: {job_title}",
                 message=f"Application from {applicant_email} for '{job_title}' "
-                        f"is now under REVIEW by {admin_name}.",
-                related_id=application_id,
+                        f"is now under REVIEW by {admin_name}.\n\n"
+                        f"📋 Application Number: {app_number}",
+                related_id=app_number,
                 metadata={
                     "job_title": job_title,
+                    "organization": organization,
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "applicant_email": applicant_email,
                     "status": "review_application",
                     "admin_notes": notes,
@@ -1526,6 +1597,7 @@ async def admin_review_application_status(
             "success": True,
             "message": f"Application status updated from {old_status} to review_application",
             "application_id": application_id,
+            "application_number": app_number,
             "status": "review_application",
             "old_status": old_status,
             "admin_notes": notes,
@@ -1571,6 +1643,7 @@ async def get_pending_payments(
             job = await db.job.find_one({"_id": ObjectId(app["job_id"])})
         job_results.append({
             "id": str(app["_id"]),
+            "application_number": _resolve_application_number(app, str(app["_id"])),
             "type": "job",
             "user_email": app.get("applicant_email") or app.get("user_email"),
             "user_name": app.get("applicant_name") or app.get("user_name", "Unknown"),
@@ -1591,6 +1664,7 @@ async def get_pending_payments(
     for app in service_pending:
         service_results.append({
             "id": str(app["_id"]),
+            "application_number": _resolve_application_number(app, str(app["_id"])),
             "type": "service",
             "user_email": app.get("user_email"),
             "user_name": app.get("user_name", "Unknown"),
@@ -1648,6 +1722,9 @@ async def admin_verify_payment(
     job_title = application.get("job_title", "Job Application")
     job_poster_email = application.get("added_by")
 
+    # ✅ FIX: Resolve human-readable application number
+    app_number = _resolve_application_number(application, application_id)
+
     if action == "approve":
         await db.applications.update_one(
             {"_id": ObjectId(application_id)},
@@ -1670,12 +1747,17 @@ async def admin_verify_payment(
             notification_type="application_status",
             title=f"✅ Payment Verified Successfully: {job_title}",
             message=f"Your payment of ₹{amount} for '{job_title}' has been verified successfully. "
-                    "Your application is now submitted.",
-            related_id=application_id,
+                    f"Your application is now submitted.\n\n"
+                    f"📋 Application Number: {app_number}",
+            related_id=app_number,
             metadata={
                 "status": status_msg,
                 "amount": amount,
                 "transaction_id": transaction_id,
+                "application_number": app_number,
+                "application_id": app_number,
+                "job_title": job_title,
+                "organization": application.get("organization", ""),
                 "show_blue_bell": True,
             },
             send_email=True,
@@ -1689,12 +1771,16 @@ async def admin_verify_payment(
                 notification_type="admin_alert",
                 title="💰 Payment Approved",
                 message=f"Payment of ₹{amount} from {user_email} for '{job_title}' "
-                        f"has been APPROVED by {admin_name}.",
-                related_id=application_id,
+                        f"has been APPROVED by {admin_name}.\n\n"
+                        f"📋 Application Number: {app_number}",
+                related_id=app_number,
                 metadata={
                     "status": "payment_approved",
                     "amount": amount,
                     "job_title": job_title,
+                    "organization": application.get("organization", ""),
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "applicant_email": user_email,
                     "approved_by": admin_email,
                     "show_blue_bell": True,
@@ -1712,12 +1798,16 @@ async def admin_verify_payment(
                     notification_type="customadmin_alert",
                     title="💰 Payment Approved",
                     message=f"Payment of ₹{amount} from {user_email} for '{job_title}' "
-                            f"has been APPROVED by {admin_name}",
-                    related_id=application_id,
+                            f"has been APPROVED by {admin_name}\n\n"
+                            f"📋 Application Number: {app_number}",
+                    related_id=app_number,
                     metadata={
                         "status": "payment_approved",
                         "amount": amount,
                         "job_title": job_title,
+                        "organization": application.get("organization", ""),
+                        "application_number": app_number,
+                        "application_id": app_number,
                         "approved_by": admin_email,
                         "show_blue_bell": True,
                     },
@@ -1729,6 +1819,7 @@ async def admin_verify_payment(
             "success": True,
             "message": "Payment approved successfully.",
             "application_id": application_id,
+            "application_number": app_number,
             "action": action,
             "notes": notes,
             "notifications_sent": True,
@@ -1759,12 +1850,17 @@ async def admin_verify_payment(
             user_ids=[user_email],
             notification_type="application_status",
             title=f"❌ Payment Verification Failed: {job_title}",
-            message=f"Your payment of ₹{amount} for '{job_title}' has been REJECTED.\nReason: {notes}",
-            related_id=application_id,
+            message=f"Your payment of ₹{amount} for '{job_title}' has been REJECTED.\nReason: {notes}\n\n"
+                    f"📋 Application Number: {app_number}",
+            related_id=app_number,
             metadata={
                 "status": status_msg,
                 "amount": amount,
                 "rejection_reason": notes,
+                "application_number": app_number,
+                "application_id": app_number,
+                "job_title": job_title,
+                "organization": application.get("organization", ""),
                 "show_blue_bell": True,
             },
             send_email=True,
@@ -1778,12 +1874,16 @@ async def admin_verify_payment(
                 notification_type="admin_alert",
                 title="💰 Payment Rejected",
                 message=f"Payment of ₹{amount} from {user_email} for '{job_title}' "
-                        f"has been REJECTED by {admin_name}.\nReason: {notes}",
-                related_id=application_id,
+                        f"has been REJECTED by {admin_name}.\nReason: {notes}\n\n"
+                        f"📋 Application Number: {app_number}",
+                related_id=app_number,
                 metadata={
                     "status": "payment_rejected",
                     "amount": amount,
                     "job_title": job_title,
+                    "organization": application.get("organization", ""),
+                    "application_number": app_number,
+                    "application_id": app_number,
                     "rejection_reason": notes,
                     "show_blue_bell": True,
                 },
@@ -1800,12 +1900,16 @@ async def admin_verify_payment(
                     notification_type="customadmin_alert",
                     title="💰 Payment Rejected",
                     message=f"Payment of ₹{amount} from {user_email} for '{job_title}' "
-                            f"has been REJECTED by {admin_name}.\nReason: {notes}",
-                    related_id=application_id,
+                            f"has been REJECTED by {admin_name}.\nReason: {notes}\n\n"
+                            f"📋 Application Number: {app_number}",
+                    related_id=app_number,
                     metadata={
                         "status": "payment_rejected",
                         "amount": amount,
                         "job_title": job_title,
+                        "organization": application.get("organization", ""),
+                        "application_number": app_number,
+                        "application_id": app_number,
                         "rejection_reason": notes,
                         "show_blue_bell": True,
                     },
@@ -1817,6 +1921,7 @@ async def admin_verify_payment(
             "success": True,
             "message": f"Payment rejected. Reason: {notes}",
             "application_id": application_id,
+            "application_number": app_number,
             "action": action,
             "notes": notes,
             "notifications_sent": True,
@@ -1932,6 +2037,7 @@ async def get_ranked_applications(
 
         ranked_apps = [{
             "application_id": str(app["_id"]),
+            "application_number": _resolve_application_number(app, str(app["_id"])),
             "candidate_name": app.get("applicant_name", "N/A"),
             "candidate_email": app.get("applicant_email", "N/A"),
             "job_title": app.get("job_title", "N/A"),
@@ -2224,3 +2330,6 @@ print("   ✅ Document Upload: Review, Final Submit")
 print("   ✅ Payment Verification: Approve, Reject")
 print("   ✅ AI Dashboard & Rankings")
 print("   ✅ Notifications to all parties")
+print("   ✅ NEW: application_number propagated to ALL notifications")
+print("      (review / final submit / payment / status update)")
+print("      → email header shows YYYYMMDDSSSS, not the raw _id")
