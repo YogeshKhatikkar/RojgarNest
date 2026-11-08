@@ -15,6 +15,19 @@
 # ✅ NEW (this build): application_number propagated through ALL
 #    review / final-submit / payment notifications, so the email header
 #    shows the human-readable YYYYMMDDSSSS number instead of the raw _id
+#
+# ✅✅✅ NEW (2026-11-08): DUPLICATE EMAIL FIX
+#    The following handlers used to send the APPLICANT a "Document
+#    Submitted" / "Under Review" / "FINAL SUBMISSION" email, AND the
+#    Flutter frontend then immediately called PUT /applications/{id}/status
+#    which sent a SECOND email ("Under Review" / "FINAL SUBMITTED").
+#    Result → applicant got 2 emails per action.
+#
+#    FIX: The three handlers below NO LONGER send applicant emails.
+#    They still send admin/customadmin bell alerts.
+#    The single applicant email goes out from PUT /applications/{id}/status:
+#      - review      → "Application Status: REVIEW_APPLICATION"
+#      - final submit → "Application Status: FINAL_SUBMIT"
 
 from fastapi import (
     APIRouter, Depends, HTTPException, Query, Body,
@@ -206,9 +219,6 @@ async def get_customadmin_job_detail(
     return await service.get_job_detail(job_id, admin_email)
 
 
-# ============================================================
-# ✅ FIXED: POST /jobs — respects is_draft
-# ============================================================
 @router.post("/jobs")
 async def add_customadmin_job(
     job_data: dict = Body(...),
@@ -234,7 +244,6 @@ async def add_customadmin_job(
         or job_data.get("status") == "draft"
     )
 
-    # Common defaults
     job_data["added_by"] = admin_email
     job_data["created_at"] = datetime.utcnow()
     job_data["updated_at"] = datetime.utcnow()
@@ -253,7 +262,6 @@ async def add_customadmin_job(
     job_data.setdefault("color_type", "blue")
 
     if is_draft:
-        # ─── DRAFT PATH ─────────────────────────────────────
         job_data["status"] = "draft"
         job_data["is_draft"] = True
         job_data.setdefault("post_name", "Untitled Draft")
@@ -276,7 +284,6 @@ async def add_customadmin_job(
             "message": "Draft created successfully",
         }
 
-    # ─── PUBLISH PATH (existing behaviour) ───────────────
     job_data["status"] = "open"
     job_data["is_draft"] = False
 
@@ -290,9 +297,6 @@ async def add_customadmin_job(
     return await service.add_job(job_data, admin_email, background_tasks)
 
 
-# ============================================================
-# ✅ FIXED: PUT /jobs/{job_id} — uses $set MERGE
-# ============================================================
 @router.put("/jobs/{job_id}")
 async def update_customadmin_job(
     job_id: str,
@@ -303,15 +307,6 @@ async def update_customadmin_job(
 ):
     """
     ✅ FIXED: Update existing job using $set MERGE.
-
-    Why this matters:
-      Flutter's `_saveCurrentTab()` sends the FULL accumulated payload
-      from all 8 tabs on every save. With `$set`, we guarantee:
-        - Every field present in `job_data` gets written/overwritten.
-        - Fields NOT present (i.e., untouched tabs) remain intact.
-
-      This is the single most important fix for single-record,
-      tab-wise saving. A `replace_one` would wipe untouched tabs.
     """
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
@@ -324,33 +319,25 @@ async def update_customadmin_job(
     if not admin_email:
         raise HTTPException(status_code=400, detail="Admin email not found")
 
-    # Normalize role
     user_role = (user.get("role") or "customadmin").lower()
     if user_role == "custom_admin":
         user_role = "customadmin"
 
-    # Permission check
     if existing.get("added_by") != admin_email and user_role != "superadmin":
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # ─── Build $set patch ────────────────────────────────────
     patch = {k: v for k, v in job_data.items() if k not in ("_id", "created_at", "added_by")}
 
-    # Always stamp update metadata
     patch["updated_at"] = datetime.utcnow()
     patch["last_updated_by"] = admin_email
 
-    # Draft-aware status handling — never auto-publish a draft via PUT,
-    # and never let a status collision silently un-publish a job.
     incoming_status = patch.get("status")
     incoming_is_draft = patch.get("is_draft")
     if incoming_is_draft is True:
         patch["status"] = "draft"
     elif incoming_is_draft is False and incoming_status == "open":
         patch["status"] = "open"
-    # Else: leave existing status untouched.
 
-    # ─── Merge via find_one_and_update ───────────────────────
     updated = await db.job.find_one_and_update(
         {"_id": ObjectId(job_id)},
         {"$set": patch},
@@ -449,16 +436,13 @@ async def publish_customadmin_job(
     }
 
 
-# ============================================================
-# ✅ FIXED: upload-advertisement — supports UPDATE of existing draft
-# ============================================================
 @router.post("/jobs/upload-advertisement")
 async def customadmin_upload_advertisement(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     job_data: str = Form(...),
-    job_id: Optional[str] = Form(None),          # ✅ NEW
-    is_update: Optional[str] = Form(None),       # ✅ NEW
+    job_id: Optional[str] = Form(None),
+    is_update: Optional[str] = Form(None),
     user=Depends(custom_admin_required),
     db=Depends(get_db)
 ):
@@ -482,10 +466,8 @@ async def customadmin_upload_advertisement(
     try:
         job_dict = json.loads(job_data)
 
-        # ✅ RESOLUTION STEP 1: explicit form field
         resolved_id = (job_id or "").strip() or None
 
-        # ✅ RESOLUTION STEP 2: keys inside payload
         if not resolved_id:
             resolved_id = (
                 str(job_dict.pop("job_id", "") or "").strip()
@@ -500,7 +482,6 @@ async def customadmin_upload_advertisement(
             job_dict.pop("draft_id", None)
             job_dict.pop("_id", None)
 
-        # ✅ RESOLUTION STEP 3: match by title+org (drafts)
         if not resolved_id:
             title = (job_dict.get("post_name") or "").strip()
             org = (job_dict.get("organization") or "").strip()
@@ -546,7 +527,6 @@ async def customadmin_upload_advertisement(
             if admin_location:
                 job_dict["job_location"] = admin_location
 
-        # ✅ UPDATE or INSERT
         action = "created"
         if resolved_id and ObjectId.is_valid(resolved_id):
             existing = await db.job.find_one({"_id": ObjectId(resolved_id)})
@@ -658,10 +638,6 @@ async def get_customadmin_applications(
 ):
     """
     ✅ FIXED: Get applications filtered by application_type.
-
-    - type='job'      → only jobs posted by this customadmin
-    - type='service'  → all service applications
-    - type='schemes'  → ALL scheme applications (global)
     """
     admin_email = await _get_admin_email(user, db)
     if not admin_email:
@@ -709,7 +685,13 @@ async def update_customadmin_application_status(
     user=Depends(custom_admin_required),
     db=Depends(get_db)
 ):
-    """Update application status with notifications"""
+    """
+    Update application status with notifications.
+
+    ✅✅✅ This is the ONLY place the applicant receives a status email
+           when the Flutter frontend calls `PUT /status?status=...`
+           after uploading a review/final document.
+    """
     admin_email = await _get_admin_email(user, db)
     admin_name = user.get("name", "Custom Admin")
 
@@ -722,7 +704,6 @@ async def update_customadmin_application_status(
 
     application_type = application.get("application_type", "job")
 
-    # Only verify job ownership for job applications
     if application_type == "job":
         job = await db.job.find_one({"_id": ObjectId(application.get("job_id"))})
         if not job:
@@ -747,7 +728,6 @@ async def update_customadmin_application_status(
         application.get("user_email")
     )
 
-    # ✅ FIX: Resolve human-readable application number
     app_number = _resolve_application_number(application, application_id)
 
     update_data = {
@@ -851,6 +831,13 @@ async def bulk_update_customadmin_status(
 # ============================================================
 # REVIEW APPLICATION STATUS UPDATE
 # ============================================================
+#
+# ✅✅✅ DUPLICATE EMAIL FIX:
+#     This endpoint used to send the APPLICANT an email
+#     ("📋 Application Under Review"). Flutter ALSO calls
+#     PUT /status?status=review_application after this → second email.
+#     FIX: no applicant email here — only bell-alert / logs.
+# ============================================================
 
 @router.put("/applications/{application_id}/review-status")
 async def customadmin_review_application_status(
@@ -859,7 +846,7 @@ async def customadmin_review_application_status(
     user=Depends(custom_admin_required),
     db=Depends(get_db)
 ):
-    """Update application status to 'review_application'"""
+    """Update application status to 'review_application' (no applicant email)."""
     admin_email = await _get_admin_email(user, db)
     admin_name = user.get("name", "Custom Admin")
 
@@ -893,7 +880,6 @@ async def customadmin_review_application_status(
         )
         existing_doc_url = application.get("submitted_document_url")
 
-        # ✅ FIX: Resolve human-readable application number + display names
         app_number = _resolve_application_number(application, application_id)
         display_title, display_org = _get_display_title(application)
 
@@ -915,37 +901,51 @@ async def customadmin_review_application_status(
 
         logger.info(f"✅ Application status updated from {old_status} to 'review_application'")
 
-        if applicant_email:
-            user_title = f"📋 Application Under Review"
-            user_message = (
-                f"Your application is now under REVIEW by {admin_name}.\n\n"
-                f"📋 Application Number: {app_number}\n\n"
-                "The admin is reviewing your documents. You will be notified once the review is complete."
-            )
-            if notes:
-                user_message += f"\n\nAdmin Notes: {notes}"
-
-            await central_notification.send_notification(
-                user_ids=[applicant_email],
-                notification_type="application_status",
-                title=user_title,
-                message=user_message,
-                related_id=app_number,
-                metadata={
-                    "application_number": app_number,
-                    "application_id": app_number,
-                    "job_title": display_title,
-                    "organization": display_org,
-                    "status": "review_application",
-                    "admin_notes": notes,
-                    "admin_name": admin_name,
-                    "application_type": application_type,
-                    "show_blue_bell": True,
-                    "submitted_document_url": existing_doc_url
-                },
-                send_email=True,
-                send_websocket=True
-            )
+        # ✅✅✅ DUPLICATE EMAIL FIX — Applicant notification REMOVED.
+        # ------------------------------------------------------------
+        # The following block was sending a "📋 Application Under
+        # Review" email to the applicant. Since the Flutter frontend
+        # also calls PUT /status?status=review_application immediately
+        # afterwards (which sends the same email), this was causing
+        # TWO emails per action.
+        #
+        # The single applicant email is now sent ONLY by
+        # PUT /applications/{id}/status.
+        # ------------------------------------------------------------
+        # if applicant_email:
+        #     user_title = f"📋 Application Under Review"
+        #     user_message = (
+        #         f"Your application is now under REVIEW by {admin_name}.\n\n"
+        #         f"📋 Application Number: {app_number}\n\n"
+        #         "The admin is reviewing your documents. You will be notified once the review is complete."
+        #     )
+        #     if notes:
+        #         user_message += f"\n\nAdmin Notes: {notes}"
+        #
+        #     await central_notification.send_notification(
+        #         user_ids=[applicant_email],
+        #         notification_type="application_status",
+        #         title=user_title,
+        #         message=user_message,
+        #         related_id=app_number,
+        #         metadata={
+        #             "application_number": app_number,
+        #             "application_id": app_number,
+        #             "job_title": display_title,
+        #             "organization": display_org,
+        #             "status": "review_application",
+        #             "admin_notes": notes,
+        #             "admin_name": admin_name,
+        #             "application_type": application_type,
+        #             "show_blue_bell": True,
+        #             "submitted_document_url": existing_doc_url
+        #         },
+        #         send_email=True,
+        #         send_websocket=True
+        #     )
+        # ------------------------------------------------------------
+        # ✅ END DUPLICATE EMAIL FIX
+        # ------------------------------------------------------------
 
         return {
             "success": True,
@@ -956,7 +956,8 @@ async def customadmin_review_application_status(
             "old_status": old_status,
             "admin_notes": notes,
             "notifications_sent": True,
-            "submitted_document_url": existing_doc_url
+            "submitted_document_url": existing_doc_url,
+            "applicant_email_sent": False,  # ✅ PUT /status will send it
         }
 
     except HTTPException:
@@ -971,6 +972,13 @@ async def customadmin_review_application_status(
 # ============================================================
 # DOCUMENT UPLOAD (Review & Final Submit)
 # ============================================================
+#
+# ✅✅✅ DUPLICATE EMAIL FIX:
+#    customadmin_submit_document() used to send the APPLICANT a
+#    "📄 Document Submitted" email. Flutter ALSO calls
+#    PUT /status?status=review_application immediately after this
+#    (which sends the "Under Review" email). FIX: no applicant email.
+# ============================================================
 
 @router.post("/applications/{application_id}/submit-document")
 async def customadmin_submit_document(
@@ -980,7 +988,12 @@ async def customadmin_submit_document(
     user=Depends(custom_admin_required),
     db=Depends(get_db)
 ):
-    """CustomAdmin submits document for review"""
+    """
+    CustomAdmin submits document for review.
+
+    ✅✅✅ DUPLICATE EMAIL FIX: Applicant email REMOVED.
+           Only the follow-up PUT /status sends the applicant email.
+    """
     admin_email = await _get_admin_email(user, db)
     admin_name = user.get("name", "Custom Admin")
 
@@ -1069,44 +1082,57 @@ async def customadmin_submit_document(
         saved_url = updated_app.get("submitted_document_url") if updated_app else None
         logger.info(f"✅ VERIFIED: submitted_document_url = {saved_url}")
 
-        # ✅ FIX: Resolve human-readable application number + display names
         app_number = _resolve_application_number(application, application_id)
         display_title, display_org = _get_display_title(application)
 
-        logger.info(f"📋 Using application_number for emails: {app_number}")
+        logger.info(f"📋 Using application_number for admin alert only: {app_number}")
 
-        user_title = f"📄 Document Submitted"
-        user_message = (
-            f"Your document '{file.filename}' has been submitted successfully "
-            f"by {admin_name}.\n\n"
-            f"📋 Application Number: {app_number}"
-        )
-        if notes:
-            user_message += f"\n\nAdmin Notes: {notes}"
-
-        await central_notification.send_notification(
-            user_ids=[applicant_email],
-            notification_type="application_status",
-            title=user_title,
-            message=user_message,
-            related_id=app_number,
-            metadata={
-                "application_number": app_number,
-                "application_id": app_number,
-                "job_title": display_title,
-                "organization": display_org,
-                "document_name": file.filename,
-                "admin_name": admin_name,
-                "admin_notes": notes,
-                "application_type": application_type,
-                "show_blue_bell": True,
-                "status": "review_application",
-                "submitted_document_url": upload_result["url"]
-            },
-            send_email=True,
-            send_websocket=True
-        )
-        logger.info(f"🔔 Notification sent to user: {applicant_email}")
+        # ✅✅✅ DUPLICATE EMAIL FIX — Applicant notification REMOVED.
+        # ------------------------------------------------------------
+        # The following block was sending a "📄 Document Submitted"
+        # email to the applicant. Since the Flutter frontend ALSO
+        # calls PUT /status?status=review_application immediately
+        # afterwards (which sends "📋 Application Under Review"),
+        # this was causing TWO emails.
+        #
+        # The single applicant email is now sent ONLY by
+        # PUT /applications/{id}/status.
+        # ------------------------------------------------------------
+        # user_title = f"📄 Document Submitted"
+        # user_message = (
+        #     f"Your document '{file.filename}' has been submitted successfully "
+        #     f"by {admin_name}.\n\n"
+        #     f"📋 Application Number: {app_number}"
+        # )
+        # if notes:
+        #     user_message += f"\n\nAdmin Notes: {notes}"
+        #
+        # await central_notification.send_notification(
+        #     user_ids=[applicant_email],
+        #     notification_type="application_status",
+        #     title=user_title,
+        #     message=user_message,
+        #     related_id=app_number,
+        #     metadata={
+        #         "application_number": app_number,
+        #         "application_id": app_number,
+        #         "job_title": display_title,
+        #         "organization": display_org,
+        #         "document_name": file.filename,
+        #         "admin_name": admin_name,
+        #         "admin_notes": notes,
+        #         "application_type": application_type,
+        #         "show_blue_bell": True,
+        #         "status": "review_application",
+        #         "submitted_document_url": upload_result["url"]
+        #     },
+        #     send_email=True,
+        #     send_websocket=True
+        # )
+        # logger.info(f"🔔 Notification sent to user: {applicant_email}")
+        # ------------------------------------------------------------
+        # ✅ END DUPLICATE EMAIL FIX
+        # ------------------------------------------------------------
 
         return {
             "success": True,
@@ -1117,7 +1143,8 @@ async def customadmin_submit_document(
             "submitted_document_name": file.filename,
             "admin_notes": notes,
             "notifications_sent": True,
-            "status": "review_application"
+            "status": "review_application",
+            "applicant_email_sent": False,  # ✅ PUT /status will send it
         }
 
     except HTTPException:
@@ -1132,7 +1159,14 @@ async def customadmin_submit_document(
 # ============================================================
 # ✅ FIXED: ONLY ONE definition of final-submit-with-document.
 #    The previous file had TWO — FastAPI silently ignored the second.
+#
+# ✅✅✅ DUPLICATE EMAIL FIX:
+#    customadmin_final_submit_with_document() used to send the APPLICANT
+#    a "✅ FINAL SUBMISSION" email. Flutter ALSO calls
+#    PUT /status?status=final_submit immediately after (which sends
+#    the "FINAL SUBMITTED" email). FIX: no applicant email here.
 # ============================================================
+
 @router.post("/applications/{application_id}/final-submit-with-document")
 async def customadmin_final_submit_with_document(
     application_id: str,
@@ -1141,7 +1175,12 @@ async def customadmin_final_submit_with_document(
     user=Depends(custom_admin_required),
     db=Depends(get_db)
 ):
-    """CustomAdmin FINAL SUBMIT application with document"""
+    """
+    CustomAdmin FINAL SUBMIT application with document.
+
+    ✅✅✅ DUPLICATE EMAIL FIX: Applicant email REMOVED.
+           Only the follow-up PUT /status sends the applicant email.
+    """
     admin_email = await _get_admin_email(user, db)
     admin_name = user.get("name", "Custom Admin")
 
@@ -1241,46 +1280,59 @@ async def customadmin_final_submit_with_document(
         saved_url = updated_app.get("submitted_document_url") if updated_app else None
         logger.info(f"✅ VERIFIED: submitted_document_url = {saved_url}")
 
-        # ✅ FIX: Resolve human-readable application number + display names
         app_number = _resolve_application_number(application, application_id)
         display_title, display_org = _get_display_title(application)
 
-        logger.info(f"📋 Using application_number for FINAL submit emails: {app_number}")
+        logger.info(f"📋 Using application_number for FINAL admin alert only: {app_number}")
 
-        user_title = f"✅ FINAL SUBMISSION"
-        user_message = (
-            f"Your FINAL document '{file.filename}' has been submitted successfully "
-            f"by {admin_name}.\n\n"
-            f"📋 Application Number: {app_number}\n\n"
-            "This is your FINAL submission. No further changes are allowed."
-        )
-        if notes:
-            user_message += f"\n\nAdmin Notes: {notes}"
-
-        await central_notification.send_notification(
-            user_ids=[applicant_email],
-            notification_type="application_status",
-            title=user_title,
-            message=user_message,
-            related_id=app_number,
-            metadata={
-                "application_number": app_number,
-                "application_id": app_number,
-                "job_title": display_title,
-                "organization": display_org,
-                "document_name": file.filename,
-                "admin_name": admin_name,
-                "admin_notes": notes,
-                "is_final": True,
-                "application_type": application_type,
-                "show_blue_bell": True,
-                "status": "final_submitted",
-                "final_document_url": upload_result["url"]
-            },
-            send_email=True,
-            send_websocket=True
-        )
-        logger.info(f"🔔 Notification sent to user: {applicant_email}")
+        # ✅✅✅ DUPLICATE EMAIL FIX — Applicant notification REMOVED.
+        # ------------------------------------------------------------
+        # The following block was sending a "✅ FINAL SUBMISSION"
+        # email to the applicant. Since the Flutter frontend ALSO
+        # calls PUT /status?status=final_submit immediately afterwards
+        # (which sends "✅ Your application has been FINAL SUBMITTED!"),
+        # this was causing TWO emails.
+        #
+        # The single applicant email is now sent ONLY by
+        # PUT /applications/{id}/status.
+        # ------------------------------------------------------------
+        # user_title = f"✅ FINAL SUBMISSION"
+        # user_message = (
+        #     f"Your FINAL document '{file.filename}' has been submitted successfully "
+        #     f"by {admin_name}.\n\n"
+        #     f"📋 Application Number: {app_number}\n\n"
+        #     "This is your FINAL submission. No further changes are allowed."
+        # )
+        # if notes:
+        #     user_message += f"\n\nAdmin Notes: {notes}"
+        #
+        # await central_notification.send_notification(
+        #     user_ids=[applicant_email],
+        #     notification_type="application_status",
+        #     title=user_title,
+        #     message=user_message,
+        #     related_id=app_number,
+        #     metadata={
+        #         "application_number": app_number,
+        #         "application_id": app_number,
+        #         "job_title": display_title,
+        #         "organization": display_org,
+        #         "document_name": file.filename,
+        #         "admin_name": admin_name,
+        #         "admin_notes": notes,
+        #         "is_final": True,
+        #         "application_type": application_type,
+        #         "show_blue_bell": True,
+        #         "status": "final_submitted",
+        #         "final_document_url": upload_result["url"]
+        #     },
+        #     send_email=True,
+        #     send_websocket=True
+        # )
+        # logger.info(f"🔔 Notification sent to user: {applicant_email}")
+        # ------------------------------------------------------------
+        # ✅ END DUPLICATE EMAIL FIX
+        # ------------------------------------------------------------
 
         return {
             "success": True,
@@ -1294,7 +1346,8 @@ async def customadmin_final_submit_with_document(
             "document_name": file.filename,
             "admin_notes": notes,
             "old_document_deleted": old_public_id is not None,
-            "notifications_sent": True
+            "notifications_sent": True,
+            "applicant_email_sent": False,  # ✅ PUT /status will send it
         }
 
     except HTTPException:
@@ -1552,7 +1605,6 @@ async def customadmin_verify_payment(
     job_title = application.get("job_title", "Job Application")
     job_poster_email = application.get("added_by")
 
-    # ✅ FIX: Resolve human-readable application number + display names
     app_number = _resolve_application_number(application, application_id)
     display_title, display_org = _get_display_title(application)
 
@@ -1722,15 +1774,9 @@ async def upload_advertisement_to_existing_job(
     """
     ✅ Upload an advertisement file and UPDATE the EXISTING job record.
     This does NOT create a new job.
-
-    Used by the 8-tab Add/Edit Job wizard when the user clicks
-    'Publish Job' or 'Save Changes' on the final tab.
     """
     db = get_database()
 
-    # ------------------------------------------------------------
-    # 1. Verify the job exists
-    # ------------------------------------------------------------
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job id")
 
@@ -1738,9 +1784,6 @@ async def upload_advertisement_to_existing_job(
     if not existing:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # ------------------------------------------------------------
-    # 2. Parse the incoming job_data JSON
-    # ------------------------------------------------------------
     try:
         parsed_data = json.loads(job_data)
         if not isinstance(parsed_data, dict):
@@ -1748,17 +1791,11 @@ async def upload_advertisement_to_existing_job(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid job_data: {e}")
 
-    # ------------------------------------------------------------
-    # 3. Upload the file to Cloudinary
-    # ------------------------------------------------------------
     try:
         upload = await upload_advertisement_file(file, job_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
 
-    # ------------------------------------------------------------
-    # 4. Merge upload metadata into the payload
-    # ------------------------------------------------------------
     filename = upload["filename"] or ""
     parsed_data.update({
         "advertisement_url": upload["secure_url"],
@@ -1770,10 +1807,7 @@ async def upload_advertisement_to_existing_job(
         "last_updated_by": current_user.get("email", ""),
     })
 
-    # ------------------------------------------------------------
-    # 5. $set-merge into the SAME record — no new record created
-    # ------------------------------------------------------------
-    parsed_data.pop("_id", None)   # never overwrite _id
+    parsed_data.pop("_id", None)
     await db.job.update_one(
         {"_id": ObjectId(job_id)},
         {"$set": parsed_data},
@@ -1799,6 +1833,10 @@ print("   ✅ FIXED: upload-advertisement updates existing draft via job_id")
 print("   ✅ FIXED: upload-advertisement respects is_draft (no notify on draft)")
 print("   ✅ FIXED: Removed duplicate final-submit-with-document definition")
 print("   ✅ FIXED: application_type query param on /applications")
+print("   ✅ FIXED: Duplicate 'Document Submitted' email removed")
+print("   ✅ FIXED: Duplicate 'FINAL SUBMISSION' email removed")
+print("   ✅ FIXED: Duplicate 'Application Under Review' email removed")
+print("   ✅ Applicant now receives ONE email per status change")
 print("   ✅ Job CRUD: Add, Get, Update, Delete, Publish")
 print("   ✅ Application Management: job + service + schemes")
 print("   ✅ Document Upload: Review, Final Submit")

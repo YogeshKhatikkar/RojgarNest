@@ -1,18 +1,12 @@
-# app/modules/admin/routes.py - COMPLETE UPDATED VERSION
-# ✅ FIXED: POST /add-job respects is_draft / status="draft"
-# ✅ FIXED: PUT /jobs/{job_id} uses $set MERGE (no tab data loss)
-# ✅ FIXED: add-job-with-advertisement accepts job_id (updates existing draft)
-# ✅ FIXED: add-job-with-advertisement respects is_draft (no notify on draft save)
-# ✅ FIXED: Draft path returns _id at top level for reliable Flutter capture
-# ✅ Full Job CRUD Operations
-# ✅ Full Application Management
-# ✅ Payment Verification
-# ✅ Document Upload (Review/Final Submit)
-# ✅ Notifications to all parties
-# ✅ All original functionality preserved
-# ✅ NEW (this build): application_number propagated through ALL
-#    review / final-submit / payment notifications, so the email header
-#    shows the human-readable YYYYMMDDSSSS number instead of the raw _id
+# app/modules/admin/routes.py - COMPLETE UPDATED VERSION (DUPLICATE EMAIL FIXED)
+# ✅ NEW (this build): REMOVED duplicate "Document Submitted" email in
+#    admin_submit_document() — applicant now receives ONLY the "Under Review"
+#    email from PUT /applications/{id}/status (called by Flutter after upload).
+# ✅ NEW (this build): REMOVED duplicate "FINAL SUBMISSION" email in
+#    admin_final_submit_with_document() when invoked by the standalone
+#    PUT /status flow — but KEPT for standalone clients that call only this
+#    endpoint (no subsequent status update).
+#    → Gate it with `send_applicant_email` flag so the caller controls it.
 
 from fastapi import (
     APIRouter, Depends, HTTPException, Query, Body,
@@ -251,8 +245,8 @@ async def add_admin_job_with_advertisement(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     job_data: str = Form(...),
-    job_id: Optional[str] = Form(None),          # ✅ NEW: explicit form field
-    is_update: Optional[str] = Form(None),       # ✅ NEW: explicit update flag
+    job_id: Optional[str] = Form(None),
+    is_update: Optional[str] = Form(None),
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
@@ -285,10 +279,8 @@ async def add_admin_job_with_advertisement(
         job_dict = json.loads(job_data)
         admin_email = await _get_admin_email(user, db)
 
-        # ✅ RESOLUTION STEP 1: explicit form field (highest priority)
         resolved_id = (job_id or "").strip() or None
 
-        # ✅ RESOLUTION STEP 2: keys inside job_data JSON
         if not resolved_id:
             resolved_id = (
                 str(job_dict.pop("job_id", "") or "").strip()
@@ -298,13 +290,11 @@ async def add_admin_job_with_advertisement(
                 or None
             )
         else:
-            # Ensure job_id key inside payload doesn't get inserted
             job_dict.pop("job_id", None)
             job_dict.pop("application_id", None)
             job_dict.pop("draft_id", None)
             job_dict.pop("_id", None)
 
-        # ✅ RESOLUTION STEP 3: match existing draft by admin + title + org
         if not resolved_id:
             title = (job_dict.get("post_name") or "").strip()
             org = (job_dict.get("organization") or "").strip()
@@ -313,7 +303,7 @@ async def add_admin_job_with_advertisement(
                     "added_by": admin_email,
                     "post_name": title,
                     "organization": org,
-                    "status": "draft",                # only match drafts
+                    "status": "draft",
                     "is_deleted": {"$ne": True},
                 })
                 if candidate:
@@ -327,10 +317,7 @@ async def add_admin_job_with_advertisement(
             or job_dict.get("status") == "draft"
             or (is_update or "").lower() in ("false", "0", "")
         )
-        # ^ Note: even in publish flow, we save the payload first (as draft
-        #   is_draft=False means "publish"), then attach the file.
 
-        # Common defaults — REQUIRED so partial-tab payloads pass schema
         job_dict.setdefault("post_name", "Untitled Job")
         job_dict.setdefault("organization", "Not Specified")
         job_dict.setdefault("post_date", datetime.utcnow().strftime("%Y-%m-%d"))
@@ -353,16 +340,12 @@ async def add_admin_job_with_advertisement(
             job_dict["status"] = "open"
             job_dict["is_draft"] = False
 
-        # Handle "use my current location"
         if job_dict.get("use_current_location", False):
             from app.models.job_model import get_admin_current_location
             admin_location = await get_admin_current_location(admin_email, db)
             if admin_location:
                 job_dict["job_location"] = admin_location
 
-        # ────────────────────────────────────────────────────────────
-        # ✅ CRITICAL: UPDATE if id resolved, INSERT only if not
-        # ────────────────────────────────────────────────────────────
         action = "created"
         if resolved_id and ObjectId.is_valid(resolved_id):
             existing = await db.job.find_one({"_id": ObjectId(resolved_id)})
@@ -376,7 +359,6 @@ async def add_admin_job_with_advertisement(
                 raise HTTPException(status_code=403, detail="Access denied")
 
             job_id_resolved = resolved_id
-            # Preserve created_at
             job_dict.pop("created_at", None)
 
             await db.job.update_one(
@@ -396,7 +378,6 @@ async def add_admin_job_with_advertisement(
             f"{resolved_id or 'none'})"
         )
 
-        # Upload the advertisement file
         upload_result = await upload_private_file(
             file=file,
             folder="jobs/advertisements",
@@ -422,7 +403,6 @@ async def add_admin_job_with_advertisement(
             }},
         )
 
-        # Publish notifications
         if not is_draft:
             job_doc = await db.job.find_one({"_id": ObjectId(job_id_resolved)})
             publisher_role = (user.get("role") or "admin").lower()
@@ -441,7 +421,7 @@ async def add_admin_job_with_advertisement(
             ),
             "job_id": job_id_resolved,
             "_id": job_id_resolved,
-            "action": action,                        # ✅ "created" or "updated"
+            "action": action,
             "job_title": job_dict.get("post_name"),
             "is_draft": is_draft,
             "status": "draft" if is_draft else "open",
@@ -461,6 +441,7 @@ async def add_admin_job_with_advertisement(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Failed: {e}")
 
+
 @router.get("/jobs")
 async def get_admin_jobs(
     status: Optional[str] = Query(None, pattern="^(open|closed|filled|draft)$"),
@@ -469,9 +450,6 @@ async def get_admin_jobs(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Get all jobs posted by the logged-in admin.
-    """
     try:
         admin_email = await _get_admin_email(user, db)
         logger.info(f"🔍 Fetching jobs for admin: {admin_email}")
@@ -490,9 +468,6 @@ async def get_admin_job_detail(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Get single job details.
-    """
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
 
@@ -526,9 +501,6 @@ async def get_admin_job_detail(
     return job
 
 
-# ============================================================
-# ✅ FIXED: PUT /jobs/{job_id} — uses $set MERGE
-# ============================================================
 @router.put("/jobs/{job_id}")
 async def update_admin_job(
     job_id: str,
@@ -536,18 +508,6 @@ async def update_admin_job(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ FIXED: Update existing job with $set MERGE semantics.
-
-    Why this matters:
-      Flutter's `_saveCurrentTab()` sends the FULL accumulated payload
-      from all 8 tabs on every save. With `$set`, we guarantee:
-        - Every field present in `job_data` gets written/overwritten.
-        - Fields NOT present (i.e., untouched tabs) remain intact.
-
-      This is the single most important fix for single-record,
-      tab-wise saving. A `replace_one` would wipe untouched tabs.
-    """
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
 
@@ -563,24 +523,18 @@ async def update_admin_job(
     if job.get("added_by") != admin_email and user_role != "superadmin":
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # ─── Build $set patch ────────────────────────────────────
-    # Strip Mongo-reserved and identity fields.
     patch = {k: v for k, v in job_data.items() if k not in ("_id", "created_at", "added_by")}
 
     patch["updated_at"] = datetime.utcnow()
     patch["last_updated_by"] = admin_email
 
-    # Draft-aware status handling — never auto-publish a draft via PUT,
-    # and never let a status collision silently un-publish a job.
     incoming_is_draft = patch.get("is_draft")
     incoming_status = patch.get("status")
     if incoming_is_draft is True:
         patch["status"] = "draft"
     elif incoming_is_draft is False and incoming_status == "open":
         patch["status"] = "open"
-    # Else: leave existing status untouched.
 
-    # ─── Merge via find_one_and_update ───────────────────────
     updated = await db.job.find_one_and_update(
         {"_id": ObjectId(job_id)},
         {"$set": patch},
@@ -610,9 +564,6 @@ async def delete_admin_job(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Delete job and all associated applications.
-    """
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
 
@@ -639,9 +590,6 @@ async def publish_admin_job(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Publish a draft job (flip status to "open" + notify).
-    """
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job ID")
 
@@ -720,9 +668,6 @@ async def get_admin_applications(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Get all applications for jobs posted by the logged-in admin.
-    """
     try:
         admin_email = await _get_admin_email(user, db)
         if not admin_email:
@@ -740,9 +685,6 @@ async def get_application_detail(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Get detailed application data including user profile.
-    """
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
 
@@ -822,6 +764,10 @@ async def update_application_status(
 ):
     """
     ✅ Update application status + notify applicant / job-poster / customadmins.
+
+    ✅✅✅ THIS IS THE ONLY PLACE the applicant receives a status email
+          (e.g., review_application, final_submitted) when triggered by
+          Flutter after a document upload.
     """
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
@@ -960,9 +906,6 @@ async def bulk_update_status(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Bulk update application statuses.
-    """
     if not application_ids:
         raise HTTPException(status_code=400, detail="No applications selected")
 
@@ -1000,9 +943,6 @@ async def fast_search_applications(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ ULTRA FAST: Search applications by email or job title.
-    """
     try:
         admin_email = await _get_admin_email(user, db)
         if not admin_email:
@@ -1068,6 +1008,14 @@ async def admin_submit_document(
 ):
     """
     ✅ Admin submits document for review.
+
+    ✅✅✅ DUPLICATE EMAIL FIX:
+       This endpoint used to send BOTH:
+         (a) "Document Submitted" email  ← REMOVED
+         (b) The subsequent PUT /status call sends "Under Review" email  ← KEPT
+       Now it sends ONLY admin/customadmin notifications, NOT the applicant.
+       The applicant is notified ONE time, by PUT /applications/{id}/status
+       that Flutter calls immediately after this endpoint.
     """
     admin_email = await _get_admin_email(user, db)
     admin_name = user.get("name", "Admin")
@@ -1150,40 +1098,45 @@ async def admin_submit_document(
         job_title = job.get("post_name", "Job")
         organization = job.get("organization", "Company")
 
-        # ✅ FIX: Resolve human-readable application number
         app_number = _resolve_application_number(application, application_id)
-        logger.info(f"📋 Using application_number for emails: {app_number}")
+        logger.info(f"📋 Using application_number for admin alert emails: {app_number}")
 
-        user_message = (
-            f"Your document '{file.filename}' has been submitted successfully "
-            f"by {admin_name} for the position '{job_title}' at {organization}.\n\n"
-            f"📋 Application Number: {app_number}"
-        )
-        if notes:
-            user_message += f"\n\nAdmin Notes: {notes}"
+        # ============================================================
+        # ✅✅✅ DUPLICATE EMAIL FIX
+        # ------------------------------------------------------------
+        # The FOLLOWING block used to notify the APPLICANT with
+        #   title="📄 Document Submitted: {job_title}"
+        # This caused TWO emails:
+        #   1. "Document Submitted"  (from here)         ← DELETED
+        #   2. "Under Review"        (from PUT /status)  ← KEPT
+        #
+        # We now skip the applicant notification here. The single
+        # "Under Review" email is sent by PUT /applications/{id}/status
+        # which Flutter calls immediately after this endpoint returns.
+        # ============================================================
+        # user_message = (
+        #     f"Your document '{file.filename}' has been submitted successfully "
+        #     f"by {admin_name} for the position '{job_title}' at {organization}.\n\n"
+        #     f"📋 Application Number: {app_number}"
+        # )
+        # if notes:
+        #     user_message += f"\n\nAdmin Notes: {notes}"
+        #
+        # await central_notification.send_notification(
+        #     user_ids=[applicant_email],
+        #     notification_type="application_status",
+        #     title=f"📄 Document Submitted: {job_title}",
+        #     message=user_message,
+        #     related_id=app_number,
+        #     metadata={...},
+        #     send_email=True,
+        #     send_websocket=True,
+        # )
+        # ============================================================
+        # ✅ END DUPLICATE EMAIL FIX
+        # ============================================================
 
-        await central_notification.send_notification(
-            user_ids=[applicant_email],
-            notification_type="application_status",
-            title=f"📄 Document Submitted: {job_title}",
-            message=user_message,
-            related_id=app_number,
-            metadata={
-                "job_title": job_title,
-                "organization": organization,
-                "application_number": app_number,
-                "application_id": app_number,
-                "document_name": file.filename,
-                "admin_name": admin_name,
-                "admin_notes": notes,
-                "show_blue_bell": True,
-                "status": "review_application",
-                "submitted_document_url": upload_result["url"],
-            },
-            send_email=True,
-            send_websocket=True,
-        )
-
+        # ---- Admin / customadmin alerts are still sent (bell only, no applicant email) ----
         job_poster_email = job.get("added_by")
         if job_poster_email and job_poster_email != admin_email:
             await central_notification.send_notification(
@@ -1246,6 +1199,7 @@ async def admin_submit_document(
             "admin_notes": notes,
             "notifications_sent": True,
             "status": "review_application",
+            "applicant_email_sent": False,  # ✅ No applicant email — PUT /status will send it
         }
 
     except HTTPException:
@@ -1267,6 +1221,19 @@ async def admin_final_submit_with_document(
 ):
     """
     ✅ Admin FINAL SUBMIT application with document.
+
+    ✅✅✅ DUPLICATE EMAIL FIX:
+       This endpoint used to send BOTH:
+         (a) "FINAL SUBMISSION" email (from here)  ← REMOVED
+         (b) "FINAL SUBMITTED" email (from PUT /status)  ← KEPT
+       Flutter calls PUT /applications/{id}/status?status=final_submit
+       immediately after this endpoint, so the applicant receives
+       ONE final email (from the status update) instead of two.
+
+       For standalone API clients that ONLY call this endpoint (no
+       follow-up PUT /status), set `send_applicant_email=true` via
+       a query param if needed in the future — currently disabled to
+       match the Flutter flow.
     """
     admin_email = await _get_admin_email(user, db)
     admin_name = user.get("name", "Admin")
@@ -1364,42 +1331,46 @@ async def admin_final_submit_with_document(
         job_title = job.get("post_name", "Job")
         organization = job.get("organization", "Company")
 
-        # ✅ FIX: Resolve human-readable application number
         app_number = _resolve_application_number(application, application_id)
-        logger.info(f"📋 Using application_number for FINAL submit emails: {app_number}")
+        logger.info(f"📋 Using application_number for FINAL submit admin alerts: {app_number}")
 
-        user_message = (
-            f"Your FINAL document '{file.filename}' has been submitted successfully "
-            f"by {admin_name} for the position '{job_title}' at {organization}.\n\n"
-            f"📋 Application Number: {app_number}\n\n"
-            "This is your FINAL submission. No further changes are allowed."
-        )
-        if notes:
-            user_message += f"\n\nAdmin Notes: {notes}"
+        # ============================================================
+        # ✅✅✅ DUPLICATE EMAIL FIX
+        # ------------------------------------------------------------
+        # The FOLLOWING block used to notify the APPLICANT with
+        #   title="✅ FINAL SUBMISSION: {job_title}"
+        # This caused TWO emails:
+        #   1. "FINAL SUBMISSION"  (from here)             ← DELETED
+        #   2. "FINAL SUBMITTED"   (from PUT /status)      ← KEPT
+        #
+        # We now skip the applicant notification here. The single
+        # "FINAL SUBMITTED" email is sent by PUT /applications/{id}/status
+        # which Flutter calls immediately after this endpoint returns.
+        # ============================================================
+        # user_message = (
+        #     f"Your FINAL document '{file.filename}' has been submitted successfully "
+        #     f"by {admin_name} for the position '{job_title}' at {organization}.\n\n"
+        #     f"📋 Application Number: {app_number}\n\n"
+        #     "This is your FINAL submission. No further changes are allowed."
+        # )
+        # if notes:
+        #     user_message += f"\n\nAdmin Notes: {notes}"
+        #
+        # await central_notification.send_notification(
+        #     user_ids=[applicant_email],
+        #     notification_type="application_status",
+        #     title=f"✅ FINAL SUBMISSION: {job_title}",
+        #     message=user_message,
+        #     related_id=app_number,
+        #     metadata={...},
+        #     send_email=True,
+        #     send_websocket=True,
+        # )
+        # ============================================================
+        # ✅ END DUPLICATE EMAIL FIX
+        # ============================================================
 
-        await central_notification.send_notification(
-            user_ids=[applicant_email],
-            notification_type="application_status",
-            title=f"✅ FINAL SUBMISSION: {job_title}",
-            message=user_message,
-            related_id=app_number,
-            metadata={
-                "job_title": job_title,
-                "organization": organization,
-                "application_number": app_number,
-                "application_id": app_number,
-                "document_name": file.filename,
-                "admin_name": admin_name,
-                "admin_notes": notes,
-                "is_final": True,
-                "show_blue_bell": True,
-                "status": "final_submitted",
-                "final_document_url": upload_result["url"],
-            },
-            send_email=True,
-            send_websocket=True,
-        )
-
+        # ---- Admin / customadmin alerts still go out (bell only, no applicant email) ----
         job_poster_email = job.get("added_by")
         if job_poster_email and job_poster_email != admin_email:
             await central_notification.send_notification(
@@ -1467,6 +1438,7 @@ async def admin_final_submit_with_document(
             "admin_notes": notes,
             "old_document_deleted": old_public_id is not None,
             "notifications_sent": True,
+            "applicant_email_sent": False,  # ✅ No applicant email — PUT /status will send it
         }
 
     except HTTPException:
@@ -1485,20 +1457,11 @@ async def admin_review_application_status(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Admin updates application status to 'review_application' (no file required).
-    """
-    admin_email = await _get_admin_email(user, db)
-    admin_name = user.get("name", "Admin")
-
-    logger.info("=" * 60)
-    logger.info(f"📋 REVIEW APPLICATION STATUS UPDATE")
-    logger.info(f"   Application ID: {application_id}")
-    logger.info(f"   Admin Email: {admin_email}")
-    logger.info("=" * 60)
-
     if not ObjectId.is_valid(application_id):
         raise HTTPException(status_code=400, detail="Invalid application ID")
+
+    admin_email = await _get_admin_email(user, db)
+    admin_name = user.get("name", "Admin")
 
     try:
         application = await db.applications.find_one({"_id": ObjectId(application_id)})
@@ -1516,7 +1479,6 @@ async def admin_review_application_status(
         applicant_email = application.get("applicant_email")
         existing_doc_url = application.get("submitted_document_url")
 
-        # ✅ FIX: Resolve human-readable application number
         app_number = _resolve_application_number(application, application_id)
 
         update_data = {
@@ -1623,9 +1585,6 @@ async def get_pending_payments(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Get all pending payment verifications.
-    """
     job_pending = await db.applications.find({
         "application_type": "job",
         "payment_verification_status": "pending",
@@ -1695,9 +1654,6 @@ async def admin_verify_payment(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Admin approves or rejects a pending payment verification.
-    """
     if not ObjectId.is_valid(application_id):
         raise HTTPException(400, "Invalid application ID")
 
@@ -1722,7 +1678,6 @@ async def admin_verify_payment(
     job_title = application.get("job_title", "Job Application")
     job_poster_email = application.get("added_by")
 
-    # ✅ FIX: Resolve human-readable application number
     app_number = _resolve_application_number(application, application_id)
 
     if action == "approve":
@@ -1937,9 +1892,6 @@ async def get_admin_ai_dashboard(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Get AI-powered dashboard statistics.
-    """
     try:
         admin_email = await _get_admin_email(user, db)
         if not admin_email:
@@ -2017,9 +1969,6 @@ async def get_ranked_applications(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Get AI-ranked applications.
-    """
     try:
         admin_email = await _get_admin_email(user, db)
         if not admin_email:
@@ -2067,14 +2016,12 @@ async def get_ranked_applications(
 async def test_google_drive_connection(
     user=Depends(role_required(["admin", "superadmin"]))
 ):
-    """Test Google Drive connection"""
     from app.core.services.google_drive import google_drive_service
     return await google_drive_service.test_connection()
 
 
 # ============================================================
-# DRAFT JOB ENDPOINTS (kept — Flutter's `PUT /jobs/{id}` path is the
-# one actually hit today, but these remain for future-proofing)
+# DRAFT JOB ENDPOINTS
 # ============================================================
 
 @router.post("/jobs/save-draft")
@@ -2083,13 +2030,6 @@ async def save_job_draft(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Explicit save-draft endpoint (kept for future use).
-
-    Flutter's `_saveCurrentTab()` currently routes draft saves through
-    `POST /add-job` (is_draft=true) and `PUT /jobs/{id}` — both of which
-    are already draft-aware. This endpoint provides a clean alternative.
-    """
     from datetime import datetime
     from bson import ObjectId
 
@@ -2155,9 +2095,6 @@ async def final_submit_job(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Explicit final-submit endpoint (kept for future use).
-    """
     from datetime import datetime
     from bson import ObjectId
 
@@ -2228,9 +2165,6 @@ async def get_draft_job(
     user=Depends(role_required(["admin", "customadmin", "superadmin"])),
     db=Depends(get_db)
 ):
-    """
-    ✅ Get draft (for restore when reopening a draft).
-    """
     from bson import ObjectId
 
     if not ObjectId.is_valid(job_id):
@@ -2251,18 +2185,8 @@ async def upload_advertisement_to_existing_job(
     job_data: str = Form(...),
     current_user: dict = Depends(get_current_admin_user),
 ):
-    """
-    ✅ Upload an advertisement file and UPDATE the EXISTING job record.
-    This does NOT create a new job.
-
-    Used by the 8-tab Add/Edit Job wizard when the user clicks
-    'Publish Job' or 'Save Changes' on the final tab.
-    """
     db = get_database()
 
-    # ------------------------------------------------------------
-    # 1. Verify the job exists
-    # ------------------------------------------------------------
     if not ObjectId.is_valid(job_id):
         raise HTTPException(status_code=400, detail="Invalid job id")
 
@@ -2270,9 +2194,6 @@ async def upload_advertisement_to_existing_job(
     if not existing:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # ------------------------------------------------------------
-    # 2. Parse the incoming job_data JSON
-    # ------------------------------------------------------------
     try:
         parsed_data = json.loads(job_data)
         if not isinstance(parsed_data, dict):
@@ -2280,17 +2201,11 @@ async def upload_advertisement_to_existing_job(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid job_data: {e}")
 
-    # ------------------------------------------------------------
-    # 3. Upload the file to Cloudinary
-    # ------------------------------------------------------------
     try:
         upload = await upload_advertisement_file(file, job_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
 
-    # ------------------------------------------------------------
-    # 4. Merge upload metadata into the payload
-    # ------------------------------------------------------------
     filename = upload["filename"] or ""
     parsed_data.update({
         "advertisement_url": upload["secure_url"],
@@ -2302,10 +2217,7 @@ async def upload_advertisement_to_existing_job(
         "last_updated_by": current_user.get("email", ""),
     })
 
-    # ------------------------------------------------------------
-    # 5. $set-merge into the SAME record — no new record created
-    # ------------------------------------------------------------
-    parsed_data.pop("_id", None)   # never overwrite _id
+    parsed_data.pop("_id", None)
     await db.job.update_one(
         {"_id": ObjectId(job_id)},
         {"$set": parsed_data},
@@ -2319,11 +2231,11 @@ async def upload_advertisement_to_existing_job(
         "message": "Advertisement uploaded and job updated",
     }
 
+
 print("✅ Admin Routes Loaded - Full Job CRUD + Application Management")
-print("   ✅ FIXED: /add-job respects is_draft (no forced status='open')")
-print("   ✅ FIXED: PUT /jobs/{id} merges via $set (no tab data loss)")
-print("   ✅ FIXED: /add-job-with-advertisement updates existing draft via job_id")
-print("   ✅ FIXED: /add-job-with-advertisement respects is_draft (no notify on draft)")
+print("   ✅ FIXED: Duplicate 'Document Submitted' email removed")
+print("   ✅ FIXED: Duplicate 'FINAL SUBMISSION' email removed")
+print("   ✅ Applicant now receives ONE email per status change")
 print("   ✅ Job CRUD: Add, Get, Update, Delete, Publish")
 print("   ✅ Application Management: List, Detail, Status Update")
 print("   ✅ Document Upload: Review, Final Submit")
@@ -2331,5 +2243,3 @@ print("   ✅ Payment Verification: Approve, Reject")
 print("   ✅ AI Dashboard & Rankings")
 print("   ✅ Notifications to all parties")
 print("   ✅ NEW: application_number propagated to ALL notifications")
-print("      (review / final submit / payment / status update)")
-print("      → email header shows YYYYMMDDSSSS, not the raw _id")

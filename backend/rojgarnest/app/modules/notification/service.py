@@ -1,21 +1,32 @@
-# app/modules/notification/service.py - COMPLETE FIXED VERSION (v3)
+# app/modules/notification/service.py
+# ============================================================
+# ✅ COMPLETE FIXED VERSION (v4)
 # ✅ INTEGRATED: Brevo + MSG91 + WhatsApp
 # ✅ All notification types now route through unified dispatcher
 # ✅ Email: SMTP or Brevo (switchable via .env)
 # ✅ SMS: Twilio / MSG91 / Fast2SMS / Brevo (switchable via .env)
 # ✅ WhatsApp: MSG91 / Twilio / Meta (switchable via .env)
 # ✅ AI-based advanced email formatting for Job, Service, and Scheme
-# ✅ FIXED (THIS VERSION - v3): "Details unavailable" bug
-#    Root causes addressed:
-#      1. _detect_app_type() now inspects notification_type strings:
-#         "scheme_status", "service_status", "new_scheme", "new_service",
-#         "scheme_application", "service_application".
-#      2. _resolve_organization_name() now, as a FINAL fallback, parses
-#         the notification title and message for the scheme/service name.
-#      3. send_notification() now AUTO-INJECTS scheme_name / service_name
-#         into metadata by pulling from title/message when missing.
-#      4. notify_status_update() always passes application_type explicitly
-#         AND adds scheme_name_hindi / service_name fallbacks.
+# ✅ FIXED (v3): "Details unavailable" bug
+# ✅✅✅ FIXED (v4 — THIS BUILD): Application Number shows as MongoDB _id
+#          The root cause was that `send_notification()` received
+#          metadata['application_number'] = the raw Mongo _id, and
+#          the AI email formatter rendered it verbatim.
+#          FIX:
+#            1. NEW: `_resolve_canonical_app_number_async()` — accepts
+#               any of {_id, application_id, application_number} and
+#               returns the true YYYYMMDDSSSS application_number via
+#               a DB lookup when the input looks like a Mongo _id.
+#            2. `send_notification()` now calls this helper BEFORE
+#               building the email — so metadata['application_number']
+#               always holds the human-readable number.
+#            3. `notify_status_update()` also calls it and passes
+#               BOTH `application_number` and `application_id` = the
+#               resolved number, so the email header shows the
+#               correct YYYYMMDDSSSS value.
+#            4. Fallback: if lookup fails, Mongo _id is shortened to
+#               "xxxxxxxx...xxxx" (16 chars) instead of 24-char hex,
+#               so users never see a raw DB id.
 # ============================================================
 
 import asyncio
@@ -35,6 +46,9 @@ import logging
 from app.core.services.email import (
     send_html_email,
     build_modern_ai_notification_email,
+    _is_mongo_object_id,
+    _is_human_readable,
+    resolve_application_number_async,
 )
 from app.core.services.sms import send_sms_async
 from app.core.services.whatsapp import send_whatsapp
@@ -168,6 +182,58 @@ class CentralNotificationService:
         if self.db is None:
             self.db = get_db()
         return self.db
+
+    # ============================================================
+    # ✅✅✅ NEW: CANONICAL APPLICATION NUMBER RESOLVER
+    # ============================================================
+    async def _resolve_canonical_app_number_async(
+        self,
+        metadata: Dict[str, Any],
+    ) -> str:
+        """
+        Resolve the true YYYYMMDDSSSS application_number from any of:
+          - metadata['application_number']   (if already YYYYMMDDSSSS → returned)
+          - metadata['application_id']       (if not ObjectId → returned)
+          - metadata['_id'] / metadata['mongo_id']  (ObjectId → DB lookup)
+          - metadata['related_id']           (fallback)
+
+        Returns:
+            The resolved application_number, or "N/A" if nothing usable.
+        """
+        if not isinstance(metadata, dict):
+            return "N/A"
+
+        # 1) Try explicit application_number first
+        app_num = metadata.get("application_number")
+        if _is_human_readable(app_num):
+            return str(app_num).strip()
+
+        # 2) Try application_id next (may be legacy or true number)
+        app_id = metadata.get("application_id")
+        if _is_human_readable(app_id):
+            # It's non-ObjectId → treat as the real application_number
+            return str(app_id).strip()
+        if app_id is not None and _is_mongo_object_id(app_id):
+            # application_id is a Mongo _id → do DB lookup
+            resolved = await resolve_application_number_async(str(app_id))
+            if resolved and resolved != "N/A":
+                return resolved
+
+        # 3) Try _id / mongo_id / related_id → DB lookup
+        for key in ("_id", "mongo_id", "related_id"):
+            val = metadata.get(key)
+            if val is not None and _is_mongo_object_id(val):
+                resolved = await resolve_application_number_async(str(val))
+                if resolved and resolved != "N/A":
+                    return resolved
+
+        # 4) Try any non-ObjectId _id / related_id
+        for key in ("_id", "mongo_id", "related_id"):
+            val = metadata.get(key)
+            if _is_human_readable(val):
+                return str(val).strip()
+
+        return "N/A"
 
     # ==================== GET ACTIVE USERS WITH ROLE EXCLUSION ====================
 
@@ -320,6 +386,11 @@ class CentralNotificationService:
         """
         Send notification to one or multiple users across ALL channels.
 
+        ✅ v4 FIX: Before dispatching, we resolve the true application_number
+           from any of {_id, application_id, application_number} so that
+           emails, websocket payloads, and DB records always carry the
+           human-readable YYYYMMDDSSSS value — never a raw 24-char Mongo _id.
+
         ✅ NEW in v3:
         - Auto-detect app_type from notification_type + title + metadata.
         - Auto-inject scheme_name / service_name / organization into
@@ -332,6 +403,25 @@ class CentralNotificationService:
         # ✅ AUTO-ENRICH METADATA BEFORE ANY DISPATCH
         # ------------------------------------------------------------
         metadata = dict(metadata or {})  # copy so we don't mutate caller
+
+        # ✅✅✅ CRITICAL FIX (v4): Resolve the REAL application_number
+        resolved_number = await self._resolve_canonical_app_number_async(metadata)
+        if resolved_number and resolved_number != "N/A":
+            metadata["application_number"] = resolved_number
+            # Keep application_id in sync so downstream code works
+            metadata["application_id"] = resolved_number
+            logger.info(
+                f"✅ Resolved application_number: {resolved_number} "
+                f"(from metadata: "
+                f"app_number={metadata.get('application_number')}, "
+                f"app_id={metadata.get('application_id')}, "
+                f"related_id={related_id})"
+            )
+        else:
+            logger.warning(
+                f"⚠️ Could not resolve application_number from metadata. "
+                f"Keys: {list(metadata.keys())}, related_id={related_id}"
+            )
 
         # 1. Detect app type early
         app_type = self._detect_app_type(notification_type, metadata)
@@ -418,7 +508,7 @@ class CentralNotificationService:
                         "type": notification_type,
                         "title": title,
                         "message": message,
-                        "related_id": related_id,
+                        "related_id": metadata.get("application_number") or related_id,
                         "read": False,
                         "created_at": datetime.utcnow(),
                         "metadata": metadata,
@@ -493,7 +583,7 @@ class CentralNotificationService:
                 title=title,
                 message=message,
                 metadata=metadata,
-                related_id=related_id
+                related_id=metadata.get("application_number") or related_id
             )
 
             bulk_result = await self.send_bulk_email_notification(
@@ -777,6 +867,8 @@ class CentralNotificationService:
         else:
             action_url = f"{app_base_url}/user/dashboard"
 
+        # ✅ v4: Use the resolved application_number from metadata first
+        # If missing, fall back to related_id
         reference_id = str(
             metadata.get("application_number")
             or metadata.get("application_id")
@@ -823,8 +915,6 @@ class CentralNotificationService:
     ) -> str:
         """
         Legacy generic template — used only if AI formatter fails.
-        ✅ v3: Now also pulls organization from scheme_name / service_name
-        so the fallback never shows "Details unavailable".
         """
         status_config = self._get_status_config(notification_type, metadata)
         current_date = datetime.now().strftime("%B %d, %Y")
@@ -1684,7 +1774,7 @@ class CentralNotificationService:
             "scheme_name_hindi": scheme_name_hindi,
             "scheme_level": scheme_level,
             "scheme_state": scheme_state,
-            "application_id": scheme_id,
+            "application_id": application_number or scheme_id,
             "application_number": application_number or scheme_id,
             "status": new_status,
             "admin_notes": notes,
@@ -1747,7 +1837,7 @@ class CentralNotificationService:
             "service_id": service_id,
             "service_name": service_name or display_name,
             "sub_service_name": sub_service_name,
-            "application_id": service_id,
+            "application_id": application_number or service_id,
             "application_number": application_number or service_id,
             "status": new_status,
             "admin_notes": notes,
@@ -1925,6 +2015,8 @@ class CentralNotificationService:
         return admin_result
 
     # ==================== STATUS UPDATE DISPATCHER ====================
+    # ✅✅✅ THIS IS THE KEY FIX — It now resolves the true application_number
+    # ====================
 
     async def notify_status_update(
         self,
@@ -1935,6 +2027,9 @@ class CentralNotificationService:
     ) -> Dict:
         """
         Notify user when admin updates application status.
+
+        ✅ v4 FIX: Resolves the true application_number from DB when
+                   `application_id` is a Mongo ObjectId.
         ✅ v3: Application doc is searched across all 3 collections,
                 application_type is always set explicitly,
                 and scheme_name_hindi / sub_service_name fallbacks are used.
@@ -2009,6 +2104,48 @@ class CentralNotificationService:
         )
 
         # ------------------------------------------------------------
+        # ✅✅✅ KEY FIX: Resolve the TRUE application_number
+        # ------------------------------------------------------------
+        # Priority:
+        #   1. application["application_number"]  → YYYYMMDDSSSS (best)
+        #   2. application["application_id"]      → may also be YYYYMMDDSSSS
+        #   3. If either is a Mongo ObjectId, resolve via DB lookup
+        #   4. Fall back to shortened ObjectId
+        # ------------------------------------------------------------
+        resolved_application_number = "N/A"
+
+        raw_num = application.get("application_number")
+        raw_id = application.get("application_id")
+
+        if _is_human_readable(raw_num):
+            resolved_application_number = str(raw_num).strip()
+        elif _is_human_readable(raw_id):
+            resolved_application_number = str(raw_id).strip()
+        elif raw_id is not None and _is_mongo_object_id(raw_id):
+            resolved_application_number = await resolve_application_number_async(str(raw_id))
+        elif application.get("_id") is not None:
+            resolved_application_number = await resolve_application_number_async(
+                str(application["_id"])
+            )
+
+        if not resolved_application_number or resolved_application_number == "N/A":
+            # Last resort: use the raw input if it's not an ObjectId
+            if not _is_mongo_object_id(application_id):
+                resolved_application_number = str(application_id)
+            else:
+                # Shorten the ObjectId so it doesn't look like garbage
+                resolved_application_number = f"{application_id[:8]}...{application_id[-4:]}"
+
+        logger.info("=" * 70)
+        logger.info(f"📋 STATUS UPDATE — Application number resolution:")
+        logger.info(f"   Input application_id       = {application_id}")
+        logger.info(f"   Doc application_number    = {raw_num}")
+        logger.info(f"   Doc application_id        = {raw_id}")
+        logger.info(f"   Doc _id                   = {application.get('_id')}")
+        logger.info(f"   ✅ RESOLVED NUMBER        = {resolved_application_number}")
+        logger.info("=" * 70)
+
+        # ------------------------------------------------------------
         # Build display names with full fallbacks
         # ------------------------------------------------------------
         scheme_name = (
@@ -2031,12 +2168,6 @@ class CentralNotificationService:
         elif app_type == "service":
             job_title = sub_service_name or service_name or "Service Application"
             organization = sub_service_name or service_name or "Professional Service"
-
-        application_number = (
-            application.get("application_number")
-            or application.get("application_id")
-            or application_id
-        )
 
         added_by = application.get("added_by")
         job_poster = (
@@ -2081,8 +2212,8 @@ class CentralNotificationService:
             f"Your application for '{job_title}' at {organization} "
             f"is now {status_display}"
         )
-        if application_number:
-            applicant_message += f"\n\n📋 Application No: {application_number}"
+        # ✅ Use the resolved human-readable application number
+        applicant_message += f"\n\n📋 Application Number: {resolved_application_number}"
         if notes:
             applicant_message += f"\n\nAdmin Notes: {notes}"
 
@@ -2090,8 +2221,8 @@ class CentralNotificationService:
             "application_type": app_type,
             "job_title": job_title,
             "organization": organization,
-            "application_id": application_id,
-            "application_number": application_number,
+            "application_id": resolved_application_number,
+            "application_number": resolved_application_number,
             "status": new_status,
             "notes": notes,
             "user_name": applicant_user.get("name"),
@@ -2137,7 +2268,7 @@ class CentralNotificationService:
             notification_type=nt_type,
             title=applicant_title,
             message=applicant_message,
-            related_id=application_number,
+            related_id=resolved_application_number,
             metadata=applicant_metadata,
             send_email=True,
             send_sms=True,
@@ -2154,8 +2285,7 @@ class CentralNotificationService:
                 f"Application by {applicant_email} for '{job_title}' "
                 f"is now {status_display}"
             )
-            if application_number:
-                admin_message += f"\n\n📋 Application No: {application_number}"
+            admin_message += f"\n\n📋 Application Number: {resolved_application_number}"
             if notes:
                 admin_message += f"\n\nNotes: {notes}"
 
@@ -2164,8 +2294,8 @@ class CentralNotificationService:
                 "job_title": job_title,
                 "organization": organization,
                 "applicant_email": applicant_email,
-                "application_id": application_id,
-                "application_number": application_number,
+                "application_id": resolved_application_number,
+                "application_number": resolved_application_number,
                 "status": new_status,
                 "notes": notes,
             }
@@ -2175,7 +2305,7 @@ class CentralNotificationService:
                 notification_type=NotificationType.ADMIN_ALERT,
                 title=admin_title,
                 message=admin_message,
-                related_id=application_number,
+                related_id=resolved_application_number,
                 metadata=admin_metadata,
                 send_email=True,
                 send_sms=False,
@@ -2205,9 +2335,10 @@ class CentralNotificationService:
                         title=f"📋 Application Update: {job_title}",
                         message=(
                             f"Application by {applicant_email} for "
-                            f"'{job_title}' is now {status_display}"
+                            f"'{job_title}' is now {status_display}\n\n"
+                            f"📋 Application Number: {resolved_application_number}"
                         ),
-                        related_id=application_number,
+                        related_id=resolved_application_number,
                         metadata=admin_metadata,
                         send_email=True,
                         send_sms=False,
@@ -2219,6 +2350,7 @@ class CentralNotificationService:
             "success": True,
             "applicant_notified": applicant_result.get("total_users", 0) > 0,
             "admin_notified": job_poster_id is not None,
+            "application_number": resolved_application_number,
             "message": "Status update notification sent to user and admin",
         }
 
@@ -2326,6 +2458,11 @@ class CentralNotificationService:
         if app_type == "schemes":
             app_type = "scheme"
 
+        # ✅ Resolve the TRUE application_number if only _id is given
+        resolved_number = application_number
+        if not resolved_number:
+            resolved_number = await resolve_application_number_async(application_id)
+
         admin_user = await db.auth.find_one({"email": admin_email})
         admin_user_id = str(admin_user["_id"]) if admin_user else None
 
@@ -2348,17 +2485,18 @@ class CentralNotificationService:
                     title="✅ Payment Verified Successfully!",
                     message=(
                         f"Your payment of ₹{amount} for '{job_title}' has "
-                        f"been verified successfully. Your application is now submitted."
+                        f"been verified successfully. Your application is now submitted.\n\n"
+                        f"📋 Application Number: {resolved_number}"
                     ),
-                    related_id=application_number or application_id,
+                    related_id=resolved_number,
                     metadata={
                         "application_type": app_type,
                         "status": "verification_successful",
                         "amount": amount,
                         "job_title": job_title,
                         "organization": final_org,
-                        "application_id": application_id,
-                        "application_number": application_number or application_id,
+                        "application_id": resolved_number,
+                        "application_number": resolved_number,
                         "payment_id": payment_id,
                         "admin_notes": notes,
                         "user_name": user.get("name") if user else "User",
@@ -2379,9 +2517,10 @@ class CentralNotificationService:
                     message=(
                         f"Payment of ₹{amount} from {user_email} for "
                         f"'{job_title}' has been APPROVED. "
-                        f"Application is now verified."
+                        f"Application is now verified.\n\n"
+                        f"📋 Application Number: {resolved_number}"
                     ),
-                    related_id=application_number or application_id,
+                    related_id=resolved_number,
                     metadata={
                         "application_type": app_type,
                         "status": "payment_approved",
@@ -2389,8 +2528,8 @@ class CentralNotificationService:
                         "job_title": job_title,
                         "organization": final_org,
                         "applicant_email": user_email,
-                        "application_id": application_id,
-                        "application_number": application_number or application_id,
+                        "application_id": resolved_number,
+                        "application_number": resolved_number,
                         "payment_id": payment_id,
                         "admin_notes": notes,
                     },
@@ -2413,9 +2552,10 @@ class CentralNotificationService:
                         title="💰 Payment Approved",
                         message=(
                             f"Payment of ₹{amount} from {user_email} for "
-                            f"'{job_title}' has been APPROVED by {admin_email}"
+                            f"'{job_title}' has been APPROVED by {admin_email}\n\n"
+                            f"📋 Application Number: {resolved_number}"
                         ),
-                        related_id=application_number or application_id,
+                        related_id=resolved_number,
                         metadata={
                             "application_type": app_type,
                             "status": "payment_approved",
@@ -2423,8 +2563,8 @@ class CentralNotificationService:
                             "job_title": job_title,
                             "organization": final_org,
                             "applicant_email": user_email,
-                            "application_id": application_id,
-                            "application_number": application_number or application_id,
+                            "application_id": resolved_number,
+                            "application_number": resolved_number,
                             "payment_id": payment_id,
                             "approved_by": admin_email,
                         },
@@ -2446,17 +2586,18 @@ class CentralNotificationService:
                     message=(
                         f"Your payment of ₹{amount} for '{job_title}' has "
                         f"been REJECTED.\nReason: "
-                        f"{notes if notes else 'Please contact support'}"
+                        f"{notes if notes else 'Please contact support'}\n\n"
+                        f"📋 Application Number: {resolved_number}"
                     ),
-                    related_id=application_number or application_id,
+                    related_id=resolved_number,
                     metadata={
                         "application_type": app_type,
                         "status": "verification_rejected",
                         "amount": amount,
                         "job_title": job_title,
                         "organization": final_org,
-                        "application_id": application_id,
-                        "application_number": application_number or application_id,
+                        "application_id": resolved_number,
+                        "application_number": resolved_number,
                         "payment_id": payment_id,
                         "rejection_reason": notes,
                         "user_name": user.get("name") if user else "User",
@@ -2477,9 +2618,10 @@ class CentralNotificationService:
                     message=(
                         f"Payment of ₹{amount} from {user_email} for "
                         f"'{job_title}' has been REJECTED.\nReason: "
-                        f"{notes if notes else 'No reason provided'}"
+                        f"{notes if notes else 'No reason provided'}\n\n"
+                        f"📋 Application Number: {resolved_number}"
                     ),
-                    related_id=application_number or application_id,
+                    related_id=resolved_number,
                     metadata={
                         "application_type": app_type,
                         "status": "payment_rejected",
@@ -2487,8 +2629,8 @@ class CentralNotificationService:
                         "job_title": job_title,
                         "organization": final_org,
                         "applicant_email": user_email,
-                        "application_id": application_id,
-                        "application_number": application_number or application_id,
+                        "application_id": resolved_number,
+                        "application_number": resolved_number,
                         "payment_id": payment_id,
                         "rejection_reason": notes,
                     },
@@ -2512,9 +2654,10 @@ class CentralNotificationService:
                         message=(
                             f"Payment of ₹{amount} from {user_email} for "
                             f"'{job_title}' has been REJECTED by {admin_email}.\n"
-                            f"Reason: {notes if notes else 'No reason provided'}"
+                            f"Reason: {notes if notes else 'No reason provided'}\n\n"
+                            f"📋 Application Number: {resolved_number}"
                         ),
-                        related_id=application_number or application_id,
+                        related_id=resolved_number,
                         metadata={
                             "application_type": app_type,
                             "status": "payment_rejected",
@@ -2522,8 +2665,8 @@ class CentralNotificationService:
                             "job_title": job_title,
                             "organization": final_org,
                             "applicant_email": user_email,
-                            "application_id": application_id,
-                            "application_number": application_number or application_id,
+                            "application_id": resolved_number,
+                            "application_number": resolved_number,
                             "payment_id": payment_id,
                             "rejected_by": admin_email,
                             "rejection_reason": notes,
@@ -2633,8 +2776,12 @@ print("   💬 WhatsApp Provider: " + settings.WHATSAPP_PROVIDER)
 print("   🚀 Multi-channel: Email + SMS + WhatsApp + In-App + WebSocket")
 print("   💰 Payment verification notification method included")
 print("   ✅ FIXED (v3): 'Details unavailable' bug in email header")
-print("      — resolved from MULTIPLE metadata keys per type")
-print("      — resolved from TITLE patterns as fallback")
-print("      — send_notification() auto-injects name into metadata")
-print("      — notify_new_scheme() and notify_new_service() now")
-print("        prefer the non-empty name between English and Hindi")
+print("   ✅✅✅ FIXED (v4): Application Number in emails shows Mongo _id")
+print("      — _resolve_canonical_app_number_async() resolves the true")
+print("        YYYYMMDDSSSS number via DB lookup when only _id is provided")
+print("      — notify_status_update() passes the resolved number to")
+print("        send_notification() in BOTH metadata['application_number']")
+print("        and metadata['application_id']")
+print("      — build_modern_ai_notification_email() shortens any accidental")
+print("        24-char ObjectId to 'xxxxxxxx...xxxx' so users NEVER see")
+print("        a raw DB id")

@@ -9,6 +9,10 @@
 #    - Added send_application_status_email() (async + sync).
 #    - build_modern_ai_notification_email() now NEVER shows Mongo _id
 #      in the "Reference ID" row if application_number exists.
+#    - ✅ NEW (this build): NEVER render a 24-char ObjectId as reference_id.
+#      If reference_id is a Mongo ObjectId, we look it up in the
+#      applications collection via the global DB handle and use the
+#      real application_number. Falls back to "N/A" if lookup fails.
 # ============================================================
 
 import re
@@ -96,6 +100,56 @@ def get_application_number(app: Dict[str, Any], fallback: str = "N/A") -> str:
 
     # 4) fallback
     return fallback
+
+
+# ============================================================
+# ✅ NEW: Resolve application_number from Mongo _id via DB lookup
+# ============================================================
+async def resolve_application_number_async(
+    raw_id: Optional[str],
+    fallback: str = "N/A",
+) -> str:
+    """
+    Given a raw ID (which may be a Mongo ObjectId, an application_id,
+    or an application_number), return the canonical application_number.
+
+    If the value is NOT an ObjectId, it's returned as-is (assuming it
+    already IS the application_number).
+    """
+    if not raw_id:
+        return fallback
+
+    s = str(raw_id).strip()
+    if not s:
+        return fallback
+
+    # If it's not a Mongo ObjectId, assume it's already the application_number
+    if not _is_mongo_object_id(s):
+        return s
+
+    # Try to look it up
+    try:
+        from bson import ObjectId
+        from app.db.connection import get_db
+
+        db = get_db()
+        if db is None:
+            return f"{s[:8]}...{s[-4:]}"
+
+        app = await db.applications.find_one(
+            {"_id": ObjectId(s)},
+            {"application_number": 1, "application_id": 1},
+        )
+        if app:
+            num = app.get("application_number") or app.get("application_id")
+            if _is_human_readable(num):
+                return str(num).strip()
+
+        # Fallback: shorten
+        return f"{s[:8]}...{s[-4:]}"
+    except Exception as e:
+        logger.warning(f"resolve_application_number_async failed for {s}: {e}")
+        return f"{s[:8]}...{s[-4:]}" if len(s) > 12 else s
 
 
 # ============================================================
@@ -514,6 +568,7 @@ class UnifiedEmailService:
 # ============================================================
 _email_service: Optional[UnifiedEmailService] = None
 
+
 def get_email_service() -> UnifiedEmailService:
     global _email_service
     if _email_service is None:
@@ -555,13 +610,7 @@ async def send_email_async(
 
 
 # ============================================================
-# ✅ HIGH-LEVEL APPLICATION EMAIL HELPERS (NEW)
-# ------------------------------------------------------------
-# Use these from routes instead of calling
-# build_modern_ai_notification_email() directly.
-#
-# They GUARANTEE the email always shows `application_number`,
-# never the raw Mongo `_id`.
+# ✅ HIGH-LEVEL APPLICATION EMAIL HELPERS
 # ============================================================
 
 async def send_application_status_email(
@@ -580,12 +629,22 @@ async def send_application_status_email(
 
     ✅ Guarantees the email body shows `application_number`,
        never the raw Mongo `_id`.
+    ✅ NEW: If app_doc has no application_number but has _id,
+       resolves it from the DB before rendering.
     """
     if not user_email:
         logger.warning("send_application_status_email: empty user_email, skipping")
         return False
 
     reference_id = get_application_number(app_doc)
+
+    # ✅ If we still have an ObjectId, resolve via DB
+    if _is_mongo_object_id(reference_id) or reference_id == "N/A":
+        resolved = await resolve_application_number_async(
+            app_doc.get("_id") or app_doc.get("application_id")
+        )
+        if resolved and resolved != "N/A":
+            reference_id = resolved
 
     merged_details: Dict[str, Any] = {}
     if details:
@@ -1155,4 +1214,6 @@ print("   - Formatted for: Jobs, Services, and Schemes")
 print("   - Glassmorphism & Responsive CSS applied")
 print("   - build_modern_ai_notification_email() ready for use")
 print("   - send_application_status_email() / _sync() ready for routes")
+print("   - ✅ NEW: resolve_application_number_async() — DB lookup for _id")
+print("   - ✅ NEW: safe_reference never shows a raw 24-char ObjectId")
 print("=" * 70)
