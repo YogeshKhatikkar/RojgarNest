@@ -1,3 +1,6 @@
 
 deploy/.env.prod
 deploy/.env.local
+
+deploy/.env.prod
+deploy/.env.local
