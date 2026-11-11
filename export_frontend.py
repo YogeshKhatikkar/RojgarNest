@@ -1,6 +1,6 @@
 # scripts/export_frontend.py
 """
-Frontend Code Exporter for RojgarNext
+Frontend Code Exporter for SevaNext
 Exports all Flutter frontend code to a single text file
 Run: python scripts/export_frontend.py
 """
@@ -253,7 +253,7 @@ def export_frontend():
     """Main export function"""
     
     print("=" * 80)
-    print("🚀 FRONTEND CODE EXPORTER - RojgarNext")
+    print("🚀 FRONTEND CODE EXPORTER - SevaNext")
     print("=" * 80)
     print()
     
@@ -296,7 +296,7 @@ def export_frontend():
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as out_file:
         # Write header
         out_file.write("=" * 80 + "\n")
-        out_file.write("ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT\n")
+        out_file.write("SEVANEXT FRONTEND - COMPLETE CODE EXPORT\n")
         out_file.write("=" * 80 + "\n")
         out_file.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         out_file.write(f"Source: {FRONTEND_PATH}\n")

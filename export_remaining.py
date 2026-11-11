@@ -1,6 +1,6 @@
 # scripts/export_all_except.py
 """
-RojgarNest - Full Project Exporter (EXCLUDE MODE)
+SevaNext - Full Project Exporter (EXCLUDE MODE)
 Exports EVERY file under ROOT_PATH EXCEPT:
   - backend/   (entire folder)
   - frontend/  (entire folder)
@@ -230,7 +230,7 @@ def generate_tree(folder: Path, root: Path, prefix: str = "") -> List[str]:
 
 def export_all():
     print("=" * 80)
-    print("🚀 ROJGARNEST - FULL PROJECT EXPORTER (EXCLUDE MODE)")
+    print("🚀 SEVANEXT - FULL PROJECT EXPORTER (EXCLUDE MODE)")
     print("=" * 80)
     print(f"   ROOT_PATH:  {ROOT_PATH}")
     print(f"   OUTPUT_FILE: {OUTPUT_FILE}")
@@ -288,7 +288,7 @@ def export_all():
 
     with out:
         out.write("=" * 80 + "\n")
-        out.write("ROJGARNEST - FULL PROJECT EXPORT (EXCLUDE MODE)\n")
+        out.write("SEVANEXT - FULL PROJECT EXPORT (EXCLUDE MODE)\n")
         out.write("=" * 80 + "\n")
         out.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         out.write(f"Source: {ROOT_PATH}\n")
@@ -317,7 +317,7 @@ def export_all():
 
         # Tree
         out.write("=" * 80 + "\n📁 DIRECTORY STRUCTURE\n" + "=" * 80 + "\n\n")
-        out.write(f"📁 RojgarNest/\n")
+        out.write(f"📁 SevaNext/\n")
         for line in generate_tree(root, root):
             out.write(line + "\n")
         out.write("\n\n")

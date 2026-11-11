@@ -144,7 +144,7 @@ async def geocode_location_async(location_text: str) -> Dict[str, Any]:
                     "limit": 1,
                     "addressdetails": 1
                 },
-                headers={"User-Agent": "rojgarnest/1.0"}
+                headers={"User-Agent": "sevanext/1.0"}
             )
 
             if response.status_code == 200:

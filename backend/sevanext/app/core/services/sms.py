@@ -730,7 +730,7 @@ def get_sms_service() -> UniversalSMSService:
 def send_mobile_otp(mobile: str, otp: str) -> bool:
     """Legacy helper for sending OTP SMS."""
     service = get_sms_service()
-    message = f"Your RojgarNest OTP is {otp}. Valid for 10 minutes."
+    message = f"Your SevaNext OTP is {otp}. Valid for 10 minutes."
     return service.send_sync(
         to_mobile=mobile,
         message=message,

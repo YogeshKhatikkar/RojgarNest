@@ -97,7 +97,7 @@ class SimpleLocationHandler:
                 response = await client.get(
                     "https://nominatim.openstreetmap.org/reverse",
                     params={"lat": latitude, "lon": longitude, "format": "json", "zoom": 18, "addressdetails": 1},
-                    headers={"User-Agent": "rojgarnest/1.0"}
+                    headers={"User-Agent": "sevanext/1.0"}
                 )
                 
                 if response.status_code == 200:
@@ -143,7 +143,7 @@ class SimpleLocationHandler:
                 response = await client.get(
                     "https://nominatim.openstreetmap.org/search",
                     params={"q": address, "format": "json", "limit": 1},
-                    headers={"User-Agent": "rojgarnest/1.0"}
+                    headers={"User-Agent": "sevanext/1.0"}
                 )
                 
                 if response.status_code == 200:

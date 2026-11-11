@@ -1118,7 +1118,7 @@ class CentralNotificationService:
                 <div class="email-header">
                     <div class="header-icon">{icon}</div>
                     <h1>{title}</h1>
-                    <p>RojgarNest - Your Career Partner</p>
+                    <p>SevaNext - Your Career Partner</p>
                     <div class="status-badge">{badge_text}</div>
                 </div>
                 <div class="email-content">
@@ -1136,7 +1136,7 @@ class CentralNotificationService:
                         <a href="{app_base_url}/support">Support</a>
                     </div>
                     <div class="copyright">
-                        © {current_date} RojgarNest. All rights reserved.<br>
+                        © {current_date} SevaNext. All rights reserved.<br>
                         Find Your Dream Job with AI-Powered Career Guidance
                     </div>
                 </div>

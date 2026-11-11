@@ -26,7 +26,7 @@ services:
       MOBILE_OTP_BYPASS: "false"
       DEV_MODE_LOG_ONLY: "false"
       LOG_LEVEL: WARNING
-      MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/RojgarNest?authSource=admin
+      MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/SevaNext?authSource=admin
       APP_BASE_URL: https://www.rojgarnest.com
     restart: always
     deploy:

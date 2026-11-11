@@ -66,7 +66,7 @@ async def dispatch_otp(
                 html = _build_otp_email_html(final_email_otp, purpose=purpose)
                 results["email"] = await send_email_async(
                     to_email=email,
-                    subject=f"Your RojgarNest OTP ({purpose})",
+                    subject=f"Your SevaNext OTP ({purpose})",
                     html_body=html,
                     text_body=f"Your OTP is {final_email_otp}. Valid for 10 minutes.",
                 )
@@ -106,7 +106,7 @@ async def dispatch_otp(
                 logger.info(f"📱 [PROD] Sending real SMS to {mobile} via {sms_provider}")
                 results["sms"] = await send_sms_async(
                     to_mobile=mobile,
-                    message=f"Your RojgarNest OTP is {final_mobile_otp}. Valid 10 minutes.",
+                    message=f"Your SevaNext OTP is {final_mobile_otp}. Valid 10 minutes.",
                     template_id=settings.MSG91_TEMPLATE_ID_OTP,
                     variables={"otp": final_mobile_otp},
                 )
@@ -145,7 +145,7 @@ async def dispatch_otp(
                 logger.info(f"💬 [PROD] Sending real WhatsApp to {mobile} via {wa_provider}")
                 wa_result = await send_whatsapp(
                     to_mobile=mobile,
-                    message=f"Your RojgarNest OTP is {final_mobile_otp}",
+                    message=f"Your SevaNext OTP is {final_mobile_otp}",
                     template_id=settings.MSG91_WHATSAPP_TEMPLATE_OTP,
                     variables={"otp": final_mobile_otp, "name": user_name or "User"},
                 )
@@ -200,7 +200,7 @@ async def dispatch_verification_success(
         html = f"""<!DOCTYPE html><html><body style="font-family:Arial;padding:20px;">
         <h2 style="color:#10B981;">✅ {verified_field} Verified!</h2>
         <p>Hi <strong>{user_name}</strong>,</p>
-        <p>Your {verified_field.lower()} has been successfully verified on RojgarNest.</p>
+        <p>Your {verified_field.lower()} has been successfully verified on SevaNext.</p>
         </body></html>"""
         results["email"] = await send_email_async(
             to_email=email,
@@ -270,12 +270,12 @@ async def dispatch_welcome(
     if "email" in channels and email:
         html = f"""<!DOCTYPE html>
         <html><body style="font-family:Arial;padding:20px;">
-        <h1>🎉 Welcome to RojgarNest!</h1>
+        <h1>🎉 Welcome to SevaNext!</h1>
         <p>Hi <strong>{user_name}</strong>, welcome aboard!</p>
         </body></html>"""
         results["email"] = await send_email_async(
             to_email=email,
-            subject="🎉 Welcome to RojgarNest!",
+            subject="🎉 Welcome to SevaNext!",
             html_body=html,
         )
 
@@ -286,7 +286,7 @@ async def dispatch_welcome(
         if "whatsapp" in channels and mobile and wa_provider not in ("disabled", ""):
             results["whatsapp"] = await send_whatsapp(
                 to_mobile=mobile,
-                message=f"Welcome to RojgarNest, {user_name}!",
+                message=f"Welcome to SevaNext, {user_name}!",
                 template_id=settings.MSG91_WHATSAPP_TEMPLATE_ALERT,
                 variables={"name": user_name, "message": "Welcome!"},
             )

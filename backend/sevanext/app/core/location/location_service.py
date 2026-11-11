@@ -227,7 +227,7 @@ class LocationHelper:
                         "zoom": 18,
                         "addressdetails": 1
                     },
-                    headers={"User-Agent": "rojgarnest/1.0"}
+                    headers={"User-Agent": "sevanext/1.0"}
                 )
                 
                 if response.status_code == 200:

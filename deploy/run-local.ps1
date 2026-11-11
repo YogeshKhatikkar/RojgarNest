@@ -1,5 +1,5 @@
 ﻿# ============================================================
-# RojgarNest - Local Docker Runner (Windows PowerShell)
+# SevaNext - Local Docker Runner (Windows PowerShell)
 # File: deploy/run-local.ps1
 # ============================================================
 # Usage:
@@ -20,7 +20,7 @@ foreach ($a in $args) {
 
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "  ROJGARNEST - LOCAL DOCKER DEPLOY" -ForegroundColor Cyan
+Write-Host "  SEVANEXT - LOCAL DOCKER DEPLOY" -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -36,8 +36,8 @@ if (-not (Test-Path ".env.local")) {
     Write-Host "ERROR: .env.local not found in deploy folder." -ForegroundColor Red
     exit 1
 }
-if (-not (Test-Path "..\backend\rojgarnest\.env")) {
-    Write-Host "WARNING: ../backend/rojgarnest/.env not found." -ForegroundColor Yellow
+if (-not (Test-Path "..\backend\sevanext\.env")) {
+    Write-Host "WARNING: ../backend/sevanext/.env not found." -ForegroundColor Yellow
     Write-Host "         Backend will start with defaults and may fail." -ForegroundColor Gray
 }
 
@@ -115,7 +115,7 @@ $elapsed = 0
 $backendReady = $false
 
 while ($elapsed -lt $maxWait) {
-    $status = docker inspect --format='{{.State.Health.Status}}' rojgarnest-local-backend 2>$null
+    $status = docker inspect --format='{{.State.Health.Status}}' sevanext-local-backend 2>$null
 
     if ($status -eq "healthy") {
         $backendReady = $true
@@ -128,7 +128,7 @@ while ($elapsed -lt $maxWait) {
         Write-Host ""
         Write-Host "ERROR: Backend became UNHEALTHY." -ForegroundColor Red
         Write-Host "Last 60 lines of backend logs:" -ForegroundColor Gray
-        docker logs --tail 60 rojgarnest-local-backend
+        docker logs --tail 60 sevanext-local-backend
         break
     }
 
@@ -141,11 +141,11 @@ if (-not $backendReady) {
     Write-Host ""
     Write-Host "WARNING: Backend not healthy after $maxWait seconds." -ForegroundColor Yellow
     Write-Host "         Showing last 60 log lines so you can see WHY:" -ForegroundColor Gray
-    docker logs --tail 60 rojgarnest-local-backend
+    docker logs --tail 60 sevanext-local-backend
     Write-Host ""
     Write-Host "         Common fixes:" -ForegroundColor Gray
-    Write-Host "           - Check ../backend/rojgarnest/.env has MONGO_URI, SECRET_KEY, JWT_SECRET_KEY" -ForegroundColor Gray
-    Write-Host "           - Check MongoDB started: docker logs rojgarnest-local-mongo" -ForegroundColor Gray
+    Write-Host "           - Check ../backend/sevanext/.env has MONGO_URI, SECRET_KEY, JWT_SECRET_KEY" -ForegroundColor Gray
+    Write-Host "           - Check MongoDB started: docker logs sevanext-local-mongo" -ForegroundColor Gray
 }
 
 Write-Host ""
@@ -160,7 +160,7 @@ $elapsed = 0
 $frontendReady = $false
 
 while ($elapsed -lt $maxWait) {
-    $status = docker inspect --format='{{.State.Health.Status}}' rojgarnest-local-frontend 2>$null
+    $status = docker inspect --format='{{.State.Health.Status}}' sevanext-local-frontend 2>$null
 
     if ($status -eq "healthy") {
         $frontendReady = $true
@@ -175,7 +175,7 @@ while ($elapsed -lt $maxWait) {
 if (-not $frontendReady) {
     Write-Host "WARNING: Frontend not healthy after $maxWait seconds, continuing anyway." -ForegroundColor Yellow
     Write-Host "         Showing last 40 frontend log lines:" -ForegroundColor Gray
-    docker logs --tail 40 rojgarnest-local-frontend
+    docker logs --tail 40 sevanext-local-frontend
 }
 
 Write-Host ""
@@ -221,9 +221,9 @@ Write-Host "  Backend (direct):      $backendHealth" -ForegroundColor White
 Write-Host "  Backend (proxy):       $proxyHealth" -ForegroundColor White
 Write-Host ""
 Write-Host "  Useful commands:" -ForegroundColor DarkGray
-Write-Host "    docker logs -f rojgarnest-local-backend" -ForegroundColor DarkGray
-Write-Host "    docker logs -f rojgarnest-local-frontend" -ForegroundColor DarkGray
-Write-Host "    docker logs -f rojgarnest-local-mongo" -ForegroundColor DarkGray
+Write-Host "    docker logs -f sevanext-local-backend" -ForegroundColor DarkGray
+Write-Host "    docker logs -f sevanext-local-frontend" -ForegroundColor DarkGray
+Write-Host "    docker logs -f sevanext-local-mongo" -ForegroundColor DarkGray
 Write-Host "    docker compose @composeArgs down" -ForegroundColor DarkGray
 Write-Host ""
 

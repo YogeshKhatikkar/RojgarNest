@@ -3,7 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 async def test_atlas():
     # ✅ Use SRV URI with SSL bypass
-    uri = "mongodb+srv://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority&tlsAllowInvalidCertificates=true"
+    uri = "mongodb+srv://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority&tlsAllowInvalidCertificates=true"
     
     print("🔍 Testing Atlas connection with SSL bypass...")
     
@@ -20,7 +20,7 @@ async def test_atlas():
         await client.admin.command('ping')
         print("✅ Connection successful!")
         
-        db = client["RojgarNest"]
+        db = client["SevaNext"]
         collections = await db.list_collection_names()
         print(f"📊 Collections: {collections}")
         
@@ -30,7 +30,7 @@ async def test_atlas():
         # Try without SSL
         print("\n🔄 Trying without SSL...")
         try:
-            uri_no_ssl = "mongodb+srv://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority&ssl=false"
+            uri_no_ssl = "mongodb+srv://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority&ssl=false"
             client = AsyncIOMotorClient(uri_no_ssl, serverSelectionTimeoutMS=30000)
             await client.admin.command('ping')
             print("✅ Connection successful without SSL!")

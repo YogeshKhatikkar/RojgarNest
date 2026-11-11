@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 
 _FERNET_KEY_BYTES = 32           # Fernet requires exactly 32 raw bytes
 _FERNET_KEY_B64_LEN = 44         # 32 bytes → 44 chars base64 (with '=' padding)
-_PBKDF2_SALT = b"rojgarnest_salt_2024"
+_PBKDF2_SALT = b"sevanext_salt_2024"
 _PBKDF2_ITERATIONS = 100_000
-_HASH_SALT = b"rojgarnest_hash_salt"
+_HASH_SALT = b"sevanext_hash_salt"
 
 
 class EncryptionManager:

@@ -3,7 +3,7 @@
         deploy deploy-prod rollback backup health test
 
 help:
-	@echo "🚀 RojgarNext — Available Commands"
+	@echo "🚀 SevaNext — Available Commands"
 	@echo "======================================================"
 	@echo "  LOCAL:"
 	@echo "    make local          → Start local dev (all services)"
@@ -76,7 +76,7 @@ health:
 	@curl -sf http://localhost:8080 >/dev/null && echo " ✅ Frontend" || echo " ❌ Frontend"
 
 test:
-	cd backend/rojgarnext && pytest -v
+	cd backend/sevanext && pytest -v
 
 clean:
 	cd deploy && docker compose -f docker-compose.dev.yml down -v --remove-orphans || true

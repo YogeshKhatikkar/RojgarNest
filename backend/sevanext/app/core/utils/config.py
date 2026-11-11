@@ -11,7 +11,7 @@ import json
 class Settings(BaseSettings):
     # ================= CORE =================
     MONGO_URI: str = "mongodb://localhost:27017"
-    DATABASE_NAME: str = "RojgarNest"
+    DATABASE_NAME: str = "SevaNext"
     ENVIRONMENT: str = "development"
     PORT: int = 8000
 

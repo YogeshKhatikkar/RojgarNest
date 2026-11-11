@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     # ============================================================
     # 🗄️ DATABASE
     # ============================================================
-    MONGO_URI: str = "mongodb://localhost:27017/RojgarNest"
-    DATABASE_NAME: str = "RojgarNest"
+    MONGO_URI: str = "mongodb://localhost:27017/SevaNext"
+    DATABASE_NAME: str = "SevaNext"
     ENVIRONMENT: str = "development"
     PORT: int = 8000
 
@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     FAST2SMS_API_KEY: str = ""
 
     BREVO_API_KEY: str = ""
-    BREVO_SMS_SENDER: str = "RojgarNest"
+    BREVO_SMS_SENDER: str = "SevaNext"
     BREVO_SMS_API_KEY: str = ""
 
     # ============================================================
@@ -107,10 +107,10 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = ""
-    SMTP_FROM_NAME: str = "RojgarNest"
+    SMTP_FROM_NAME: str = "SevaNext"
 
     BREVO_SENDER_EMAIL: str = ""
-    BREVO_SENDER_NAME: str = "RojgarNest"
+    BREVO_SENDER_NAME: str = "SevaNext"
     BREVO_SMTP_HOST: str = "smtp-relay.brevo.com"
     BREVO_SMTP_PORT: int = 587
     BREVO_SMTP_USER: str = ""
@@ -118,12 +118,12 @@ class Settings(BaseSettings):
 
     SENDGRID_API_KEY: str = ""
     SENDGRID_FROM_EMAIL: str = ""
-    SENDGRID_FROM_NAME: str = "RojgarNest"
+    SENDGRID_FROM_NAME: str = "SevaNext"
 
     MAILGUN_API_KEY: str = ""
     MAILGUN_DOMAIN: str = ""
     MAILGUN_FROM_EMAIL: str = ""
-    MAILGUN_FROM_NAME: str = "RojgarNest"
+    MAILGUN_FROM_NAME: str = "SevaNext"
 
     # ============================================================
     # 🌐 OTHER
@@ -310,7 +310,7 @@ class Settings(BaseSettings):
     # ============================================================
     @property
     def SAFE_MONGO_URI(self) -> str:
-        uri = self.MONGO_URI or "mongodb://localhost:27017/RojgarNest"
+        uri = self.MONGO_URI or "mongodb://localhost:27017/SevaNext"
         if uri.startswith("mongodb+srv://"):
             if "retryWrites=" not in uri:
                 separator = "&" if "?" in uri else "?"
@@ -368,7 +368,7 @@ settings = Settings()
 # 🎯 STARTUP DIAGNOSTIC
 # ============================================================
 print("=" * 70)
-print("🔧 RojgarNest SETTINGS LOADED")
+print("🔧 SevaNext SETTINGS LOADED")
 print("=" * 70)
 print(f"   Environment: {settings.ENVIRONMENT}")
 print(f"   MOBILE_OTP_BYPASS: {settings.MOBILE_OTP_BYPASS}")

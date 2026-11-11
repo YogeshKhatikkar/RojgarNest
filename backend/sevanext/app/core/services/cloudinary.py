@@ -314,7 +314,7 @@ async def get_signed_download_url(
 
 async def upload_private_file(
     file: UploadFile,
-    folder: str = "RojgarNest",
+    folder: str = "SevaNext",
     job_id: str = None,
     organization: str = None,
     post_name: str = None,
@@ -339,7 +339,7 @@ async def upload_private_file(
         await file.seek(0)
         
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        cloudinary_folder = f"rojgarnest/{folder}" if folder else "RojgarNest"
+        cloudinary_folder = f"sevanext/{folder}" if folder else "SevaNext"
         
         original_filename = file.filename or "file"
         name_without_ext = Path(original_filename).stem
@@ -407,7 +407,7 @@ async def upload_private_file(
 
 async def upload_to_cloudinary(
     file: UploadFile,
-    folder: str = "RojgarNest",
+    folder: str = "SevaNext",
     job_id: str = None,
     organization: str = None,
     post_name: str = None,
@@ -428,7 +428,7 @@ async def upload_to_cloudinary(
         await file.seek(0)
         
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        cloudinary_folder = f"rojgarnest/{folder}" if folder else "RojgarNest"
+        cloudinary_folder = f"sevanext/{folder}" if folder else "SevaNext"
         
         original_filename = file.filename or "file"
         name_without_ext = Path(original_filename).stem
@@ -712,7 +712,7 @@ async def upload_advertisement_file(file: UploadFile, job_id: str) -> dict:
     """
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     base_name = (file.filename or "advertisement").rsplit(".", 1)[0]
-    public_id = f"rojgarnest/jobs/advertisements/{timestamp}_{job_id}_{base_name}"
+    public_id = f"sevanext/jobs/advertisements/{timestamp}_{job_id}_{base_name}"
 
     contents = await file.read()
 
@@ -730,7 +730,7 @@ async def upload_advertisement_file(file: UploadFile, job_id: str) -> dict:
         public_id=public_id,
         resource_type=resource_type,
         type="authenticated",   # PRIVATE — matches your existing flow
-        folder="rojgarnest/jobs/advertisements",
+        folder="sevanext/jobs/advertisements",
         overwrite=True,
     )
 

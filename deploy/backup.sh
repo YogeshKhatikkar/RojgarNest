@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # ============================================================
-# ROJGARNEST — BACKUP SCRIPT
+# SEVANEXT — BACKUP SCRIPT
 # ============================================================
 # Usage:
 #   ./backup.sh
 #
 # Cron (daily at 2 AM):
-#   0 2 * * * cd /opt/rojgarnest/deploy && ./backup.sh >> /var/log/rojgarnest-backup.log 2>&1
+#   0 2 * * * cd /opt/sevanext/deploy && ./backup.sh >> /var/log/sevanext-backup.log 2>&1
 # ============================================================
 set -euo pipefail
 
 DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
-BACKUP_DIR="/opt/rojgarnest/backups"
+BACKUP_DIR="/opt/sevanext/backups"
 TS=$(date +%Y%m%d_%H%M%S)
 mkdir -p "$BACKUP_DIR"
 
@@ -29,7 +29,7 @@ REDIS_C=$(docker compose \
 # ─── Mongo backup ───
 if [ -n "$MONGO_C" ]; then
   echo "📦 Backing up MongoDB ($MONGO_C)..."
-  docker exec "$MONGO_C" mongodump --db=RojgarNest --archive --gzip \
+  docker exec "$MONGO_C" mongodump --db=SevaNext --archive --gzip \
     > "$BACKUP_DIR/mongo_${TS}.archive.gz" 2>/dev/null || true
 else
   echo "⚠️  MongoDB container not running — skipping"

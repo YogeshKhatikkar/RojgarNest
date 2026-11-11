@@ -906,7 +906,7 @@ class ServiceService:
         order_id = f"SVC{payment_id[-8:]}{int(datetime.utcnow().timestamp())}"
 
         upi_id = getattr(settings, 'UPI_ID', 'your-upi-id@okhdfcbank')
-        upi_text = f"upi://pay?pa={upi_id}&pn=RojgarNest&am={amount}&cu=INR&tn={order_id}&tid={order_id}"
+        upi_text = f"upi://pay?pa={upi_id}&pn=SevaNext&am={amount}&cu=INR&tn={order_id}&tid={order_id}"
         qr_image_url = generate_qr_code_html(upi_text, amount, order_id)
 
         qr_data = {

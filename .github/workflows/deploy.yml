@@ -1,4 +1,4 @@
-name: Deploy RojgarNext
+name: Deploy SevaNext
 
 on:
   push:
@@ -17,19 +17,19 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        working-directory: backend/rojgarnest
+        working-directory: backend/sevanext
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Lint with flake8
-        working-directory: backend/rojgarnest
+        working-directory: backend/sevanext
         run: |
           pip install flake8
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Run tests
-        working-directory: backend/rojgarnest
+        working-directory: backend/sevanext
         run: |
           pip install pytest
           pytest tests/ || true
@@ -54,7 +54,7 @@ jobs:
           port: ${{ secrets.PROD_PORT || 22 }}
           script: |
             set -e
-            cd /opt/rojgarnest
+            cd /opt/sevanext
 
             echo "📥 Pulling latest code..."
             git pull origin main

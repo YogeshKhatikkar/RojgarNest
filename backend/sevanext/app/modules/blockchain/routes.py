@@ -82,7 +82,7 @@ async def issue_skill_certificate(
         "skill_name": skill_name,
         "skill_level": skill.get("level"),
         "completion_date": datetime.utcnow().isoformat(),
-        "issuer": "RojgarNest"
+        "issuer": "SevaNext"
     }
     
     # Issue on blockchain (mock)

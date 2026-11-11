@@ -271,7 +271,7 @@ class LocationService:
                         "extratags": 1,
                         "namedetails": 1
                     },
-                    headers={"User-Agent": "rojgarnest/1.0 (https://rojgarnest.com)"}
+                    headers={"User-Agent": "sevanext/1.0 (https://rojgarnest.com)"}
                 )
                 
                 if response.status_code == 200:
@@ -552,7 +552,7 @@ async def geocode_address(self, address: str) -> Optional[Dict[str, Any]]:
                     "addressdetails": 1,
                     "namedetails": 1
                 },
-                headers={"User-Agent": "rojgarnest/1.0"}
+                headers={"User-Agent": "sevanext/1.0"}
             )
             
             if response.status_code == 200:

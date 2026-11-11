@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Export Backend Code to a Single Text File - WITH ENV SANITIZATION
-This script scans the entire backend/rojgarnext/ folder and exports ALL code files
+This script scans the entire backend/sevanext/ folder and exports ALL code files
 to a single txt file, BUT it sanitizes the .env file by replacing ALL actual values
 with dummy/placeholder values.
 
@@ -21,12 +21,12 @@ from typing import List, Dict, Tuple
 BACKEND_ROOT = Path(__file__).parent / "backend" / "sevanext"
 
 if not BACKEND_ROOT.exists():
-    if Path.cwd().name == "rojgarnext" and (Path.cwd() / "app").exists():
+    if Path.cwd().name == "sevanext" and (Path.cwd() / "app").exists():
         BACKEND_ROOT = Path.cwd()
     else:
         for path in Path.cwd().parents:
-            if (path / "backend" / "rojgarnext").exists():
-                BACKEND_ROOT = path / "backend" / "rojgarnext"
+            if (path / "backend" / "sevanext").exists():
+                BACKEND_ROOT = path / "backend" / "sevanext"
                 break
 
 OUTPUT_FILE = "backend_complete_export.txt"
@@ -48,8 +48,8 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 # KEY ke according dummy value map karo
 ENV_SANITIZATION_RULES = {
     # Database
-    'MONGO_URI': 'mongodb://localhost:27017/rojgarnext',
-    'DATABASE_NAME': 'rojgarnext',
+    'MONGO_URI': 'mongodb://localhost:27017/sevanext',
+    'DATABASE_NAME': 'sevanext',
     'ENVIRONMENT': 'development',
     
     # Security
@@ -103,7 +103,7 @@ ENV_SANITIZATION_RULES = {
     'GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL': 'your-service-account@project.iam.gserviceaccount.com',
     'GOOGLE_DRIVE_PRIVATE_KEY': '-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----',
     'GOOGLE_DRIVE_FOLDER_ID': 'your_google_drive_folder_id_here',
-    'GOOGLE_DRIVE_FOLDER_NAME': 'rojgarnext_advertisements',
+    'GOOGLE_DRIVE_FOLDER_NAME': 'sevanext_advertisements',
     
     # Blockchain
     'WEB3_PROVIDER_URL': 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID',
@@ -414,7 +414,7 @@ def main():
     output_lines.append("📁 COMPLETE DIRECTORY STRUCTURE")
     output_lines.append("=" * 80)
     output_lines.append("")
-    output_lines.append(f"📁 backend/rojgarnext/")
+    output_lines.append(f"📁 backend/sevanext/")
     output_lines.extend(generate_tree_structure(BACKEND_ROOT, BACKEND_ROOT))
     output_lines.append("")
     output_lines.append("")

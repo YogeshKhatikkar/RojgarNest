@@ -139,7 +139,7 @@ async def send_support_email(
             <div class="container">
                 <div class="header">
                     <h2>📧 New Support Request</h2>
-                    <p>RojgarNest Support System</p>
+                    <p>SevaNext Support System</p>
                 </div>
                 <div class="content">
                     <div class="info-box">
@@ -166,8 +166,8 @@ async def send_support_email(
                     </div>
                 </div>
                 <div class="footer">
-                    <p>This is an automated support request from RojgarNest Job Portal</p>
-                    <p>© 2025 RojgarNest - Find Your Dream Job</p>
+                    <p>This is an automated support request from SevaNext Job Portal</p>
+                    <p>© 2025 SevaNext - Find Your Dream Job</p>
                     <div class="badge">Support Ticket</div>
                 </div>
             </div>
@@ -179,7 +179,7 @@ async def send_support_email(
         background_tasks.add_task(
             send_html_email,
             to_email=data.to,
-            subject=f"RojgarNest Support: {data.subject[:50]}",
+            subject=f"SevaNext Support: {data.subject[:50]}",
             html_body=html_body
         )
         

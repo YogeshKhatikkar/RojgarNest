@@ -13,11 +13,11 @@ async def migrate_data():
     
     # Local MongoDB (source)
     local_uri = "mongodb://localhost:27017"
-    local_db_name = "RojgarNest"
+    local_db_name = "SevaNext"
     
     # Atlas MongoDB (destination)
-    atlas_uri = "mongodb+srv://rojgarnest_db:RojgarNest%40123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority"
-    atlas_db_name = "RojgarNest"
+    atlas_uri = "mongodb+srv://sevanext_db:SevaNext%40123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority"
+    atlas_db_name = "SevaNext"
     
     print("\n📡 Connecting to databases...")
     
@@ -110,9 +110,9 @@ async def verify_atlas_data():
     print("🔍 VERIFYING ATLAS DATABASE")
     print("=" * 70)
     
-    atlas_uri = "mongodb+srv://rojgarnest_db:RojgarNest%40123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority"
+    atlas_uri = "mongodb+srv://sevanext_db:SevaNext%40123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority"
     client = AsyncIOMotorClient(atlas_uri)
-    db = client["RojgarNest"]
+    db = client["SevaNext"]
     
     collections = await db.list_collection_names()
     print(f"\n📋 Collections in Atlas ({len(collections)}):")

@@ -578,7 +578,7 @@ def get_email_service() -> UnifiedEmailService:
 
 def send_email(to_email: str, otp: str) -> bool:
     html_body = _build_otp_email_html(otp, purpose="verification")
-    subject = "Your RojgarNest Verification OTP"
+    subject = "Your SevaNext Verification OTP"
     return get_email_service().send_email_sync(
         to_email=to_email,
         subject=subject,
@@ -669,7 +669,7 @@ async def send_application_status_email(
         action_url=action_url,
     )
 
-    subject = f"RojgarNest | {status} | {title} | #{reference_id}"
+    subject = f"SevaNext | {status} | {title} | #{reference_id}"
 
     text_body = (
         f"Hello {user_name or 'Applicant'},\n\n"
@@ -735,7 +735,7 @@ def send_application_status_email_sync(
         action_url=action_url,
     )
 
-    subject = f"RojgarNest | {status} | {title} | #{reference_id}"
+    subject = f"SevaNext | {status} | {title} | #{reference_id}"
 
     text_body = (
         f"Hello {user_name or 'Applicant'},\n\n"
@@ -777,13 +777,13 @@ def _build_otp_email_html(otp: str, purpose: str = "verification") -> str:
 </style></head>
 <body>
   <div class="container">
-    <div class="header"><h1>🔐 RojgarNest</h1></div>
+    <div class="header"><h1>🔐 SevaNext</h1></div>
     <div class="content">
       <p>Your one-time password (OTP) for <strong>{purpose}</strong> is:</p>
       <div class="otp-box">{otp}</div>
       <p>This code is valid for <strong>10 minutes</strong>.<br>Do not share it with anyone.</p>
     </div>
-    <div class="footer">© RojgarNest — AI-Powered Career Platform</div>
+    <div class="footer">© SevaNext — AI-Powered Career Platform</div>
   </div>
 </body></html>"""
 
@@ -1177,14 +1177,14 @@ def build_modern_ai_notification_email(
 
           <p style="font-size: 13px; color: #64748b; margin-top: 24px; text-align: center;">
             If you have any questions or require support, reply directly to this message
-            or visit your RojgarNest user portal.
+            or visit your SevaNext user portal.
           </p>
         </td>
       </tr>
       <tr>
         <td class="footer">
-          <div class="brand">{footer_icon} RojgarNest</div>
-          <div>© 2026 RojgarNest — Next-Gen AI Career, Service & Schemes Portal</div>
+          <div class="brand">{footer_icon} SevaNext</div>
+          <div>© 2026 SevaNext — Next-Gen AI Career, Service & Schemes Portal</div>
           <div class="links">
             <a href="https://www.rojgarnest.com">Home</a> |
             <a href="https://www.rojgarnest.com/jobs">Jobs</a> |

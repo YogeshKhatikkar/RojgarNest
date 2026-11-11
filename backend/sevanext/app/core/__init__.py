@@ -1,6 +1,6 @@
 # app/core/__init__.py - FIXED VERSION
 """
-RojgarNest Core Module
+SevaNext Core Module
 """
 
 from app.core.config.settings import settings

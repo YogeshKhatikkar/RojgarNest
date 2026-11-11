@@ -63,7 +63,7 @@ async def test_local_mongodb():
         await client.admin.command('ping')
         print("✅ Connected to LOCAL MongoDB successfully!")
         
-        db = client["RojgarNest"]
+        db = client["SevaNext"]
         
         # Get collections
         collections = await db.list_collection_names()
@@ -131,23 +131,23 @@ async def test_atlas_mongodb():
     # Try multiple URIs with different SSL configurations
     test_uris = [
         {
-            'uri': "mongodb+srv://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority&tlsAllowInvalidCertificates=true",
+            'uri': "mongodb+srv://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority&tlsAllowInvalidCertificates=true",
             'name': "Standard + tlsAllowInvalidCertificates"
         },
         {
-            'uri': "mongodb+srv://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true",
+            'uri': "mongodb+srv://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true",
             'name': "tls=true + tlsAllowInvalidCertificates"
         },
         {
-            'uri': "mongodb+srv://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority",
+            'uri': "mongodb+srv://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority",
             'name': "No tls params"
         },
         {
-            'uri': "mongodb://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority&ssl=true",
+            'uri': "mongodb://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority&ssl=true",
             'name': "mongodb:// protocol with ssl=true"
         },
         {
-            'uri': "mongodb+srv://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority&ssl=true&tlsAllowInvalidCertificates=true",
+            'uri': "mongodb+srv://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority&ssl=true&tlsAllowInvalidCertificates=true",
             'name': "ssl=true + tlsAllowInvalidCertificates"
         },
     ]
@@ -175,7 +175,7 @@ async def test_atlas_mongodb():
             await client.admin.command('ping')
             print(f"✅ SUCCESS! Connected with URI {i}")
             
-            db = client["RojgarNest"]
+            db = client["SevaNext"]
             collections = await db.list_collection_names()
             print(f"\n📊 Collections in Atlas ({len(collections)}):")
             for coll_name in sorted(collections):
@@ -221,7 +221,7 @@ async def main():
         print("\n📌 To use local MongoDB:")
         print("   Update .env file:")
         print("   MONGO_URI=mongodb://localhost:27017")
-        print("   DATABASE_NAME=RojgarNest")
+        print("   DATABASE_NAME=SevaNext")
         print("   ENVIRONMENT=development")
         print("\n🚀 Start the backend:")
         print("   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000")

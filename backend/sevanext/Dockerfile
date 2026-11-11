@@ -1,5 +1,5 @@
 # ============================================================
-# ROJGARNEST BACKEND DOCKERFILE — PRODUCTION READY
+# SEVANEXT BACKEND DOCKERFILE — PRODUCTION READY
 # Multi-stage build, non-root user, works for dev + prod
 # ============================================================
 

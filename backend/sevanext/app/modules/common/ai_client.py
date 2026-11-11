@@ -1,4 +1,4 @@
-# backend/rojgarnest/app/modules/common/ai_client.py
+# backend/sevanext/app/modules/common/ai_client.py
 """Shared AI Client for all modules"""
 from openai import AsyncOpenAI
 from app.core.config.settings import settings

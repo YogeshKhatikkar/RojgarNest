@@ -206,9 +206,9 @@ class GoogleDriveService:
 SOLUTION: Use a Shared Drive instead of a personal folder:
 
 1. Go to Google Drive → Click "+ New" → "New Shared Drive"
-2. Name it: rojgarnest_ads
+2. Name it: sevanext_ads
 3. Add your service account email as Manager:
-   - Service account email: rojgarnest@rojgarnest.iam.gserviceaccount.com
+   - Service account email: sevanext@sevanext.iam.gserviceaccount.com
 4. Get the Shared Drive folder ID (from URL)
 5. Update GOOGLE_DRIVE_FOLDER_ID in .env with the Shared Drive folder ID
 6. Run the diagnostic script again: python test_drive.py
@@ -263,7 +263,7 @@ SOLUTION: Use a Shared Drive instead of a personal folder:
                     "is_shared_drive": is_shared_drive,
                     "drive_id": folder.get('driveId')
                 },
-                "service_account_email": "rojgarnest@rojgarnest.iam.gserviceaccount.com",
+                "service_account_email": "sevanext@sevanext.iam.gserviceaccount.com",
                 "message": "Google Drive connection successful" + (" (Shared Drive - Unlimited Storage)" if is_shared_drive else " (Personal Folder - Limited Storage)")
             }
         except HttpError as e:

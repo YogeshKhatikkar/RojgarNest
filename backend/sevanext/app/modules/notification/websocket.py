@@ -203,7 +203,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     if is_first_time_ever:
         await websocket.send_json({
             "type": "connected",
-            "message": "Connected to RojgarNest notification service",
+            "message": "Connected to SevaNext notification service",
             "user_id": user_id,
             "user_role": user_role,
             "timestamp": datetime.utcnow().timestamp()

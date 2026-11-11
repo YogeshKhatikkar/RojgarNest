@@ -3,11 +3,11 @@ services:
     image: mongo:7
     restart: unless-stopped
     environment:
-      MONGO_INITDB_DATABASE: RojgarNest
+      MONGO_INITDB_DATABASE: SevaNext
     volumes:
       - mongo_data:/data/db
     networks:
-      - rojgarnest-net
+      - sevanext-net
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
@@ -22,7 +22,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - rojgarnest-net
+      - sevanext-net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -32,18 +32,18 @@ services:
 
   backend:
     build:
-      context: ../backend/rojgarnest
+      context: ../backend/sevanext
       dockerfile: Dockerfile
-    container_name: rojgarnest-local-backend
+    container_name: sevanext-local-backend
     restart: unless-stopped
     environment:
-      MONGO_URI: mongodb://mongo:27017/RojgarNest
-      DATABASE_NAME: RojgarNest
+      MONGO_URI: mongodb://mongo:27017/SevaNext
+      DATABASE_NAME: SevaNext
       REDIS_URL: redis://redis:6379
       PORT: "8000"
       ENVIRONMENT: development
     env_file:
-      - ../backend/rojgarnest/.env
+      - ../backend/sevanext/.env
     depends_on:
       mongo:
         condition: service_healthy
@@ -59,7 +59,7 @@ services:
       - backend_logs:/app/logs
       - backend_backups:/app/backups
     networks:
-      - rojgarnest-net
+      - sevanext-net
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
       interval: 15s
@@ -69,7 +69,7 @@ services:
 
   frontend:
     build:
-      context: ../frontend/rojgarnest
+      context: ../frontend/sevanext
       dockerfile: Dockerfile
       args:
         # ✅ PROXY MODE — same-origin, zero CORS issues
@@ -78,7 +78,7 @@ services:
         WS_BASE_URL: /notification/ws
         BUILD_NUMBER: "1"
         BUILD_NAME: "2.0.0"
-    container_name: rojgarnest-local-frontend
+    container_name: sevanext-local-frontend
     restart: unless-stopped
     depends_on:
       backend:
@@ -87,7 +87,7 @@ services:
       # ✅ FIXED: 80 → 8080 (Windows me port 80 reserved)
       - "8080:80"
     networks:
-      - rojgarnest-net
+      - sevanext-net
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
       interval: 15s
@@ -96,7 +96,7 @@ services:
       start_period: 20s
 
 networks:
-  rojgarnest-net:
+  sevanext-net:
     driver: bridge
 
 volumes:

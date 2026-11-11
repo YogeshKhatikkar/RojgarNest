@@ -119,7 +119,7 @@ def get_client_ip(request: Request) -> str:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("=" * 60)
-    print("🚀 RojgarNest Ultra-Secure Backend Starting...")
+    print("🚀 SevaNext Ultra-Secure Backend Starting...")
     print("=" * 60)
 
     start_time = time.time()
@@ -298,7 +298,7 @@ async def lifespan(app: FastAPI):
 
 # ================= APP INITIALIZATION =================
 app = FastAPI(
-    title="RojgarNest API - Ultra Secure Enterprise Edition",
+    title="SevaNext API - Ultra Secure Enterprise Edition",
     version="5.0.0",
     description="World's Most Advanced AI-Powered Job Portal",
     lifespan=lifespan,
@@ -628,12 +628,12 @@ app.include_router(
 async def root():
     return ApiResponse.success(
         data={
-            "name": "RojgarNest API",
+            "name": "SevaNext API",
             "version": "5.0.0",
             "status": "running",
             "docs": "/docs",
         },
-        message="Welcome to RojgarNest API",
+        message="Welcome to SevaNext API",
     )
 
 
@@ -641,13 +641,13 @@ async def root():
 async def api_v1_root():
     return ApiResponse.success(
         data={
-            "name": "RojgarNest API",
+            "name": "SevaNext API",
             "version": "5.0.0",
             "status": "running",
             "docs": "/docs",
             "api_version": "v1",
         },
-        message="Welcome to RojgarNest API v1",
+        message="Welcome to SevaNext API v1",
     )
 
 
@@ -761,7 +761,7 @@ async def security_status():
 # 🎉 STARTUP BANNER
 # ============================================================
 print("=" * 60)
-print("✅ RojgarNest Backend Loaded Successfully!")
+print("✅ SevaNext Backend Loaded Successfully!")
 print("⚠️⚠️⚠️ AUTO JOB FETCH: COMPLETELY DISABLED ⚠️⚠️⚠️")
 print("   - No automatic job fetching will run")
 print("   - Jobs can only be added manually by admins")

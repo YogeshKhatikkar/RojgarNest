@@ -1,4 +1,4 @@
-# backend/rojgarnest/app/modules/common/__init__.py
+# backend/sevanext/app/modules/common/__init__.py
 from .ai_client import get_ai_client
 from .prompts import PROMPT_TEMPLATES
 

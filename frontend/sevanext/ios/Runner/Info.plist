@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Rojgarnext</string>
+	<string>Sevanext</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>rojgarnext</string>
+	<string>sevanext</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -70,14 +70,14 @@
 	<!-- Add these keys -->
 	<!-- Add these keys -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>RojgarNext needs your location to show nearby jobs</string>
+	<string>SevaNext needs your location to show nearby jobs</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>RojgarNext needs your location to show nearby jobs</string>
+	<string>SevaNext needs your location to show nearby jobs</string>
 	<key>NSCameraUsageDescription</key>
-	<string>RojgarNext needs camera access to upload documents</string>
+	<string>SevaNext needs camera access to upload documents</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>RojgarNext needs photo library access to upload documents</string>
+	<string>SevaNext needs photo library access to upload documents</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>RojgarNext uses Face ID for secure login</string>
+	<string>SevaNext uses Face ID for secure login</string>
 </dict>
 </plist>

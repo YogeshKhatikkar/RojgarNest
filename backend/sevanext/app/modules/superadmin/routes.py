@@ -146,7 +146,7 @@ async def ai_smart_dashboard(
 
 
 @router.get("/report")
-async def rojgarnest_full_report(
+async def sevanext_full_report(
     service: SuperAdminService = Depends(get_superadmin_service),
     user=Depends(role_required("superadmin"))
 ):
