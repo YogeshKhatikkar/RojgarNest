@@ -48,7 +48,7 @@ def parse_cloudinary_url(url: str) -> Optional[Dict[str, Any]]:
     ✅ CRITICAL FIX: Parse a Cloudinary URL to extract components.
     
     Handles URLs like:
-    https://res.cloudinary.com/du64hubaf/image/authenticated/s--AR9AIwnK--/v1/RojgarNest_uploads/users_data/user/file.pdf
+    https://res.cloudinary.com/du64hubaf/image/authenticated/s--AR9AIwnK--/v1/sevanext_uploads/users_data/user/file.pdf
     
     Returns:
     {
@@ -56,7 +56,7 @@ def parse_cloudinary_url(url: str) -> Optional[Dict[str, Any]]:
         'resource_type': 'image',
         'type': 'authenticated',
         'version': 'v1',
-        'public_id': 'RojgarNest_uploads/users_data/user/file',
+        'public_id': 'sevanext_uploads/users_data/user/file',
         'format': 'pdf',
         'is_authenticated': True
     }
@@ -564,7 +564,7 @@ async def upload_payment_screenshot(
     name_without_ext = Path(original_filename).stem
     safe_name = "".join(c for c in name_without_ext if c.isalnum() or c in '._-')[:50]
     
-    folder = f"RojgarNest_uploads/users_data/{username}/payment"
+    folder = f"sevanext_uploads/users_data/{username}/payment"
     public_id = f"{folder}/{timestamp}_{payment_id}_{safe_name}"
     public_id = public_id.replace("//", "/")
     
@@ -617,7 +617,7 @@ async def upload_user_document(
 ) -> Dict[str, Any]:
     """
     Upload user document to Cloudinary under:
-        RojgarNest_uploads/users_data/{username}/{document_type}/
+        sevanext_uploads/users_data/{username}/{document_type}/
     """
     logger.info(f"📤 Uploading user document: {file.filename}")
     
@@ -634,7 +634,7 @@ async def upload_user_document(
         
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         
-        cloudinary_folder = f"RojgarNest_uploads/users_data/{username}/{document_type}"
+        cloudinary_folder = f"sevanext_uploads/users_data/{username}/{document_type}"
         
         original_filename = file.filename or "document"
         name_without_ext = Path(original_filename).stem

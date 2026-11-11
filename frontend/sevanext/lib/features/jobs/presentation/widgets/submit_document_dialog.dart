@@ -295,7 +295,7 @@ Future<void> _pickFile() async {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      "Your document will be stored in Cloudinary at:\nRojgarNest_uploads/users_data/{username}/applications/",
+                      "Your document will be stored in Cloudinary at:\nsevanext_uploads/users_data/{username}/applications/",
                       style: const TextStyle(fontSize: 11, color: Colors.blue),
                     ),
                   ),

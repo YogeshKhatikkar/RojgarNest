@@ -46,7 +46,7 @@ class PlatformUtils {
   static String getApiBaseUrl() {
     // Production
     if (kReleaseMode) {
-      return "https://www.rojgarnest.com/api/v1";
+      return "https://www.sevanext.com/api/v1";
     }
 
     // Web
@@ -80,7 +80,7 @@ class PlatformUtils {
   // ==================== WEBSOCKET URL ====================
   static String getWebSocketUrl() {
     if (kReleaseMode) {
-      return "wss://www.rojgarnest.com/ws/notification/ws";
+      return "wss://www.sevanext.com/ws/notification/ws";
     }
 
     if (isWeb) {

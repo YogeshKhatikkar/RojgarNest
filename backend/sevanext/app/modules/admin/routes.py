@@ -58,7 +58,7 @@ async def _get_admin_email(user: dict, db) -> str:
             auth_user = await db.auth.find_one({"_id": ObjectId(user_id)})
             if auth_user:
                 admin_email = auth_user.get("email")
-    return admin_email or "admin@rojgarnest.com"
+    return admin_email or "admin@sevanext.com"
 
 
 def _resolve_application_number(application: dict, fallback_id: str) -> str:

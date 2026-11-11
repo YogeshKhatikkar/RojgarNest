@@ -38,7 +38,7 @@ async def upload_user_resume(
 ):
     """
     User uploads resume to Cloudinary
-    Folder: RojgarNest_uploads/users_data/{username}/resume/
+    Folder: sevanext_uploads/users_data/{username}/resume/
     """
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Resume file is required")

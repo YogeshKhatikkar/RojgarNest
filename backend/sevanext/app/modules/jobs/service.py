@@ -133,7 +133,7 @@ class JobService:
                             admin_name = user.get("name", "")
 
             if not admin_email:
-                admin_email = "admin@rojgarnest.com"
+                admin_email = "admin@sevanext.com"
 
             use_current_location = job_dict.get("use_current_location", False)
 
@@ -576,7 +576,7 @@ class JobService:
                 "job_id": job_id,
                 "job_title": job.get("post_name", "Job Opportunity"),
                 "organization": job.get("organization", "Company"),
-                "added_by": job.get("added_by", "admin@rojgarnest.com"),
+                "added_by": job.get("added_by", "admin@sevanext.com"),
                 "applicant_email": user_email,
                 "applicant_name": applicant_name,
                 "user_email": user_email,
@@ -713,7 +713,7 @@ class JobService:
             job_id=job_id,
             job_title=job.get("post_name", "Job Opportunity"),
             organization=job.get("organization", "Company"),
-            added_by=job.get("added_by", "admin@rojgarnest.com"),
+            added_by=job.get("added_by", "admin@sevanext.com"),
             applicant_name=applicant_name,
             applicant_email=applicant_email,
             resume_url=application_data.resume_url,
@@ -755,7 +755,7 @@ class JobService:
                 "applicant_email": applicant_email
             },
             job,
-            job.get("added_by", "admin@rojgarnest.com")
+            job.get("added_by", "admin@sevanext.com")
         )
 
         return {
@@ -861,7 +861,7 @@ class JobService:
             job_id=job_id,
             job_title=job.get("post_name", "Job Opportunity"),
             organization=job.get("organization", "Company"),
-            added_by=job.get("added_by", "admin@rojgarnest.com"),
+            added_by=job.get("added_by", "admin@sevanext.com"),
             applicant_name=applicant_name,
             applicant_email=applicant_email,
             status="saved",
@@ -1274,7 +1274,7 @@ class JobService:
                 "applicant_email": applicant_email
             },
             job,
-            job.get("added_by", "admin@rojgarnest.com")
+            job.get("added_by", "admin@sevanext.com")
         )
 
         status_message = "Your application has been submitted successfully."

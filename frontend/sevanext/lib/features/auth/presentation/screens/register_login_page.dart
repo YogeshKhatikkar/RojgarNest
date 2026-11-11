@@ -416,7 +416,7 @@ class _RegisterLoginPageState extends State<RegisterLoginPage>
                     TextButton.icon(
                       onPressed: () {
                         _safeShowMessage(
-                          "Please contact support@rojgarnest.com for help.",
+                          "Please contact support@sevanext.com for help.",
                         );
                       },
                       icon: const Icon(

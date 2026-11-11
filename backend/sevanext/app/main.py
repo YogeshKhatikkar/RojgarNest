@@ -466,8 +466,8 @@ app.add_middleware(
         "http://localhost:8081",
         "http://127.0.0.1:8081",
         # Production
-        "https://www.rojgarnest.com",
-        "https://rojgarnest.com",
+        "https://www.sevanext.com",
+        "https://sevanext.com",
     ],
     allow_origin_regex=r"https://.*\.(up\.railway\.app|onrender\.com|vercel\.app|netlify\.app)",
     allow_credentials=True,

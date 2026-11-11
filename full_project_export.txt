@@ -1,22 +1,22 @@
 ================================================================================
 SEVANEXT - FULL PROJECT EXPORT (EXCLUDE MODE)
 ================================================================================
-Generated: 2026-11-11 15:02:22
+Generated: 2026-11-11 16:56:20
 Source: E:\YOGESH\website\SevaNext
 Excluded folders: .git, backend, frontend
 Excluded extensions: .txt
 Total Files Included: 26
-Total Skipped: 8
-Total Size: 110.2 KB
+Total Skipped: 9
+Total Size: 104.3 KB
 ================================================================================
 
 ================================================================================
 📁 FOLDER BREAKDOWN
 ================================================================================
 
-  (root)/: 7 files (70.9 KB)
+  (root)/: 7 files (58.1 KB)
   .github/: 6 files (13.6 KB)
-  deploy/: 11 files (24.6 KB)
+  deploy/: 11 files (31.5 KB)
   monitoring/: 2 files (1.1 KB)
 
 
@@ -26,12 +26,13 @@ Total Size: 110.2 KB
 
   📁 .git  →  excluded folder '.git'
   📁 .vscode  →  hard-skip folder '.vscode'
+  📁 _backup_20261111_164939\backend  →  excluded folder 'backend'
+  📁 _backup_20261111_164939\frontend  →  excluded folder 'frontend'
   📁 backend  →  excluded folder 'backend'
   📄 backend_complete_export.txt  →  excluded extension '.txt'
   📁 frontend  →  excluded folder 'frontend'
   📄 frontend_export.txt  →  excluded extension '.txt'
   📄 full_project_export.txt  →  system/output file
-  📄 mongo_backup_.tar.gz  →  binary extension '.gz'
 
 
 ================================================================================
@@ -48,6 +49,7 @@ Total Size: 110.2 KB
 │       ├── ⚙️ security-scan.yml
 │       └── ⚙️ web-deploy.yml
 ├── 📄 .gitignore
+├── 📁 _backup_20261111_164939/
 ├── 📁 deploy/
 │   ├── 📄 .env.local
 │   ├── 📄 .env.prod
@@ -64,12 +66,12 @@ Total Size: 110.2 KB
 ├── 🐍 export_backend_code.py
 ├── 🐍 export_frontend.py
 ├── 🐍 export_remaining.py
-├── 🐍 migrate_all_to_sevanext.py
 ├── 📁 monitoring/
 │   ├── ⚙️ logstash.conf
 │   └── ⚙️ prometheus.yml
 ├── 📋 railway.frontend.json
-└── 📋 railway.json
+├── 📋 railway.json
+└── 🐍 rebrand.py
 
 
 ================================================================================
@@ -77,19 +79,19 @@ Total Size: 110.2 KB
 ================================================================================
 
 Total Files: 26
-Total Size: 110.2 KB
+Total Size: 104.3 KB
 
 By extension:
-  .yml: 10 files (18.6 KB)
-  .py: 4 files (69.9 KB)
-  .sh: 3 files (3.0 KB)
+  .yml: 10 files (18.2 KB)
+  .py: 4 files (57.1 KB)
+  .sh: 3 files (9.0 KB)
   .conf: 2 files (7.0 KB)
   .json: 2 files (960 B)
-  (no ext): 1 files (76 B)
+  (no ext): 1 files (39 B)
   .local: 1 files (334 B)
-  .prod: 1 files (148 B)
+  .prod: 1 files (144 B)
   .example: 1 files (714 B)
-  .ps1: 1 files (9.6 KB)
+  .ps1: 1 files (10.8 KB)
 
 
 ================================================================================
@@ -579,13 +581,10 @@ jobs:
 
 ================================================================================
 [   7/  26] 📄 .gitignore
-📏 SIZE: 76 B
-🕐 MODIFIED: 2026-11-09 21:39:20
+📏 SIZE: 39 B
+🕐 MODIFIED: 2026-11-11 16:02:18
 ================================================================================
 
-
-deploy/.env.prod
-deploy/.env.local
 
 deploy/.env.prod
 deploy/.env.local
@@ -607,16 +606,16 @@ COMPOSE_PROJECT_NAME=sevanext
 
 ================================================================================
 [   9/  26] 📄 deploy/.env.prod
-📏 SIZE: 148 B
-🕐 MODIFIED: 2026-11-11 14:39:02
+📏 SIZE: 144 B
+🕐 MODIFIED: 2026-11-11 16:22:37
 ================================================================================
 
 COMPOSE_PROJECT_NAME=sevanext
 
-MONGO_ROOT_USERNAME=rojgar_admin
+MONGO_ROOT_USERNAME=seva_admin
 MONGO_ROOT_PASSWORD=localdev123456789012345678901234
 
-DOMAIN=www.rojgarnest.com
+DOMAIN=www.sevanext.com
 
 ================================================================================
 [  10/  26] 📄 deploy/.env.prod.example
@@ -708,7 +707,7 @@ ls -lh "$BACKUP_DIR" | tail -5
 ================================================================================
 [  12/  26] ⚙️ deploy/docker-compose.dev.yml
 📏 SIZE: 467 B
-🕐 MODIFIED: 2026-11-10 12:29:22
+🕐 MODIFIED: 2026-11-11 16:21:31
 ================================================================================
 
 services:
@@ -739,8 +738,8 @@ services:
 
 ================================================================================
 [  13/  26] ⚙️ deploy/docker-compose.prod.yml
-📏 SIZE: 1.3 KB
-🕐 MODIFIED: 2026-11-11 14:38:45
+📏 SIZE: 1.2 KB
+🕐 MODIFIED: 2026-11-11 16:21:44
 ================================================================================
 
 services:
@@ -750,19 +749,15 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD required}
     deploy:
       resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
+        limits: { memory: 512M }
+        reservations: { memory: 256M }
     restart: always
 
   redis:
     deploy:
       resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 64M
+        limits: { memory: 256M }
+        reservations: { memory: 64M }
     restart: always
 
   backend:
@@ -772,34 +767,30 @@ services:
       DEV_MODE_LOG_ONLY: "false"
       LOG_LEVEL: WARNING
       MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/SevaNext?authSource=admin
-      APP_BASE_URL: https://www.rojgarnest.com
+      APP_BASE_URL: https://${DOMAIN}
     restart: always
     deploy:
       resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
+        limits: { memory: 1G }
+        reservations: { memory: 512M }
 
   frontend:
     build:
       args:
-        API_BASE_URL: https://www.rojgarnest.com/api/v1
-        WS_BASE_URL: wss://www.rojgarnest.com/ws/notification/ws
+        API_BASE_URL: https://${DOMAIN}/api/v1
+        WS_BASE_URL: wss://${DOMAIN}/ws/notification/ws
     restart: always
     ports:
       - "80:80"
     deploy:
       resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
+        limits: { memory: 256M }
+        reservations: { memory: 128M }
 
 ================================================================================
 [  14/  26] ⚙️ deploy/docker-compose.yml
-📏 SIZE: 2.8 KB
-🕐 MODIFIED: 2026-11-11 14:38:45
+📏 SIZE: 2.5 KB
+🕐 MODIFIED: 2026-11-11 16:32:29
 ================================================================================
 
 services:
@@ -816,7 +807,7 @@ services:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 20s
 
   redis:
@@ -831,7 +822,7 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 10s
 
   backend:
@@ -854,7 +845,6 @@ services:
       redis:
         condition: service_healthy
     ports:
-      # ✅ EXPOSE 8000 so Swagger/docs accessible from browser directly
       - "8000:8000"
     volumes:
       - backend_uploads:/app/uploads
@@ -868,7 +858,7 @@ services:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
       interval: 15s
       timeout: 10s
-      retries: 5
+      retries: 20
       start_period: 180s
 
   frontend:
@@ -876,8 +866,6 @@ services:
       context: ../frontend/sevanext
       dockerfile: Dockerfile
       args:
-        # ✅ PROXY MODE — same-origin, zero CORS issues
-        #    nginx.conf forwards /api/v1/* → backend:8000/api/v1/*
         API_BASE_URL: /api/v1
         WS_BASE_URL: /notification/ws
         BUILD_NUMBER: "1"
@@ -888,7 +876,6 @@ services:
       backend:
         condition: service_healthy
     ports:
-      # ✅ FIXED: 80 → 8080 (Windows me port 80 reserved)
       - "8080:80"
     networks:
       - sevanext-net
@@ -896,7 +883,7 @@ services:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
       interval: 15s
       timeout: 5s
-      retries: 3
+      retries: 5
       start_period: 20s
 
 networks:
@@ -1124,51 +1111,64 @@ http {
 
 ================================================================================
 [  16/  26] 💻 deploy/run-local.ps1
-📏 SIZE: 9.6 KB
-🕐 MODIFIED: 2026-11-11 14:38:45
+📏 SIZE: 10.8 KB
+🕐 MODIFIED: 2026-11-11 16:23:29
 ================================================================================
 
 ﻿# ============================================================
-# SevaNext - Local Docker Runner (Windows PowerShell)
+# SevaNext - Local & Server Docker Runner (Windows PowerShell)
 # File: deploy/run-local.ps1
 # ============================================================
-# Usage:
+# WHAT IT DOES:
+#   1. NUKES ALL old Docker containers / images / volumes / networks / build cache
+#   2. Rebuilds backend + frontend images from scratch
+#   3. Starts MongoDB + Redis, waits for healthy
+#   4. Starts backend, waits for /api/v1/health
+#   5. Starts frontend (nginx), waits for /healthz
+#   6. Verifies frontend -> backend proxy works
+#   7. Opens browser at http://localhost:8080
+#
+# USAGE:
 #   cd deploy
-#   .\run-local.ps1
-#   .\run-local.ps1 --no-cache
-#   .\run-local.ps1 --reset      (wipe containers + volumes, then fresh up)
+#   .\run-local.ps1                 # full nuke + rebuild + start
+#   .\run-local.ps1 --no-nuke       # keep volumes (only rebuild containers)
+#   .\run-local.ps1 --server        # run on PROD server via SSH
 # ============================================================
 
-$ErrorActionPreference = "Continue"   # don't silently kill the script
+$ErrorActionPreference = "Stop"
 
-$noCacheFlag = $false
-$resetFlag   = $false
+# ---- Parse flags ----
+$noNukeFlag   = $false
+$serverFlag   = $false
 foreach ($a in $args) {
-    if ($a -eq "--no-cache") { $noCacheFlag = $true }
-    if ($a -eq "--reset")    { $resetFlag   = $true }
+    if ($a -eq "--no-nuke") { $noNukeFlag = $true }
+    if ($a -eq "--server")  { $serverFlag = $true }
 }
 
-Write-Host ""
-Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "  SEVANEXT - LOCAL DOCKER DEPLOY" -ForegroundColor Cyan
-Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host ""
+function Write-Header($msg) {
+    Write-Host ""
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host "  $msg" -ForegroundColor Cyan
+    Write-Host "================================================================" -ForegroundColor Cyan
+}
+function Write-Step($msg)  { Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] $msg" -ForegroundColor Yellow }
+function Write-Ok($msg)    { Write-Host "  ✔ $msg" -ForegroundColor Green }
+function Write-Warn2($msg) { Write-Host "  ⚠ $msg" -ForegroundColor Yellow }
+function Write-Err($msg)   { Write-Host "  ✘ $msg" -ForegroundColor Red }
 
-# ------------------------------------------------------------
-# Sanity: are we in the deploy folder?
-# ------------------------------------------------------------
+Write-Header "SEVANEXT - DOCKER FULL RESET & DEPLOY"
+
+# ---- Sanity ----
 if (-not (Test-Path "docker-compose.yml")) {
-    Write-Host "ERROR: docker-compose.yml not found." -ForegroundColor Red
-    Write-Host "       Run this script from the 'deploy' folder." -ForegroundColor Gray
+    Write-Err "docker-compose.yml not found. Run from the 'deploy' folder."
     exit 1
 }
 if (-not (Test-Path ".env.local")) {
-    Write-Host "ERROR: .env.local not found in deploy folder." -ForegroundColor Red
+    Write-Err ".env.local not found in deploy folder."
     exit 1
 }
 if (-not (Test-Path "..\backend\sevanext\.env")) {
-    Write-Host "WARNING: ../backend/sevanext/.env not found." -ForegroundColor Yellow
-    Write-Host "         Backend will start with defaults and may fail." -ForegroundColor Gray
+    Write-Warn2 "../backend/sevanext/.env not found — backend may fail."
 }
 
 $composeArgs = @(
@@ -1176,259 +1176,395 @@ $composeArgs = @(
     "-f", "docker-compose.dev.yml",
     "--env-file", ".env.local"
 )
+$projectName = "sevanext"
 
-# ------------------------------------------------------------
-# [1/6] Reset (optional)
-# ------------------------------------------------------------
-if ($resetFlag) {
-    Write-Host "[1/6] RESET: removing containers + volumes..." -ForegroundColor Yellow
-    docker compose @composeArgs down -v --remove-orphans
-    Write-Host "      Reset done." -ForegroundColor Green
-    Write-Host ""
+# ============================================================
+# SERVER MODE — delegates to run-prod.sh over SSH
+# ============================================================
+if ($serverFlag) {
+    Write-Step "SERVER MODE: reading .env.prod for SSH target..."
+    if (-not (Test-Path ".env.prod")) {
+        Write-Err ".env.prod not found. Copy .env.prod.example → .env.prod and fill it."
+        exit 1
+    }
+    $cfg = @{}
+    Get-Content ".env.prod" | ForEach-Object {
+        if ($_ -match '^\s*([^#][^=]+)=(.*)$') { $cfg[$Matches[1].Trim()] = $Matches[2].Trim() }
+    }
+    $host = $cfg["SSH_HOST"]; $user = $cfg["SSH_USER"]; $port = if ($cfg["SSH_PORT"]) { $cfg["SSH_PORT"] } else { "22" }
+    if (-not $host -or -not $user) {
+        Write-Err "SSH_HOST / SSH_USER must be set in .env.prod"
+        exit 1
+    }
+    Write-Step "Running run-prod.sh on ${user}@${host}:${port} ..."
+    ssh -p $port "${user}@${host}" "cd /opt/sevanext/deploy && bash run-prod.sh"
+    if ($LASTEXITCODE -ne 0) { Write-Err "Server deploy failed (exit $LASTEXITCODE)"; exit 1 }
+    Write-Ok "Server deploy finished."
+    exit 0
+}
+
+# ============================================================
+# STEP 1 — NUKE EVERYTHING (unless --no-nuke)
+# ============================================================
+if (-not $noNukeFlag) {
+    Write-Step "[1/8] FULL NUKE — removing containers, images, volumes, networks, build cache..."
+
+    Write-Host "  -> docker compose down -v --remove-orphans (all compose profiles)"
+    docker compose @composeArgs down -v --remove-orphans 2>$null
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod down -v --remove-orphans 2>$null
+
+    Write-Host "  -> Removing ALL containers"
+    $allContainers = docker ps -aq
+    if ($allContainers) { docker rm -f $allContainers 2>$null }
+
+    Write-Host "  -> Removing ALL images"
+    $allImages = docker images -q
+    if ($allImages) { docker rmi -f $allImages 2>$null }
+
+    Write-Host "  -> Removing ALL volumes"
+    $allVolumes = docker volume ls -q
+    if ($allVolumes) { docker volume rm -f $allVolumes 2>$null }
+
+    Write-Host "  -> Pruning networks"
+    docker network prune -f 2>$null
+
+    Write-Host "  -> Pruning build cache"
+    docker builder prune -af 2>$null
+
+    Write-Host "  -> Pruning system"
+    docker system prune -af --volumes 2>$null
+
+    Write-Ok "FULL NUKE complete."
 } else {
-    Write-Host "[1/6] Stopping previous containers..." -ForegroundColor Yellow
+    Write-Warn2 "[1/8] --no-nuke: keeping existing volumes & images"
     docker compose @composeArgs down --remove-orphans 2>$null
-    Write-Host "      Cleanup done." -ForegroundColor Green
-    Write-Host ""
 }
 
-# ------------------------------------------------------------
-# [2/6] Build + Start
-# ------------------------------------------------------------
-Write-Host "[2/6] Building and starting containers..." -ForegroundColor Yellow
-Write-Host "      First backend build can take 2 to 5 minutes." -ForegroundColor DarkGray
-Write-Host ""
-
-if ($noCacheFlag) {
-    Write-Host "      Building with --no-cache ..." -ForegroundColor DarkGray
-    docker compose @composeArgs build --no-cache
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "ERROR: 'docker compose build --no-cache' FAILED (exit $LASTEXITCODE)." -ForegroundColor Red
-        Write-Host "       Scroll up — the real error is in the build output above." -ForegroundColor Gray
-        exit 1
-    }
-    docker compose @composeArgs up -d
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "ERROR: 'docker compose up -d' FAILED (exit $LASTEXITCODE)." -ForegroundColor Red
-        Write-Host "       Run: docker compose @composeArgs logs" -ForegroundColor Gray
-        exit 1
-    }
-} else {
-    docker compose @composeArgs up --build -d
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "ERROR: 'docker compose up --build -d' FAILED (exit $LASTEXITCODE)." -ForegroundColor Red
-        Write-Host "       Common causes:" -ForegroundColor Gray
-        Write-Host "         - Port 8080 or 8000 already in use (stop the other app)" -ForegroundColor Gray
-        Write-Host "         - Backend Dockerfile build error (scroll up)" -ForegroundColor Gray
-        Write-Host "         - Flutter web build error (scroll up)" -ForegroundColor Gray
-        Write-Host ""
-        Write-Host "       Show recent logs with:" -ForegroundColor Gray
-        Write-Host "         docker compose @composeArgs logs --tail=80" -ForegroundColor Gray
-        exit 1
-    }
+# ============================================================
+# STEP 2 — VERIFY DOCKER DAEMON
+# ============================================================
+Write-Step "[2/8] Verifying Docker daemon..."
+$dockerInfo = docker info 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Err "Docker daemon not running. Start Docker Desktop and retry."
+    exit 1
 }
+Write-Ok "Docker daemon running."
 
-Write-Host ""
-Write-Host "      Containers launched." -ForegroundColor Green
-Write-Host ""
+# ============================================================
+# STEP 3 — BUILD BACKEND + FRONTEND (always no-cache after nuke)
+# ============================================================
+Write-Step "[3/8] Building backend + frontend images (no-cache)..."
 
-# ------------------------------------------------------------
-# [3/6] Wait for Backend health
-# ------------------------------------------------------------
-Write-Host "[3/6] Waiting for backend healthcheck (max 300s)..." -ForegroundColor Yellow
+$buildArgs = @()
+if (-not $noNukeFlag) { $buildArgs += "--no-cache" }
 
-$maxWait = 300
+docker compose @composeArgs build @buildArgs
+if ($LASTEXITCODE -ne 0) {
+    Write-Err "docker compose build FAILED (exit $LASTEXITCODE). Scroll up for the real error."
+    exit 1
+}
+Write-Ok "Images built."
+
+# ============================================================
+# STEP 4 — START STACK
+# ============================================================
+Write-Step "[4/8] Starting stack (mongo, redis, backend, frontend)..."
+docker compose @composeArgs up -d --remove-orphans
+if ($LASTEXITCODE -ne 0) {
+    Write-Err "docker compose up FAILED (exit $LASTEXITCODE)."
+    Write-Host "  Recent logs:" -ForegroundColor Gray
+    docker compose @composeArgs logs --tail=80
+    exit 1
+}
+Write-Ok "Containers launched."
+
+# ============================================================
+# STEP 5 — WAIT FOR MONGO
+# ============================================================
+Write-Step "[5/8] Waiting for MongoDB (max 120s)..."
 $elapsed = 0
-$backendReady = $false
+$ok = $false
+while ($elapsed -lt 120) {
+    $status = docker inspect --format='{{.State.Health.Status}}' sevanext-local-mongo 2>$null
+    if ($status -eq "healthy") { $ok = $true; break }
+    Start-Sleep -Seconds 3; $elapsed += 3
+    Write-Host "      [$elapsed s] mongo: $status" -ForegroundColor DarkGray
+}
+if (-not $ok) {
+    Write-Err "MongoDB not healthy after 120s."
+    docker logs --tail 60 sevanext-local-mongo
+    exit 1
+}
+Write-Ok "MongoDB healthy."
 
-while ($elapsed -lt $maxWait) {
+# ============================================================
+# STEP 6 — WAIT FOR BACKEND HEALTH
+# ============================================================
+Write-Step "[6/8] Waiting for backend /api/v1/health (max 300s)..."
+$elapsed = 0
+$ok = $false
+while ($elapsed -lt 300) {
     $status = docker inspect --format='{{.State.Health.Status}}' sevanext-local-backend 2>$null
-
-    if ($status -eq "healthy") {
-        $backendReady = $true
-        Write-Host ""
-        Write-Host "      Backend is HEALTHY after $elapsed seconds." -ForegroundColor Green
-        break
-    }
-
+    if ($status -eq "healthy") { $ok = $true; break }
     if ($status -eq "unhealthy") {
-        Write-Host ""
-        Write-Host "ERROR: Backend became UNHEALTHY." -ForegroundColor Red
-        Write-Host "Last 60 lines of backend logs:" -ForegroundColor Gray
-        docker logs --tail 60 sevanext-local-backend
-        break
+        Write-Err "Backend became UNHEALTHY."
+        docker logs --tail 100 sevanext-local-backend
+        exit 1
     }
-
-    Write-Host "      [$elapsed s] backend status: $status" -ForegroundColor DarkGray
-    Start-Sleep -Seconds 3
-    $elapsed = $elapsed + 3
+    Start-Sleep -Seconds 3; $elapsed += 3
+    Write-Host "      [$elapsed s] backend: $status" -ForegroundColor DarkGray
+}
+if (-not $ok) {
+    Write-Warn2 "Backend not healthy after 300s — showing last 100 logs:"
+    docker logs --tail 100 sevanext-local-backend
+    Write-Warn2 "Common fixes:"
+    Write-Host "        - ../backend/sevanext/.env has MONGO_URI, SECRET_KEY, JWT_SECRET_KEY" -ForegroundColor Gray
+    Write-Host "        - MongoDB started: docker logs sevanext-local-mongo" -ForegroundColor Gray
+    Write-Host "        - Redis started:   docker logs sevanext-local-redis" -ForegroundColor Gray
 }
 
-if (-not $backendReady) {
-    Write-Host ""
-    Write-Host "WARNING: Backend not healthy after $maxWait seconds." -ForegroundColor Yellow
-    Write-Host "         Showing last 60 log lines so you can see WHY:" -ForegroundColor Gray
-    docker logs --tail 60 sevanext-local-backend
-    Write-Host ""
-    Write-Host "         Common fixes:" -ForegroundColor Gray
-    Write-Host "           - Check ../backend/sevanext/.env has MONGO_URI, SECRET_KEY, JWT_SECRET_KEY" -ForegroundColor Gray
-    Write-Host "           - Check MongoDB started: docker logs sevanext-local-mongo" -ForegroundColor Gray
-}
-
-Write-Host ""
-
-# ------------------------------------------------------------
-# [4/6] Wait for Frontend health
-# ------------------------------------------------------------
-Write-Host "[4/6] Waiting for frontend healthcheck (max 90s)..." -ForegroundColor Yellow
-
-$maxWait = 90
-$elapsed = 0
-$frontendReady = $false
-
-while ($elapsed -lt $maxWait) {
-    $status = docker inspect --format='{{.State.Health.Status}}' sevanext-local-frontend 2>$null
-
-    if ($status -eq "healthy") {
-        $frontendReady = $true
-        Write-Host "      Frontend is HEALTHY after $elapsed seconds." -ForegroundColor Green
-        break
-    }
-
-    Start-Sleep -Seconds 2
-    $elapsed = $elapsed + 2
-}
-
-if (-not $frontendReady) {
-    Write-Host "WARNING: Frontend not healthy after $maxWait seconds, continuing anyway." -ForegroundColor Yellow
-    Write-Host "         Showing last 40 frontend log lines:" -ForegroundColor Gray
-    docker logs --tail 40 sevanext-local-frontend
-}
-
-Write-Host ""
-
-# ------------------------------------------------------------
-# [5/6] Verify endpoints
-# ------------------------------------------------------------
-Write-Host "[5/6] Verifying backend endpoint..." -ForegroundColor Yellow
+# ============================================================
+# STEP 7 — WAIT FOR FRONTEND + VERIFY PROXY
+# ============================================================
+Write-Step "[7/8] Waiting for frontend + verifying proxy chain..."
 
 try {
-    $resp = Invoke-WebRequest -Uri "http://localhost:8000/api/v1/health" -UseBasicParsing -TimeoutSec 5
-    if ($resp.StatusCode -eq 200) {
-        Write-Host "      Backend /api/v1/health -> 200 OK" -ForegroundColor Green
-    }
-} catch {
-    Write-Host "WARNING: Backend /api/v1/health not yet reachable." -ForegroundColor Yellow
-}
+    $r = Invoke-WebRequest -Uri "http://localhost:8000/api/v1/health" -UseBasicParsing -TimeoutSec 5
+    if ($r.StatusCode -eq 200) { Write-Ok "Backend direct:      http://localhost:8000/api/v1/health  -> 200" }
+} catch { Write-Warn2 "Backend direct not reachable yet." }
 
 try {
-    $resp2 = Invoke-WebRequest -Uri "http://localhost:8080/api/v1/health" -UseBasicParsing -TimeoutSec 5
-    if ($resp2.StatusCode -eq 200) {
-        Write-Host "      Nginx proxy -> backend -> 200 OK" -ForegroundColor Green
-    }
-} catch {
-    Write-Host "WARNING: Nginx proxy not responding yet." -ForegroundColor Yellow
-}
+    $r = Invoke-WebRequest -Uri "http://localhost:8080/api/v1/health" -UseBasicParsing -TimeoutSec 5
+    if ($r.StatusCode -eq 200) { Write-Ok "Nginx -> backend:    http://localhost:8080/api/v1/health  -> 200" }
+} catch { Write-Warn2 "Nginx proxy not reachable yet." }
+
+try {
+    $r = Invoke-WebRequest -Uri "http://localhost:8080/" -UseBasicParsing -TimeoutSec 5
+    if ($r.StatusCode -eq 200) { Write-Ok "Frontend:            http://localhost:8080/  -> 200" }
+} catch { Write-Warn2 "Frontend not reachable yet." }
+
+# ============================================================
+# STEP 8 — SUCCESS + OPEN BROWSER
+# ============================================================
+Write-Header "✅ DEPLOYMENT COMPLETE"
 
 Write-Host ""
-
-$frontendUrl    = "http://localhost:8080"
-$backendDocsUrl = "http://localhost:8000/docs"
-$backendHealth  = "http://localhost:8000/api/v1/health"
-$proxyHealth    = "http://localhost:8080/api/v1/health"
-
-Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "  DEPLOYMENT COMPLETE" -ForegroundColor Green
-Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  Frontend:              $frontendUrl" -ForegroundColor White
-Write-Host "  Swagger (direct):      $backendDocsUrl" -ForegroundColor White
-Write-Host "  Swagger (proxy):       http://localhost:8080/docs" -ForegroundColor White
-Write-Host "  Backend (direct):      $backendHealth" -ForegroundColor White
-Write-Host "  Backend (proxy):       $proxyHealth" -ForegroundColor White
+Write-Host "  🌐 Frontend:              http://localhost:8080" -ForegroundColor White
+Write-Host "  📘 Swagger (direct):      http://localhost:8000/docs" -ForegroundColor White
+Write-Host "  📘 Swagger (via nginx):   http://localhost:8080/docs" -ForegroundColor White
+Write-Host "  💚 Backend health:        http://localhost:8000/api/v1/health" -ForegroundColor White
+Write-Host "  💚 Nginx proxy health:    http://localhost:8080/api/v1/health" -ForegroundColor White
+Write-Host "  🗄️  MongoDB:               mongodb://localhost:27017/SevaNext" -ForegroundColor White
+Write-Host "  ⚡ Redis:                  redis://localhost:6379" -ForegroundColor White
 Write-Host ""
 Write-Host "  Useful commands:" -ForegroundColor DarkGray
-Write-Host "    docker logs -f sevanext-local-backend" -ForegroundColor DarkGray
-Write-Host "    docker logs -f sevanext-local-frontend" -ForegroundColor DarkGray
-Write-Host "    docker logs -f sevanext-local-mongo" -ForegroundColor DarkGray
+Write-Host "    docker compose @composeArgs logs -f backend" -ForegroundColor DarkGray
+Write-Host "    docker compose @composeArgs logs -f frontend" -ForegroundColor DarkGray
+Write-Host "    docker compose @composeArgs ps" -ForegroundColor DarkGray
 Write-Host "    docker compose @composeArgs down" -ForegroundColor DarkGray
 Write-Host ""
 
-# ------------------------------------------------------------
-# [6/6] Open browser
-# ------------------------------------------------------------
-Write-Host "[6/6] Opening frontend in browser..." -ForegroundColor Cyan
+Write-Step "[8/8] Opening browser..."
 Start-Sleep -Seconds 1
-Start-Process $frontendUrl
-
+Start-Process "http://localhost:8080"
 Write-Host ""
-Write-Host "Browser opened. Happy testing." -ForegroundColor Green
+Write-Host "  🎉 Happy testing!" -ForegroundColor Green
 Write-Host ""
 
 ================================================================================
 [  17/  26] 📜 deploy/run-local.sh
-📏 SIZE: 186 B
-🕐 MODIFIED: 2026-11-09 21:41:37
+📏 SIZE: 5.6 KB
+🕐 MODIFIED: 2026-11-11 16:23:46
 ================================================================================
 
 #!/usr/bin/env bash
-# deploy/run-local.sh
-set -e
+# ============================================================
+# SevaNext - Local Docker Runner (Linux / macOS)
+# File: deploy/run-local.sh
+# ============================================================
+# FULL NUKE + REBUILD for LOCAL development.
+#   ./run-local.sh              # nuke all + rebuild + start
+#   ./run-local.sh --no-nuke    # keep volumes, rebuild containers only
+# ============================================================
+set -euo pipefail
 cd "$(dirname "$0")"
-exec docker compose \
-  -f docker-compose.yml \
-  -f docker-compose.dev.yml \
-  --env-file .env.local \
-  "${@:-up}"
+
+NO_NUKE=false
+[[ "${1:-}" == "--no-nuke" ]] && NO_NUKE=true
+
+C_CYAN='\033[0;36m'; C_YEL='\033[1;33m'; C_GRN='\033[0;32m'; C_RED='\033[0;31m'; C_NC='\033[0m'
+hdr() { echo -e "\n${C_CYAN}================================================================${C_NC}"; echo -e "  $1"; echo -e "${C_CYAN}================================================================${C_NC}"; }
+step() { echo -e "${C_YEL}[$(date +%H:%M:%S)] $1${C_NC}"; }
+ok()   { echo -e "  ${C_GRN}✔ $1${C_NC}"; }
+warn() { echo -e "  ${C_YEL}⚠ $1${C_NC}"; }
+err()  { echo -e "  ${C_RED}✘ $1${C_NC}"; }
+
+hdr "SEVANEXT - LOCAL DOCKER FULL RESET & DEPLOY"
+
+[[ -f docker-compose.yml ]] || { err "docker-compose.yml missing"; exit 1; }
+[[ -f .env.local ]]         || { err ".env.local missing"; exit 1; }
+[[ -f ../backend/sevanext/.env ]] || warn "../backend/sevanext/.env missing"
+
+COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.local)
+
+# ---- STEP 1: NUKE ----
+if [ "$NO_NUKE" = false ]; then
+    step "[1/8] FULL NUKE — removing containers, images, volumes, networks, build cache..."
+    docker compose down -v --remove-orphans 2>/dev/null || true
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod down -v --remove-orphans 2>/dev/null || true
+
+    echo "  -> removing ALL containers"
+    docker ps -aq | xargs -r docker rm -f 2>/dev/null || true
+
+    echo "  -> removing ALL images"
+    docker images -q | xargs -r docker rmi -f 2>/dev/null || true
+
+    echo "  -> removing ALL volumes"
+    docker volume ls -q | xargs -r docker volume rm -f 2>/dev/null || true
+
+    echo "  -> pruning networks"
+    docker network prune -f 2>/dev/null || true
+
+    echo "  -> pruning build cache"
+    docker builder prune -af 2>/dev/null || true
+
+    echo "  -> pruning system"
+    docker system prune -af --volumes 2>/dev/null || true
+
+    ok "FULL NUKE complete."
+else
+    warn "[1/8] --no-nuke: keeping volumes & images"
+    "${COMPOSE[@]}" down --remove-orphans 2>/dev/null || true
+fi
+
+# ---- STEP 2: DOCKER DAEMON ----
+step "[2/8] Verifying Docker daemon..."
+docker info >/dev/null 2>&1 || { err "Docker daemon not running."; exit 1; }
+ok "Docker daemon running."
+
+# ---- STEP 3: BUILD ----
+step "[3/8] Building backend + frontend images..."
+BUILD_ARGS=()
+[ "$NO_NUKE" = false ] && BUILD_ARGS+=(--no-cache)
+"${COMPOSE[@]}" build "${BUILD_ARGS[@]}" || { err "build FAILED — scroll up"; exit 1; }
+ok "Images built."
+
+# ---- STEP 4: START ----
+step "[4/8] Starting stack..."
+"${COMPOSE[@]}" up -d --remove-orphans || { err "up FAILED"; "${COMPOSE[@]}" logs --tail=80; exit 1; }
+ok "Containers launched."
+
+# ---- STEP 5: WAIT FOR MONGO ----
+step "[5/8] Waiting for MongoDB (max 120s)..."
+E=0; OK=false
+while [ $E -lt 120 ]; do
+    S=$(docker inspect --format='{{.State.Health.Status}}' sevanext-local-mongo 2>/dev/null || echo "starting")
+    [ "$S" = "healthy" ] && { OK=true; break; }
+    sleep 3; E=$((E+3)); echo "      [$E s] mongo: $S"
+done
+$OK || { err "MongoDB not healthy after 120s."; docker logs --tail 60 sevanext-local-mongo; exit 1; }
+ok "MongoDB healthy."
+
+# ---- STEP 6: WAIT FOR BACKEND ----
+step "[6/8] Waiting for backend /api/v1/health (max 300s)..."
+E=0; OK=false
+while [ $E -lt 300 ]; do
+    S=$(docker inspect --format='{{.State.Health.Status}}' sevanext-local-backend 2>/dev/null || echo "starting")
+    if [ "$S" = "healthy" ]; then OK=true; break; fi
+    if [ "$S" = "unhealthy" ]; then err "Backend UNHEALTHY"; docker logs --tail 100 sevanext-local-backend; exit 1; fi
+    sleep 3; E=$((E+3)); echo "      [$E s] backend: $S"
+done
+if ! $OK; then
+    warn "Backend not healthy after 300s — showing last 100 logs:"
+    docker logs --tail 100 sevanext-local-backend || true
+    warn "Common fixes: check ../backend/sevanext/.env has MONGO_URI, SECRET_KEY, JWT_SECRET_KEY"
+fi
+
+# ---- STEP 7: VERIFY PROXY CHAIN ----
+step "[7/8] Verifying endpoints..."
+curl -sf http://localhost:8000/api/v1/health >/dev/null && ok "Backend direct  : 200" || warn "Backend direct not reachable"
+curl -sf http://localhost:8080/api/v1/health >/dev/null && ok "Nginx -> backend: 200" || warn "Nginx proxy not reachable"
+curl -sf http://localhost:8080/            >/dev/null && ok "Frontend        : 200" || warn "Frontend not reachable"
+
+# ---- STEP 8: SUCCESS ----
+hdr "✅ DEPLOYMENT COMPLETE"
+echo ""
+echo "  🌐 Frontend:            http://localhost:8080"
+echo "  📘 Swagger (direct):    http://localhost:8000/docs"
+echo "  📘 Swagger (via nginx): http://localhost:8080/docs"
+echo "  💚 Backend health:      http://localhost:8000/api/v1/health"
+echo "  💚 Nginx health:        http://localhost:8080/api/v1/health"
+echo "  🗄️  MongoDB:             mongodb://localhost:27017/SevaNext"
+echo "  ⚡ Redis:                redis://localhost:6379"
+echo ""
+echo "  Commands:"
+echo "    ${COMPOSE[*]} logs -f backend"
+echo "    ${COMPOSE[*]} logs -f frontend"
+echo "    ${COMPOSE[*]} ps"
+echo "    ${COMPOSE[*]} down"
+echo ""
+
+# open browser (best-effort)
+sleep 1
+if command -v xdg-open >/dev/null; then xdg-open http://localhost:8080 >/dev/null 2>&1 || true
+elif command -v open >/dev/null; then open http://localhost:8080 >/dev/null 2>&1 || true
+fi
+
+echo -e "${C_GRN}  🎉 Happy testing!${C_NC}"
+echo ""
 
 ================================================================================
 [  18/  26] 📜 deploy/run-prod.sh
-📏 SIZE: 1.1 KB
-🕐 MODIFIED: 2026-11-09 21:54:38
+📏 SIZE: 1.7 KB
+🕐 MODIFIED: 2026-11-11 16:24:03
 ================================================================================
 
 #!/usr/bin/env bash
 # ============================================================
-# deploy/run-prod.sh — PRODUCTION RUNNER
+# SevaNext — PRODUCTION RUNNER (Linux server)
+# File: deploy/run-prod.sh
 # ============================================================
-# Usage:
-#   ./run-prod.sh              # up -d --build (default)
-#   ./run-prod.sh down         # stop everything
+# SAFE. Does NOT delete volumes or images. Only:
+#   - rebuilds changed images
+#   - restarts services with zero data loss
+#
+# USAGE:
+#   ./run-prod.sh              # up -d --build
+#   ./run-prod.sh down         # stop all
 #   ./run-prod.sh logs -f      # tail logs
 #   ./run-prod.sh ps           # running containers
-#   ./run-prod.sh restart      # restart services
+#   ./run-prod.sh restart      # restart stack
+#   ./run-prod.sh pull         # pull latest images
 # ============================================================
-
-set -e
+set -euo pipefail
 cd "$(dirname "$0")"
 
-# ---- Sanity checks ----
-if [ ! -f "docker-compose.prod.yml" ]; then
-    echo "❌ Missing docker-compose.prod.yml"
-    exit 1
-fi
-if [ ! -f ".env.prod" ]; then
-    echo "❌ Missing .env.prod"
-    exit 1
-fi
+[[ -f docker-compose.yml ]]      || { echo "❌ docker-compose.yml missing"; exit 1; }
+[[ -f docker-compose.prod.yml ]] || { echo "❌ docker-compose.prod.yml missing"; exit 1; }
+[[ -f .env.prod ]]               || { echo "❌ .env.prod missing"; exit 1; }
 
-# ---- Default to "up -d --build" if no args ----
+COMPOSE=(docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod)
+
 if [ $# -eq 0 ]; then
-    exec docker compose \
-        -f docker-compose.yml \
-        -f docker-compose.prod.yml \
-        --env-file .env.prod \
-        up -d --build
+    echo "🚀 Building & starting production stack..."
+    "${COMPOSE[@]}" up -d --build --remove-orphans
+    echo "⏳ Waiting for backend health (max 240s)..."
+    for i in $(seq 1 120); do
+        if curl -sf http://localhost/api/v1/health >/dev/null 2>&1; then
+            echo "✅ Backend healthy after $((i*2))s"
+            echo ""
+            echo "🌐 https://$(grep '^DOMAIN=' .env.prod | cut -d= -f2)"
+            exit 0
+        fi
+        sleep 2
+    done
+    echo "❌ Health check failed. Showing last 100 logs:"
+    "${COMPOSE[@]}" logs --tail=100 backend
+    exit 1
 fi
 
-exec docker compose \
-    -f docker-compose.yml \
-    -f docker-compose.prod.yml \
-    --env-file .env.prod \
-    "$@"
+exec "${COMPOSE[@]}" "$@"
 
 ================================================================================
 [  19/  26] 🐍 export_backend_code.py
@@ -2727,757 +2863,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[  22/  26] 🐍 migrate_all_to_sevanext.py
-📏 SIZE: 26.0 KB
-🕐 MODIFIED: 2026-11-11 14:37:55
-================================================================================
-
-#!/usr/bin/env python3
-"""
-============================================================
-🚀 SEVANEXT — ONE-SHOT MIGRATION SCRIPT
-============================================================
-Ye ek hi script sab kuch karti hai:
-
-  1. Backup      — automatic .bak copy of every file it touches
-  2. Rewrite     — rojgarnext/rojgarnest → sevanext in ALL text files
-  3. Rename      — file/folder names containing rojgarnext → sevanext
-  4. Docker Fix  — docker-compose*.yml ki DB names + network + container names
-  5. .env Fix    — .env, .env.* files me MONGO_URI + DATABASE_NAME
-  6. Sanitize    — export_backend_code.py ki ENV_SANITIZATION_RULES
-  7. Verify      — akhir me scan karke report deti hai
-
-KAISE CHALAYE:
-    cd E:\\YOGESH\\website\\SevaNext
-    python migrate_all_to_sevanext.py                # LIVE (apply all)
-    python migrate_all_to_sevanext.py --dry-run      # preview only
-    python migrate_all_to_sevanext.py --no-backup    # skip .bak copies
-    python migrate_all_to_sevanext.py --no-rename    # skip path renames
-
-KAUNSE PATHS KEEP karna hai (protected):
-  - rojgarnest.com / www.rojgarnest.com   (domain)
-  - com.rojgarnext.app                    (Android app ID)
-  - rojgarnext-release-key.jks            (keystore)
-  - RojgarNest_uploads                    (Cloudinary folder)
-============================================================
-"""
-
-import argparse
-import os
-import re
-import shutil
-import sys
-import time
-from datetime import datetime
-from pathlib import Path
-from typing import List, Tuple
-
-# ============================================================
-# CONFIG
-# ============================================================
-
-ROOT_PATH = Path(__file__).parent.resolve()
-
-# Folders that are NEVER touched
-HARD_SKIP_DIRS = {
-    '.git', '.vscode', '.idea', 'node_modules', '__pycache__',
-    '.pytest_cache', '.mypy_cache', '.ruff_cache', '.dart_tool',
-    '.gradle', 'build', 'dist', 'coverage', 'htmlcov', '.next',
-    '.cache', '.turbo', '.venv', 'venv', 'env',
-}
-
-# Binary extensions — never rewrite content
-BINARY_EXTENSIONS = {
-    '.zip', '.tar', '.tgz', '.rar', '.7z', '.gz', '.bz2', '.xz',
-    '.pyc', '.pyo', '.class', '.o', '.obj', '.so', '.dll', '.exe',
-    '.dylib', '.wasm', '.jpg', '.jpeg', '.png', '.gif', '.bmp',
-    '.ico', '.webp', '.svg', '.mp4', '.mov', '.avi', '.mkv', '.webm',
-    '.flv', '.m4v', '.3gp', '.mp3', '.wav', '.ogg', '.flac', '.aac',
-    '.m4a', '.woff', '.woff2', '.ttf', '.otf', '.eot', '.pdf', '.doc',
-    '.docx', '.pptx', '.xlsx', '.xls', '.db', '.sqlite', '.sqlite3',
-    '.rdb', '.dump', '.pem', '.key', '.crt', '.cer', '.p12', '.pfx',
-    '.jks', '.keystore', '.bin', '.lz4',
-}
-
-# Output/backup files — never rewrite
-SKIP_FILE_NAMES = {
-    'full_project_export.txt',
-    'backend_complete_export.txt',
-    'frontend_export.txt',
-    'migrate_all_to_sevanext.py',
-    'migrate_to_sevanext.py',
-    'post_migration_verify.py',
-    '.DS_Store',
-    'Thumbs.db',
-    'desktop.ini',
-}
-
-MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
-
-# ============================================================
-# PROTECTED PATTERNS
-# ------------------------------------------------------------
-# These strings are replaced with a placeholder FIRST so generic
-# replacement doesn't break them, then restored at the end.
-# ============================================================
-
-PROTECTED_PATTERNS = [
-    # domain (used everywhere) — keep exact
-    'www.rojgarnest.com',
-    'rojgarnest.com',
-    # android app id (Play Store — immutable)
-    'com.rojgarnext.app',
-    # keystore file (Android signing)
-    'rojgarnext-release-key.jks',
-    # cloudinary folder (existing assets)
-    'RojgarNest_uploads',
-    # android package folders in Flutter
-    '/com/rojgarnext/',
-    'com/rojgarnext',
-    # gradle applicationId
-    'applicationId "com.rojgarnext.app"',
-    'applicationId = "com.rojgarnext.app"',
-]
-
-# ============================================================
-# REPLACEMENT ORDER (longest variants first)
-# ============================================================
-
-REPLACEMENTS: List[Tuple[str, str]] = [
-    # TitleCase variants (mixed, longest first)
-    ('RojgarNext', 'SevaNext'),
-    ('RojgarNest', 'SevaNext'),
-    ('Rojgarnext', 'Sevanext'),
-    ('Rojgarnest', 'Sevanext'),
-    # lower
-    ('rojgarnext', 'sevanext'),
-    ('rojgarnest', 'sevanext'),
-    # UPPER
-    ('ROJGARNEXT', 'SEVANEXT'),
-    ('ROJGARNEST', 'SEVANEXT'),
-]
-
-# ============================================================
-# DIRECT DOCKER / ENV OVERRIDES
-# ------------------------------------------------------------
-# After generic replacement we additionally FORCE these exact
-# key=value pairs in known files so there is zero ambiguity.
-# ============================================================
-
-DOCKER_DB_NAME = 'SevaNext'
-DOCKER_PROJECT = 'sevanext'
-DOCKER_NETWORK = 'sevanext-net'
-
-ENV_TARGETS = {
-    'MONGO_URI': {
-        'dev': 'mongodb://mongo:27017/SevaNext',
-        'prod': 'mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/SevaNext?authSource=admin',
-    },
-    'DATABASE_NAME': 'SevaNext',
-    'MONGO_INITDB_DATABASE': 'SevaNext',
-    'MONGO_DATABASE': 'SevaNext',
-}
-
-# ============================================================
-# STATS
-# ============================================================
-
-class Stats:
-    def __init__(self):
-        self.files_scanned = 0
-        self.files_rewritten = 0
-        self.files_skipped = 0
-        self.files_failed = 0
-        self.total_replacements = 0
-        self.paths_renamed = 0
-        self.docker_files_fixed = 0
-        self.env_files_fixed = 0
-        self.backups_created = 0
-        self.errors: List[str] = []
-
-    def report(self) -> str:
-        lines = [
-            '=' * 80,
-            '📊 MIGRATION SUMMARY',
-            '=' * 80,
-            f"  Files scanned:         {self.files_scanned}",
-            f"  Files rewritten:       {self.files_rewritten}",
-            f"  Files skipped:         {self.files_skipped}",
-            f"  Files failed:          {self.files_failed}",
-            f"  Total replacements:    {self.total_replacements}",
-            f"  Paths renamed:         {self.paths_renamed}",
-            f"  Docker files fixed:    {self.docker_files_fixed}",
-            f"  Env files fixed:       {self.env_files_fixed}",
-            f"  Backups created:       {self.backups_created}",
-            '=' * 80,
-        ]
-        if self.errors:
-            lines.append('')
-            lines.append('⚠️  ERRORS:')
-            for e in self.errors[:30]:
-                lines.append(f'    • {e}')
-        return '\n'.join(lines)
-
-
-# ============================================================
-# HELPERS
-# ============================================================
-
-def is_hard_skipped(dir_name: str) -> bool:
-    return dir_name in HARD_SKIP_DIRS
-
-
-def should_skip_file(path: Path) -> bool:
-    if path.name in SKIP_FILE_NAMES:
-        return True
-    if path.suffix.lower() in BINARY_EXTENSIONS:
-        return True
-    try:
-        s = path.stat().st_size
-        if s == 0 or s > MAX_FILE_SIZE:
-            return True
-    except Exception:
-        return True
-    return False
-
-
-def read_text(path: Path) -> Tuple[str | None, str]:
-    for enc in ('utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1'):
-        try:
-            return path.read_text(encoding=enc), enc
-        except UnicodeDecodeError:
-            continue
-        except Exception:
-            return None, 'read-error'
-    try:
-        return path.read_text(encoding='utf-8', errors='replace'), 'utf-8-replace'
-    except Exception as e:
-        return None, f'error: {e}'
-
-
-def write_text(path: Path, content: str, enc: str) -> bool:
-    try:
-        enc = 'utf-8' if enc in ('utf-8-replace', 'read-error') else enc
-        path.write_text(content, encoding=enc)
-        return True
-    except Exception as e:
-        print(f"    ❌ write error: {e}")
-        return False
-
-
-def make_backup(path: Path, backup_root: Path) -> bool:
-    try:
-        rel = path.relative_to(ROOT_PATH)
-        dst = backup_root / rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(path, dst)
-        return True
-    except Exception as e:
-        print(f"    ⚠️  backup failed for {path}: {e}")
-        return False
-
-
-def protect(content: str) -> Tuple[str, dict]:
-    """Replace protected patterns with unique tokens."""
-    mapping = {}
-    for i, pat in enumerate(PROTECTED_PATTERNS):
-        token = f"__SEVANEXT_PROTECT_{i}__"
-        if pat in content:
-            content = content.replace(pat, token)
-            mapping[token] = pat
-    return content, mapping
-
-
-def unprotect(content: str, mapping: dict) -> str:
-    for token, pat in mapping.items():
-        content = content.replace(token, pat)
-    return content
-
-
-def apply_replacements(content: str) -> Tuple[str, int]:
-    total = 0
-    for old, new in REPLACEMENTS:
-        if old in content:
-            total += content.count(old)
-            content = content.replace(old, new)
-    return content, total
-
-
-# ============================================================
-# DOCKER COMPOSE FORCE-FIX
-# ------------------------------------------------------------
-# Ensures MONGO_URI / DATABASE_NAME / MONGO_INITDB_DATABASE /
-# network / container / project names are exactly SevaNext.
-# ============================================================
-
-def fix_compose_file(path: Path, kind: str) -> bool:
-    content, enc = read_text(path)
-    if content is None:
-        return False
-
-    original = content
-    changed = False
-
-    # 1. MONGO_URI inside compose
-    if kind == 'base':
-        content = re.sub(
-            r'(MONGO_URI:\s*)(mongodb://[^\s]+/[A-Za-z0-9_]+)',
-            lambda m: m.group(1) + m.group(2).rsplit('/', 1)[0] + '/' + DOCKER_DB_NAME,
-            content,
-        )
-        content = re.sub(
-            r'(DATABASE_NAME:\s*)[A-Za-z0-9_]+',
-            rf'\1{DOCKER_DB_NAME}',
-            content,
-        )
-        content = re.sub(
-            r'(MONGO_INITDB_DATABASE:\s*)[A-Za-z0-9_]+',
-            rf'\1{DOCKER_DB_NAME}',
-            content,
-        )
-        content = re.sub(
-            r'(container_name:\s*)rojgarnest-local-(backend|frontend)',
-            rf'\1sevanext-local-\2',
-            content,
-        )
-        content = content.replace('rojgarnest-net', DOCKER_NETWORK)
-
-    elif kind == 'prod':
-        content = re.sub(
-            r'(MONGO_URI:\s*)(mongodb://[^\s]+/[A-Za-z0-9_]+)(\?authSource=admin)',
-            lambda m: m.group(1) + m.group(2).rsplit('/', 1)[0] + '/' + DOCKER_DB_NAME + m.group(3),
-            content,
-        )
-        content = re.sub(
-            r'(DATABASE_NAME:\s*)[A-Za-z0-9_]+',
-            rf'\1{DOCKER_DB_NAME}',
-            content,
-        )
-
-    if content != original:
-        changed = True
-        if not write_text(path, content, enc):
-            return False
-    return changed
-
-
-def fix_env_file(path: Path) -> bool:
-    """Force DB-related keys in .env* files."""
-    content, enc = read_text(path)
-    if content is None:
-        return False
-
-    lines = content.splitlines(keepends=False)
-    out: List[str] = []
-    seen_keys: set = set()
-
-    for line in lines:
-        stripped = line.strip()
-        if not stripped or stripped.startswith('#'):
-            out.append(line)
-            continue
-        if '=' not in line:
-            out.append(line)
-            continue
-
-        key, _, val = line.partition('=')
-        key_clean = key.strip()
-        seen_keys.add(key_clean)
-
-        if key_clean == 'MONGO_URI':
-            # decide dev vs prod based on filename
-            fname = path.name.lower()
-            if 'prod' in fname:
-                value = 'mongodb://mongo:27017/SevaNext'  # overridden by compose env anyway
-            else:
-                value = 'mongodb://localhost:27017/sevanext'
-            out.append(f'{key_clean}={value}')
-        elif key_clean in ('DATABASE_NAME', 'MONGO_INITDB_DATABASE', 'MONGO_DATABASE'):
-            out.append(f'{key_clean}={DOCKER_DB_NAME}')
-        elif key_clean == 'COMPOSE_PROJECT_NAME':
-            out.append(f'{key_clean}={DOCKER_PROJECT}')
-        else:
-            out.append(line)
-
-    # Ensure MONGO_URI + DATABASE_NAME exist in backend .env files
-    if path.name == '.env' and 'backend' in str(path).lower().replace('\\', '/'):
-        if 'MONGO_URI' not in seen_keys:
-            out.append('MONGO_URI=mongodb://localhost:27017/sevanext')
-        if 'DATABASE_NAME' not in seen_keys:
-            out.append('DATABASE_NAME=SevaNext')
-
-    new_content = '\n'.join(out)
-    if content.endswith('\n') and not new_content.endswith('\n'):
-        new_content += '\n'
-
-    if new_content != content:
-        return write_text(path, new_content, enc)
-    return False
-
-
-# ============================================================
-# MIGRATE ONE FILE
-# ============================================================
-
-def migrate_file(
-    path: Path,
-    dry_run: bool,
-    backup_root: Path | None,
-    stats: Stats,
-) -> None:
-    stats.files_scanned += 1
-
-    if should_skip_file(path):
-        stats.files_skipped += 1
-        return
-
-    content, enc = read_text(path)
-    if content is None:
-        stats.files_skipped += 1
-        print(f"  ⏭️  skip (unreadable): {path.relative_to(ROOT_PATH)} ({enc})")
-        return
-
-    # Step 1: protect domain / app-id / keystore / cloudinary
-    protected, mapping = protect(content)
-
-    # Step 2: generic replacement
-    replaced, changes = apply_replacements(protected)
-
-    # Step 3: restore protected
-    new_content = unprotect(replaced, mapping)
-
-    if changes == 0:
-        stats.files_skipped += 1
-        return
-
-    if dry_run:
-        stats.files_rewritten += 1
-        stats.total_replacements += changes
-        print(f"  [DRY] ✅ {path.relative_to(ROOT_PATH)}  ({changes} replacements)")
-        return
-
-    # backup
-    if backup_root is not None:
-        if make_backup(path, backup_root):
-            stats.backups_created += 1
-
-    # write
-    if write_text(path, new_content, enc):
-        stats.files_rewritten += 1
-        stats.total_replacements += changes
-        print(f"  ✅ {path.relative_to(ROOT_PATH)}  ({changes} replacements)")
-    else:
-        stats.files_failed += 1
-        stats.errors.append(str(path))
-
-
-# ============================================================
-# PATH RENAME (files & dirs)
-# ============================================================
-
-def rename_paths(dry_run: bool, stats: Stats) -> None:
-    # Rename dirs deepest-first
-    dirs = []
-    for current_dir, subdirs, _ in os.walk(ROOT_PATH):
-        subdirs[:] = [d for d in subdirs if not is_hard_skipped(d)]
-        for d in subdirs:
-            dirs.append(Path(current_dir) / d)
-
-    for old in sorted(dirs, key=lambda p: len(p.parts), reverse=True):
-        if not old.exists():
-            continue
-        new_name, ch = apply_replacements(old.name)
-        if ch == 0 or new_name == old.name:
-            continue
-        new_path = old.parent / new_name
-        if dry_run:
-            print(f"  [DRY] 📁 RENAME  {old.relative_to(ROOT_PATH)}  →  {new_name}")
-            stats.paths_renamed += 1
-        else:
-            try:
-                old.rename(new_path)
-                print(f"  ✅ 📁 RENAMED  {old.relative_to(ROOT_PATH)}  →  {new_name}")
-                stats.paths_renamed += 1
-            except Exception as e:
-                stats.errors.append(f'rename {old}: {e}')
-                print(f"  ❌ rename {old}: {e}")
-
-    # Rename files
-    for current_dir, subdirs, files in os.walk(ROOT_PATH):
-        subdirs[:] = [d for d in subdirs if not is_hard_skipped(d)]
-        for filename in files:
-            old = Path(current_dir) / filename
-            new_name, ch = apply_replacements(filename)
-            if ch == 0 or new_name == filename:
-                continue
-            new_path = old.parent / new_name
-            if dry_run:
-                print(f"  [DRY] 📄 RENAME  {old.relative_to(ROOT_PATH)}  →  {new_name}")
-                stats.paths_renamed += 1
-            else:
-                try:
-                    old.rename(new_path)
-                    print(f"  ✅ 📄 RENAMED  {old.relative_to(ROOT_PATH)}  →  {new_name}")
-                    stats.paths_renamed += 1
-                except Exception as e:
-                    stats.errors.append(f'rename {old}: {e}')
-                    print(f"  ❌ rename {old}: {e}")
-
-
-# ============================================================
-# VERIFY
-# ============================================================
-
-def verify() -> int:
-    """Return number of leftover occurrences."""
-    patterns = ['rojgarnext', 'rojgarnest', 'RojgarNext',
-                'RojgarNest', 'ROJGARNEXT', 'ROJGARNEST']
-    protected_tokens = [p.lower() for p in PROTECTED_PATTERNS]
-
-    hits = 0
-    print()
-    print("=" * 80)
-    print("🔍 POST-MIGRATION VERIFICATION")
-    print("=" * 80)
-
-    for current_dir, subdirs, files in os.walk(ROOT_PATH):
-        subdirs[:] = [d for d in subdirs if not is_hard_skipped(d)]
-        for filename in files:
-            path = Path(current_dir) / filename
-            if should_skip_file(path):
-                continue
-            content, _ = read_text(path)
-            if content is None:
-                continue
-            lower = content.lower()
-            for pat in patterns:
-                if pat.lower() in lower:
-                    # ignore if line only contains a protected pattern
-                    for line in content.splitlines():
-                        l = line.lower()
-                        if pat.lower() in l:
-                            if any(pt in l for pt in protected_tokens):
-                                continue
-                            # ignore self-reference to script name
-                            if 'migrate_to_sevanext' in l or 'migrate_all_to' in l:
-                                continue
-                            hits += 1
-                            print(f"  ⚠️  {path.relative_to(ROOT_PATH)}  →  '{pat}'")
-                            break
-
-    print("=" * 80)
-    if hits == 0:
-        print("✅ VERIFICATION PASSED — no stray rojgarnest/rojgarnext")
-    else:
-        print(f"⚠️  {hits} potential leftover(s) — review above")
-    print("=" * 80)
-    return hits
-
-
-# ============================================================
-# MAIN
-# ============================================================
-
-def main():
-    ap = argparse.ArgumentParser(
-        description='One-shot rojgarnest → sevanext migration.'
-    )
-    ap.add_argument('--dry-run', action='store_true',
-                    help='Preview only — do not modify files.')
-    ap.add_argument('--no-backup', action='store_true',
-                    help='Skip .bak copies (faster, riskier).')
-    ap.add_argument('--no-rename', action='store_true',
-                    help='Skip renaming files/folders.')
-    ap.add_argument('--skip-verify', action='store_true',
-                    help='Skip post-migration verification.')
-    args = ap.parse_args()
-
-    print("=" * 80)
-    print("🚀 SEVANEXT — ONE-SHOT MIGRATION")
-    print("=" * 80)
-    print(f"   ROOT:          {ROOT_PATH}")
-    print(f"   DRY RUN:       {args.dry_run}")
-    print(f"   BACKUP:        {not args.no_backup}")
-    print(f"   RENAME PATHS:  {not args.no_rename}")
-    print("=" * 80)
-
-    if not ROOT_PATH.exists():
-        print(f"❌ Root not found: {ROOT_PATH}")
-        sys.exit(1)
-
-    if not args.dry_run:
-        print("⚠️  LIVE MODE — you have 5 seconds to abort (Ctrl+C).")
-        try:
-            time.sleep(5)
-        except KeyboardInterrupt:
-            print("\n❌ Aborted.")
-            sys.exit(1)
-
-    # ---- Backup dir ----
-    backup_root = None
-    if not args.no_backup and not args.dry_run:
-        backup_root = ROOT_PATH / f'.migration_backup_{datetime.now():%Y%m%d_%H%M%S}'
-        backup_root.mkdir(parents=True, exist_ok=True)
-        print(f"📦 Backup directory: {backup_root.name}\n")
-
-    stats = Stats()
-
-    # ---- STEP 1: rewrite all file contents ----
-    print("📝 STEP 1/4 — Rewriting file contents ...")
-    print("-" * 80)
-    for current_dir, subdirs, files in os.walk(ROOT_PATH):
-        subdirs[:] = [d for d in subdirs if not is_hard_skipped(d)]
-        # Also skip the backup directory itself
-        if backup_root is not None:
-            subdirs[:] = [d for d in subdirs if (Path(current_dir) / d) != backup_root]
-        for filename in files:
-            migrate_file(Path(current_dir) / filename,
-                         args.dry_run, backup_root, stats)
-    print()
-
-    # ---- STEP 2: force-fix docker / env / sanitizer ----
-    print("🐳 STEP 2/4 — Force-fixing Docker / .env files ...")
-    print("-" * 80)
-
-    # 2a. docker-compose files
-    for current_dir, subdirs, files in os.walk(ROOT_PATH):
-        subdirs[:] = [d for d in subdirs if not is_hard_skipped(d)]
-        for filename in files:
-            p = Path(current_dir) / filename
-            rel = str(p.relative_to(ROOT_PATH)).replace('\\', '/')
-
-            if filename == 'docker-compose.yml':
-                if not args.dry_run:
-                    if fix_compose_file(p, 'base'):
-                        stats.docker_files_fixed += 1
-                        print(f"  ✅ fixed: {rel}")
-                else:
-                    print(f"  [DRY] docker-fix: {rel}")
-
-            elif filename == 'docker-compose.prod.yml':
-                if not args.dry_run:
-                    if fix_compose_file(p, 'prod'):
-                        stats.docker_files_fixed += 1
-                        print(f"  ✅ fixed: {rel}")
-                else:
-                    print(f"  [DRY] docker-prod-fix: {rel}")
-
-            elif filename == '.env' or filename.startswith('.env.'):
-                if not args.dry_run:
-                    # backup already made in step 1 if modified
-                    if fix_env_file(p):
-                        stats.env_files_fixed += 1
-                        print(f"  ✅ env-fixed: {rel}")
-                else:
-                    print(f"  [DRY] env-fix: {rel}")
-
-    # 2b. export_backend_code.py — sanitization rules
-    exporters = [
-        ROOT_PATH / 'export_backend_code.py',
-        ROOT_PATH / 'scripts' / 'export_backend_code.py',
-    ]
-    for exporter in exporters:
-        if not exporter.exists():
-            continue
-        content, enc = read_text(exporter)
-        if content is None:
-            continue
-        new_content = re.sub(
-            r"('MONGO_URI'\s*:\s*')[^']*(')",
-            rf"\1mongodb://localhost:27017/sevanext\2",
-            content,
-        )
-        new_content = re.sub(
-            r"('DATABASE_NAME'\s*:\s*')[^']*(')",
-            rf"\1sevanext\2",
-            new_content,
-        )
-        if new_content != content:
-            if not args.dry_run:
-                write_text(exporter, new_content, enc)
-                print(f"  ✅ sanitizer rules fixed: {exporter.name}")
-            else:
-                print(f"  [DRY] sanitizer-fix: {exporter.name}")
-    print()
-
-    # ---- STEP 3: rename paths (optional) ----
-    if not args.no_rename:
-        print("📁 STEP 3/4 — Renaming files / folders ...")
-        print("-" * 80)
-        rename_paths(args.dry_run, stats)
-        print()
-    else:
-        print("📁 STEP 3/4 — Rename skipped (--no-rename).\n")
-
-    # ---- STEP 4: verify ----
-    if not args.skip_verify:
-        print("🔍 STEP 4/4 — Verifying ...")
-        leftover = verify()
-    else:
-        print("🔍 STEP 4/4 — Verify skipped (--skip-verify).\n")
-        leftover = 0
-
-    # ---- Final report ----
-    print()
-    print(stats.report())
-
-    if not args.dry_run:
-        print("\n🎉 MIGRATION COMPLETE")
-        print("=" * 80)
-        print("📋 NEXT STEPS:")
-        print("=" * 80)
-        print("  1. Review the diff:")
-        print("       git diff")
-        print()
-        print("  2. Migrate MongoDB data:")
-        print("       mongodump --db=rojgarnext --archive=old.gz --gzip")
-        print("       mongorestore --archive=old.gz --gzip \\")
-        print("                    --nsFrom='rojgarnext.*' \\")
-        print("                    --nsTo='sevanext.*'")
-        print()
-        print("  3. Rebuild & restart Docker:")
-        print("       cd deploy")
-        print("       docker compose -f docker-compose.yml \\")
-        print("                      -f docker-compose.dev.yml \\")
-        print("                      --env-file .env.local down")
-        print("       docker compose -f docker-compose.yml \\")
-        print("                      -f docker-compose.dev.yml \\")
-        print("                      --env-file .env.local up --build -d")
-        print()
-        print("  4. Verify backend connected to right DB:")
-        print("       docker exec -it sevanext-local-backend sh -c \\")
-        print("         \"python -c 'from app.database.mongodb import db; print(db.name)'\"")
-        print()
-        print("  5. After 1 week of confirmed operation, drop old DB:")
-        print("       mongosh --eval \"db.getSiblingDB('rojgarnext').dropDatabase()\"")
-        print("=" * 80)
-
-        if backup_root is not None:
-            print(f"\n💾 Backup saved at: {backup_root}")
-            print("   You can restore a file by copying from that folder.")
-            print("   Delete it after verifying migration is OK.")
-
-    if leftover > 0:
-        print(f"\n⚠️  {leftover} potential leftover(s) detected — review above.")
-        sys.exit(2)
-
-    sys.exit(0)
-
-
-if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n\n❌ Cancelled by user.")
-        sys.exit(1)
-    except Exception as e:
-        print(f"\n\n❌ Fatal error: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
-
-================================================================================
-[  23/  26] ⚙️ monitoring/logstash.conf
+[  22/  26] ⚙️ monitoring/logstash.conf
 📏 SIZE: 576 B
 🕐 MODIFIED: 2026-11-11 14:39:02
 ================================================================================
@@ -3515,7 +2901,7 @@ output {
 }
 
 ================================================================================
-[  24/  26] ⚙️ monitoring/prometheus.yml
+[  23/  26] ⚙️ monitoring/prometheus.yml
 📏 SIZE: 536 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3547,7 +2933,7 @@ scrape_configs:
       - targets: ['redis:9121']
 
 ================================================================================
-[  25/  26] 📋 railway.frontend.json
+[  24/  26] 📋 railway.frontend.json
 📏 SIZE: 429 B
 🕐 MODIFIED: 2026-11-11 14:38:45
 ================================================================================
@@ -3571,7 +2957,7 @@ scrape_configs:
 }
 
 ================================================================================
-[  26/  26] 📋 railway.json
+[  25/  26] 📋 railway.json
 📏 SIZE: 531 B
 🕐 MODIFIED: 2026-11-11 14:38:45
 ================================================================================
@@ -3593,8 +2979,415 @@ scrape_configs:
 }
 
 ================================================================================
+[  26/  26] 🐍 rebrand.py
+📏 SIZE: 13.3 KB
+🕐 MODIFIED: 2026-11-11 16:49:09
+================================================================================
+
+#!/usr/bin/env python3
+# rebrand.py
+# ============================================================
+# SEVANEXT REBRAND SCRIPT
+# ============================================================
+# Usage:
+#   python rebrand.py              → Dry run (preview only)
+#   python rebrand.py --apply      → Apply changes
+#   python rebrand.py --rollback   → Restore from backup
+# ============================================================
+
+import os
+import sys
+import shutil
+import re
+import argparse
+from datetime import datetime
+from pathlib import Path
+
+# ============================================================
+# CONFIG — Yahan apne project ka path set karo
+# ============================================================
+PROJECT_ROOT = Path(__file__).parent.resolve()
+
+BACKEND_DIR = PROJECT_ROOT / "backend" / "sevanext"
+FRONTEND_DIR = PROJECT_ROOT / "frontend" / "sevanext"
+
+# Backup folder
+BACKUP_ROOT = PROJECT_ROOT / f"_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+# ============================================================
+# REPLACEMENT RULES — Order matters! Specific → generic
+# ============================================================
+REPLACEMENTS = [
+    # Cloudinary folder path (MOST SPECIFIC FIRST)
+    ("RojgarNest_uploads", "sevanext_uploads"),
+    ("rojgarnest_uploads", "sevanext_uploads"),
+
+    # Email domains — specific first
+    ("admin@rojgarnest.com",      "admin@sevanext.com"),
+    ("customadmin@rojgarnest.com","customadmin@sevanext.com"),
+    ("support@rojgarnest.com",    "support@sevanext.com"),
+    ("noreply@rojgarnest.com",    "noreply@sevanext.com"),
+
+    # URLs — with www
+    ("www.rojgarnest.com", "www.sevanext.com"),
+
+    # URLs — without www (standalone)
+    ("rojgarnest.com", "sevanext.com"),
+
+    # Catch-all (lowercase — for any remaining like loggers, variables)
+    ("rojgarnest", "sevanext"),
+
+    # Capital R variants (safety)
+    ("RojgarNest", "SevaNext"),
+    ("Rojgarnest", "SevaNext"),
+    ("ROJGARNEST", "SEVANEXT"),
+]
+
+# ============================================================
+# FILE EXTENSIONS TO SCAN
+# ============================================================
+BACKEND_EXTENSIONS = {".py", ".env", ".txt", ".yaml", ".yml", ".json", ".conf"}
+FRONTEND_EXTENSIONS = {".dart", ".yaml", ".yml", ".json", ".html", ".conf"}
+
+# Skip these folders
+SKIP_DIRS = {
+    "__pycache__", ".git", ".venv", "venv", "node_modules",
+    "build", ".dart_tool", ".idea", ".vscode", "ios", "android",
+    "windows", "macos", "linux", ".pytest_cache", ".mypy_cache",
+    "uploads", "logs", "backups", "secure", "models",
+}
+
+# Skip these file names
+SKIP_FILES = {
+    ".DS_Store", "Thumbs.db", "pubspec.lock", "package-lock.json",
+    "rebrand.py",  # don't modify self
+}
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+def is_binary(file_path: Path) -> bool:
+    """Check if file is binary — skip those."""
+    try:
+        with open(file_path, "rb") as f:
+            chunk = f.read(8192)
+            return b"\0" in chunk
+    except Exception:
+        return True
+
+
+def should_skip_dir(dir_name: str) -> bool:
+    return dir_name in SKIP_DIRS
+
+
+def should_skip_file(file_name: str) -> bool:
+    return file_name in SKIP_FILES
+
+
+def find_files(root: Path, extensions: set) -> list:
+    """Recursively find all matching files, skipping skip-dirs."""
+    if not root.exists():
+        print(f"   ⚠️  Directory not found: {root}")
+        return []
+
+    found = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        # Prune skip dirs in-place
+        dirnames[:] = [d for d in dirnames if not should_skip_dir(d)]
+
+        for filename in filenames:
+            if should_skip_file(filename):
+                continue
+
+            file_path = Path(dirpath) / filename
+
+            # Extension check (allow files with no extension like `.env` or `Dockerfile`)
+            if file_path.suffix.lower() in extensions:
+                found.append(file_path)
+            elif filename in ("Dockerfile", ".env", ".env.example", ".dockerignore", "nginx.conf"):
+                found.append(file_path)
+
+    return found
+
+
+def count_matches(content: str) -> dict:
+    """Count how many times each pattern appears."""
+    counts = {}
+    for old, _ in REPLACEMENTS:
+        n = content.count(old)
+        if n > 0:
+            counts[old] = n
+    return counts
+
+
+def apply_replacements(content: str) -> tuple:
+    """Apply all replacements in order. Returns (new_content, total_changes)."""
+    total = 0
+    new = content
+    for old, replacement in REPLACEMENTS:
+        count = new.count(old)
+        if count > 0:
+            new = new.replace(old, replacement)
+            total += count
+    return new, total
+
+
+def backup_file(file_path: Path) -> Path:
+    """Copy file to backup folder preserving relative structure."""
+    try:
+        rel = file_path.relative_to(PROJECT_ROOT)
+    except ValueError:
+        rel = Path(file_path.name)
+
+    backup_path = BACKUP_ROOT / rel
+    backup_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Don't overwrite existing backups
+    if not backup_path.exists():
+        shutil.copy2(file_path, backup_path)
+
+    return backup_path
+
+
+# ============================================================
+# MAIN LOGIC
+# ============================================================
+
+def process_root(root: Path, extensions: set, label: str, dry_run: bool):
+    """Process one root folder (backend or frontend)."""
+    print(f"\n{'='*70}")
+    print(f"📂 {label}: {root}")
+    print(f"{'='*70}")
+
+    if not root.exists():
+        print(f"   ❌ Folder does not exist. Skipping.")
+        return {"scanned": 0, "changed": 0, "total_replacements": 0, "files": []}
+
+    files = find_files(root, extensions)
+    print(f"   🔍 Found {len(files)} candidate files")
+
+    scanned = 0
+    changed_files = []
+    total_replacements = 0
+
+    for f in files:
+        scanned += 1
+
+        # Skip binary
+        if is_binary(f):
+            continue
+
+        try:
+            original = f.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            try:
+                original = f.read_text(encoding="latin-1")
+            except Exception:
+                continue
+        except Exception as e:
+            print(f"   ⚠️  Could not read {f.relative_to(PROJECT_ROOT)}: {e}")
+            continue
+
+        # Count matches BEFORE replacing
+        matches = count_matches(original)
+        if not matches:
+            continue
+
+        new_content, n = apply_replacements(original)
+        if n == 0:
+            continue
+
+        rel_path = f.relative_to(PROJECT_ROOT)
+        print(f"\n   📝 {rel_path}")
+        for pattern, cnt in matches.items():
+            print(f"       • '{pattern}' → {cnt} occurrence(s)")
+
+        changed_files.append({
+            "file": str(rel_path),
+            "replacements": n,
+            "details": matches,
+        })
+        total_replacements += n
+
+        if not dry_run:
+            backup_file(f)
+            try:
+                f.write_text(new_content, encoding="utf-8")
+                print(f"       ✅ Updated (backup saved)")
+            except Exception as e:
+                print(f"       ❌ Write failed: {e}")
+
+    return {
+        "scanned": scanned,
+        "changed": len(changed_files),
+        "total_replacements": total_replacements,
+        "files": changed_files,
+    }
+
+
+def update_docker_names():
+    """Detect and print suggested docker commands."""
+    print(f"\n{'='*70}")
+    print(f"🐳 DOCKER IMAGE NAME SUGGESTIONS")
+    print(f"{'='*70}")
+    print("\n   Dockerfile mein image name NAHI hota. Yeh commands use karo:\n")
+    print("   # Backend")
+    print("   docker build -t sevanext-backend ./backend/sevanext")
+    print("   docker tag sevanext-backend your-registry/sevanext-backend:latest")
+    print("\n   # Frontend")
+    print("   docker build -t sevanext-frontend ./frontend/sevanext")
+    print("   docker tag sevanext-frontend your-registry/sevanext-frontend:latest")
+    print("\n   # Agar docker-compose.yml hai to usme 'image:' line manually badlo:")
+    print("   #   image: sevanext-backend:latest")
+    print("   #   image: sevanext-frontend:latest")
+
+
+def print_summary(backend_result, frontend_result, dry_run):
+    print(f"\n{'='*70}")
+    print(f"📊 SUMMARY")
+    print(f"{'='*70}")
+
+    for label, r in [("BACKEND", backend_result), ("FRONTEND", frontend_result)]:
+        print(f"\n   {label}:")
+        print(f"      Files scanned      : {r['scanned']}")
+        print(f"      Files changed      : {r['changed']}")
+        print(f"      Total replacements : {r['total_replacements']}")
+
+    grand_total = backend_result["total_replacements"] + frontend_result["total_replacements"]
+
+    print(f"\n   {'='*50}")
+    print(f"   🎯 GRAND TOTAL REPLACEMENTS: {grand_total}")
+    print(f"   {'='*50}")
+
+    if not dry_run and (backend_result["changed"] > 0 or frontend_result["changed"] > 0):
+        print(f"\n   💾 Backup saved to: {BACKUP_ROOT}")
+        print(f"   ↩️  Rollback command: python rebrand.py --rollback")
+
+    if dry_run and grand_total > 0:
+        print(f"\n   ⚠️  DRY RUN — No files were modified.")
+        print(f"   👉 To apply changes, run: python rebrand.py --apply")
+
+
+def do_rollback():
+    """Find latest backup folder and restore."""
+    print(f"\n{'='*70}")
+    print(f"↩️  ROLLBACK")
+    print(f"{'='*70}")
+
+    # Find all backup folders
+    backups = sorted(PROJECT_ROOT.glob("_backup_*"))
+
+    if not backups:
+        print("   ❌ No backup folders found.")
+        return
+
+    latest = backups[-1]
+    print(f"   📁 Using backup: {latest.name}")
+
+    restored = 0
+    for root_dir in (BACKEND_DIR, FRONTEND_DIR):
+        backup_dir = latest / "backend" / "sevanext" if "backend" in str(root_dir).lower() else latest / "frontend" / "sevanext"
+
+        # Actually reconstruct properly:
+        if root_dir == BACKEND_DIR:
+            backup_dir = latest / "backend" / "sevanext"
+        elif root_dir == FRONTEND_DIR:
+            backup_dir = latest / "frontend" / "sevanext"
+
+        if not backup_dir.exists():
+            continue
+
+        for backup_file_path in backup_dir.rglob("*"):
+            if backup_file_path.is_dir():
+                continue
+
+            rel = backup_file_path.relative_to(backup_dir)
+            original = root_dir / rel
+
+            original.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(backup_file_path, original)
+            print(f"   ♻️  Restored: {rel}")
+            restored += 1
+
+    print(f"\n   ✅ Restored {restored} files")
+
+
+def confirm(prompt: str) -> bool:
+    ans = input(prompt).strip().lower()
+    return ans in ("y", "yes")
+
+
+# ============================================================
+# ENTRY POINT
+# ============================================================
+
+def main():
+    parser = argparse.ArgumentParser(description="RojgarNest → SevaNext rebrand")
+    parser.add_argument("--apply", action="store_true", help="Apply changes")
+    parser.add_argument("--rollback", action="store_true", help="Restore from latest backup")
+    parser.add_argument("--yes", "-y", action="store_true", help="Skip confirmation")
+    args = parser.parse_args()
+
+    # ---- ROLLBACK MODE ----
+    if args.rollback:
+        if not args.yes and not confirm("⚠️  Rollback will overwrite current files. Continue? (y/N): "):
+            print("   Cancelled.")
+            return
+        do_rollback()
+        return
+
+    # ---- NORMAL MODE ----
+    dry_run = not args.apply
+
+    print(f"\n{'='*70}")
+    print(f"🔄 ROJGARNEST → SEVANEXT REBRAND")
+    print(f"{'='*70}")
+    print(f"   Mode         : {'DRY RUN (preview)' if dry_run else 'APPLY (write files)'}")
+    print(f"   Project root : {PROJECT_ROOT}")
+    print(f"   Backend      : {BACKEND_DIR}")
+    print(f"   Frontend     : {FRONTEND_DIR}")
+
+    # Sanity check
+    if not BACKEND_DIR.exists():
+        print(f"\n   ❌ Backend folder not found: {BACKEND_DIR}")
+        print(f"   👉 Adjust BACKEND_DIR at top of rebrand.py")
+        sys.exit(1)
+
+    if not FRONTEND_DIR.exists():
+        print(f"\n   ⚠️  Frontend folder not found: {FRONTEND_DIR}")
+        print(f"   ⏭️  Will only process backend")
+
+    if not dry_run and not args.yes:
+        if not confirm(f"\n⚠️  This will modify files. Backups will be saved to:\n   {BACKUP_ROOT}\n\nContinue? (y/N): "):
+            print("   Cancelled.")
+            return
+
+    # ---- PROCESS BACKEND ----
+    backend_result = process_root(BACKEND_DIR, BACKEND_EXTENSIONS, "BACKEND", dry_run)
+
+    # ---- PROCESS FRONTEND ----
+    frontend_result = {"scanned": 0, "changed": 0, "total_replacements": 0, "files": []}
+    if FRONTEND_DIR.exists():
+        frontend_result = process_root(FRONTEND_DIR, FRONTEND_EXTENSIONS, "FRONTEND", dry_run)
+
+    # ---- SUMMARY ----
+    print_summary(backend_result, frontend_result, dry_run)
+
+    # ---- DOCKER SUGGESTIONS ----
+    update_docker_names()
+
+    print(f"\n{'='*70}")
+    print(f"✅ DONE")
+    print(f"{'='*70}\n")
+
+
+if __name__ == "__main__":
+    main()
+
+================================================================================
 🎉 EXPORT COMPLETED!
 ================================================================================
 Total Files: 26
-Generated: 2026-11-11 15:02:23
+Generated: 2026-11-11 16:56:20
 ================================================================================

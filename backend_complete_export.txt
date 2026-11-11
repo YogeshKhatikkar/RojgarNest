@@ -1,11 +1,11 @@
 ================================================================================
 ROJARGAR NEXT BACKEND - COMPLETE CODE EXPORT (SANITIZED)
 ================================================================================
-Generated: 2026-11-11 15:02:27
+Generated: 2026-11-11 16:56:25
 Source: E:\YOGESH\website\SevaNext\backend\sevanext
-Total Files: 171
+Total Files: 170
   - Python Files: 167
-  - ENV Files (Sanitized): 1
+  - ENV Files (Sanitized): 0
   - Other Files: 3
 ================================================================================
 
@@ -19,7 +19,6 @@ Total Files: 171
 
 📁 backend/sevanext/
 ├── 📄 .dockerignore
-├── 🔐 .env
 ├── 📁 app/
 │   ├── 📁 core/
 │   │   ├── 🐍 __init__.py
@@ -248,474 +247,125 @@ Total Files: 171
 
 
 ================================================================================
-[   1/ 171] 📄 TEXT FILE: .dockerignore
-📏 SIZE: 553 bytes
-🕐 MODIFIED: 2026-11-06 11:55:11
+[   1/ 170] 📄 TEXT FILE: .dockerignore
+📏 SIZE: 1,249 bytes
+🕐 MODIFIED: 2026-11-11 16:31:21
 
 ================================================================================
 
 # ============================================================
-# BACKEND .dockerignore
+# SevaNext Backend — Docker ignore
 # ============================================================
+# Files/folders NOT sent to Docker build context.
+# Prevents secret leaks + speeds up builds 10×.
+# ============================================================
+
+# ---- Secrets ----
 .env
 .env.*
 !.env.example
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-.git
+
+# ---- Git ----
+.git/
 .gitignore
-.venv
-venv
-env
-ENV
-uploads/
-secure/
-models/*.pkl
-models/*.joblib
-logs/
-backups/
-*.log
-*.db
-*.sqlite
-*.sqlite3
-.pytest_cache
+.gitattributes
+
+# ---- Python cache ----
+__pycache__/
+*.py[cod]
+*.so
+.Python
+*$py.class
+
+# ---- Virtualenv ----
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ---- Test / coverage ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
-.mypy_cache
-.ruff_cache
-dist/
-build/
-*.egg-info/
+coverage.xml
+.tox/
+.nox/
+
+# ---- IDE / OS ----
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
-tests/
-docs/
+
+# ---- Runtime data (bind-mounted at runtime) ----
+logs/
+uploads/
+secure/
+models/
+backups/
+*.log
+
+# ---- Node (Flutter web build leftovers) ----
+node_modules/
+
+# ---- Docs ----
 README.md
-service-account-key.json
+CHANGELOG.md
+LICENSE
+docs/
+
+# ---- Docker / CI ----
+Dockerfile
+.dockerignore
+docker-compose*.yml
+.github/
+
+# ---- Large model files ----
+*.h5
+*.pkl
+*.joblib
+*.pt
+*.onnx
+*.bin
+
+# ---- Misc ----
+*.sqlite3
+*.db
+*.sql
+*.tar.gz
+*.zip
 
 
 ================================================================================
-[   2/ 171] 🔐 ENV FILE (SANITIZED - Dummy Values Only): .env
-📏 SIZE: 23,596 bytes
-🕐 MODIFIED: 2026-11-11 14:39:02
-
-⚠️  NOTE: This .env file has been sanitized. All original values replaced with dummy placeholders.
-
-================================================================================
-
-# ============================================================
-# ⚠️  WARNING: THIS IS A SANITIZED .env FILE
-# All original values have been replaced with dummy/placeholder values.
-# Add your actual credentials in the original .env file.
-# ============================================================
-
-# ============================================================
-# ⚠️  WARNING: THIS IS A SANITIZED .env FILE
-# All original values have been replaced with dummy/placeholder values.
-# Add your actual credentials in the original .env file.
-# ============================================================
-
-# ============================================================
-# 🪟 WINDOWS UNICODE FIX — Must be first!
-# ============================================================
-PYTHONIOENCODING=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-PYTHONUTF8=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# 🗄️ DATABASE CONFIGURATION
-# ============================================================
-# ================= LOCAL DATABASE =================
-# When ENVIRONMENT=development, use local MongoDB
-MONGO_URI=mongodb://localhost:27017/sevanext
-DATABASE_NAME=sevanext
-ENVIRONMENT=development
-
-# ================= ATLAS DATABASE =================
-# When ENVIRONMENT=production, uncomment and use Atlas
-#MONGO_URI=mongodb+srv://sevanext_db:Sevanext123@cluster0.bmbx8bu.mongodb.net/sevanext?retryWrites=true&w=majority
-#DATABASE_NAME=sevanext
-#ENVIRONMENT=production
-
-PORT=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# 🔐 SECURITY & TOKENS
-# ============================================================
-ACCESS_TOKEN_EXPIRE_MINUTES=1440
-REFRESH_TOKEN_EXPIRE_DAYS=7
-
-SECRET_KEY=your-secret-key-change-in-production-minimum-32-chars
-SESSION_SECRET_KEY=your-session-secret-key-change-in-production
-JWT_SECRET_KEY=your-jwt-secret-key-change-in-production
-
-REDIS_URL=redis://localhost:6379
-
-# ============================================================
-# 🧪 OTP BYPASS CONTROL (MASTER SWITCH)
-# ============================================================
-# MOBILE_OTP_BYPASS:
-#   true  → DEVELOPMENT MODE
-#           - SMS: BYPASSED (no real SMS)
-#           - WhatsApp: BYPASSED (no real WhatsApp)
-#           - Mobile OTP = 123456 (DEV_OTP_CODE)
-#           - Email OTP = ALWAYS REAL (never bypassed)
-#           - Mobile verification accepts 123456 OR any 6-digit
-#   false → PRODUCTION MODE
-#           - SMS: REAL SENT
-#           - WhatsApp: REAL SENT
-#           - Mobile OTP = random 6-digit
-#           - Email OTP = ALWAYS REAL
-#           - Only real OTPs work
-#
-# ⚠️ EMAIL IS ALWAYS REAL regardless of this setting
-# ============================================================
-MOBILE_OTP_BYPASS=true
-
-# DEV_OTP_CODE: The fixed OTP used in development mode
-# Only used when MOBILE_OTP_BYPASS=true
-# You can change this to any 6-digit number
-DEV_OTP_CODE=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# 📧 EMAIL PROVIDER CONFIGURATION
-# ============================================================
-# Options: smtp | brevo | sendgrid | mailgun
-# ⚠️ JUST CHANGE THIS VALUE AND RESTART SERVER - NO CODE CHANGES NEEDED!
-# ============================================================
-EMAIL_PROVIDER=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# -------- SMTP (Gmail / Any SMTP) --------
-#SMTP_HOST=smtp.gmail.com
-#SMTP_PORT=587
-#SMTP_USER=yogeshkhatikkar.yk@gmail.com
-#SMTP_PASSWORD=wvntknbzurfaxzje     # ← App Password (16 chars, with spaces)
-#SMTP_FROM=yogeshkhatikkar.yk@gmail.com
-#SMTP_FROM_NAME=SevaNext
-
-# -------- SMTP (Hostinger) --------
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password-here
-SMTP_FROM=your-email@gmail.com
-SMTP_FROM_NAME=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# -------- BREVO (Sendinblue) --------
-# Get from: https://app.brevo.com/settings/keys/api
-BREVO_API_KEY=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-BREVO_SENDER_EMAIL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-BREVO_SENDER_NAME=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-BREVO_SMTP_HOST=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-BREVO_SMTP_PORT=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-BREVO_SMTP_USER=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-BREVO_SMTP_PASSWORD=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# -------- SENDGRID (Optional) --------
-SENDGRID_API_KEY=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-SENDGRID_FROM_EMAIL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-SENDGRID_FROM_NAME=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# -------- MAILGUN (Optional) --------
-MAILGUN_API_KEY=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MAILGUN_DOMAIN=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MAILGUN_FROM_EMAIL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MAILGUN_FROM_NAME=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# 📱 SMS PROVIDER SELECTION
-# ============================================================
-# Options: twilio | msg91 | fast2sms | brevo | auto
-# 
-# AUTO MODE: Tries providers in order (SMS_FALLBACK_ORDER)
-# Just change this value and restart - NO code changes needed!
-# ============================================================
-SMS_PROVIDER=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-SMS_FALLBACK_ENABLED=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-SMS_FALLBACK_ORDER=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# 📱 TWILIO CONFIGURATION
-# ============================================================
-TWILIO_ACCOUNT_SID=your_twilio_account_sid
-TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE=+1234567890
-
-# Trial account support
-# Set true if using free/trial Twilio account
-# When true: uses predefined templates (error 572006 fix)
-TWILIO_IS_TRIAL_ACCOUNT=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# 📱 MSG91 CONFIGURATION (Best for India - Custom Messages)
-# ============================================================
-# Get from: https://control.msg91.com/app/
-MSG91_AUTH_KEY=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MSG91_SENDER_ID=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MSG91_TEMPLATE_ID_OTP=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MSG91_TEMPLATE_ID_VERIFY=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MSG91_TEMPLATE_ID_ALERT=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MSG91_ROUTE=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MSG91_COUNTRY=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MSG91_DLT_TE_ID=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# 📱 FAST2SMS CONFIGURATION (India only)
-# ============================================================
-FAST2SMS_API_KEY=your_fast2sms_api_key
-
-# ============================================================
-# 📱 BREVO SMS CONFIGURATION
-# ============================================================
-BREVO_API_KEY=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-BREVO_SMS_SENDER=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-BREVO_SMS_API_KEY=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-
-# ============================================================
-# 💬 WHATSAPP PROVIDER SELECTION
-# ============================================================
-# Options: twilio | msg91 | meta | auto | disabled
-# 
-# AUTO: Tries twilio → msg91 → meta
-# ============================================================
-WHATSAPP_PROVIDER=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-# If WhatsApp fails, fallback to SMS automatically
-WHATSAPP_FALLBACK_TO_SMS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-MSG91_WHATSAPP_API_KEY=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MSG91_WHATSAPP_INTEGRATED_NUMBER=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MSG91_WHATSAPP_TEMPLATE_OTP=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MSG91_WHATSAPP_TEMPLATE_ALERT=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MSG91_WHATSAPP_TEMPLATE_JOB=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-MSG91_WHATSAPP_TEMPLATE_STATUS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# -------- TWILIO WhatsApp --------
-TWILIO_WHATSAPP_NUMBER=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-TWILIO_WHATSAPP_CONTENT_SID=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-TWILIO_WHATSAPP_TEMPLATE_SID=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-
-# ============================================================
-# 💬 META WHATSAPP BUSINESS
-# ============================================================
-META_WA_PHONE_NUMBER_ID=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-META_WA_ACCESS_TOKEN=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-META_WA_BUSINESS_ACCOUNT_ID=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-META_WA_VERIFY_TOKEN=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-META_WA_TEMPLATE_OTP=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-META_WA_TEMPLATE_ALERT=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# -------- WhatsApp Fallback --------
-# If WhatsApp fails, fallback to SMS automatically
-WHATSAPP_FALLBACK_TO_SMS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# 🔔 NOTIFICATION CHANNEL SETTINGS
-# ============================================================
-# Which channels to use for each type of notification
-# Options: email,sms,whatsapp,inapp,websocket
-# Comma-separated list
-#
-# NOTE: Even if "sms" or "whatsapp" is listed here, they will be
-#       skipped at runtime when MOBILE_OTP_BYPASS=true
-# ============================================================
-
-NOTIFY_OTP_CHANNELS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-NOTIFY_VERIFICATION_CHANNELS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-NOTIFY_JOB_ALERT_CHANNELS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-NOTIFY_APPLICATION_STATUS_CHANNELS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-NOTIFY_PAYMENT_CHANNELS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-NOTIFY_ADMIN_ALERT_CHANNELS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-NOTIFY_PASSWORD_RESET_CHANNELS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-NOTIFY_WELCOME_CHANNELS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# 🧪 DEVELOPMENT MODE OVERRIDES
-# ============================================================
-# When true, emails/SMS are logged but not sent
-DEV_MODE_LOG_ONLY=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# When true, use mock providers (no real API calls)
-USE_MOCK_PROVIDERS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# Rate limits (per hour)
-EMAIL_RATE_LIMIT_PER_HOUR=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-SMS_RATE_LIMIT_PER_HOUR=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-WHATSAPP_RATE_LIMIT_PER_HOUR=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# 🌐 APPLICATION
-# ============================================================
-APP_BASE_URL=http://localhost:8000
-
-
-# ============================================================
-# 🤖 AI SERVICES
-# ============================================================
-OPENAI_API_KEY=your_openai_api_key_here
-OPENAI_MODEL=gpt-4o-mini
-
-# ============================================================
-# 🔒 ENCRYPTION
-# ============================================================
-ENCRYPTION_KEY=your-encryption-key-change-in-production
-
-# ============================================================
-# 🌐 PROXY
-# ============================================================
-# PROXY_POOL must be valid JSON array - no line breaks, no trailing commas
-# PROXY_POOL must be valid JSON array - no line breaks, no trailing commas
-PROXY_POOL=["proxy1:port","proxy2:port"]
-
-# ============================================================
-# 🔐 CAPTCHA
-# ============================================================
-CAPTCHA_API_KEY=your_captcha_api_key
-DISABLE_AUTH=false
-
-# ============================================================
-# 📁 SECURE FOLDER
-# ============================================================
-SECURE_FOLDER_PATH=./secure
-SECRET_TOKEN=your-secret-token-here
-
-# ============================================================
-# 📊 JOB APIS
-# ============================================================
-ADZUNA_APP_ID=your_adzuna_app_id
-ADZUNA_API_KEY=your_adzuna_api_key
-
-# Placeholder API Keys
-FREE_JOB_SEARCH_API_KEY=your_free_job_search_api_key
-INFOTRIE_API_KEY=your_infotrie_api_key
-CORESIGNAL_API_KEY=your_coresignal_api_key
-
-# ============================================================
-# ☁️ CLOUDINARY
-# ============================================================
-CLOUDINARY_URL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-
-# ============================================================
-# 🌐 CORS ORIGINS
-# ============================================================
-ORS_ORIGINS=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# 🤖 ML MODELS
-# ============================================================
-ML_MODELS_PATH=./models
-
-# ============================================================
-# 🧠 AI LEARNING
-# ============================================================
-AI_LEARNING_RATE=0.01
-AUTO_RETRAIN_INTERVAL_HOURS=24
-
-# ============================================================
-# ⚡ ADVANCED FEATURES
-# ============================================================
-ENABLE_AUTO_APPLY=true
-ENABLE_AUTO_SHORTLIST=true
-AUTO_SHORTLIST_THRESHOLD=85
-ENABLE_SMART_NOTIFICATIONS=true
-
-# ============================================================
-# 💳 STRIPE
-# ============================================================
-# Get from: https://infura.io/ or https://alchemy.com/
-WEB3_PROVIDER_URL=https://mainnet.infura.io/v3/YOUR_PROJECT_ID
-CONTRACT_ADDRESS=0x742d35Cc6634C0532925a3b844Bc454e4438f44e
-ISSUER_ADDRESS=0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B
-
-# ============================================================
-# 💳 STRIPE
-# ============================================================
-# Get from: https://dashboard.stripe.com/apikeys
-STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
-STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
-
-# ============================================================
-# 🤖 AI FAKE JOB DETECTION
-# ============================================================
-FAKE_JOB_DETECTION_ENABLED=true
-FAKE_JOB_CONFIDENCE_THRESHOLD=60
-DUPLICATE_JOB_DAYS_THRESHOLD=30
-MAX_JOBS_PER_FETCH=50
-
-# ============================================================
-# 📁 GOOGLE DRIVE API
-# ============================================================
-# Get credentials from Google Cloud Console
-GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL=your-service-account@project.iam.gserviceaccount.com
-GOOGLE_DRIVE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----
-YOUR_PRIVATE_KEY_HERE
------END PRIVATE KEY-----"
-GOOGLE_DRIVE_FOLDER_ID=your_google_drive_folder_id_here
-GOOGLE_DRIVE_FOLDER_NAME=sevanext_advertisements
-
-
-# ============================================================
-# RAZORPAY PAYMENT GATEWAY
-# ============================================================
-# TEST MODE - Use test keys from Razorpay Dashboard
-RAZORPAY_KEY_ID=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-RAZORPAY_KEY_SECRET=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-RAZORPAY_WEBHOOK_SECRET=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-RAZORPAY_TEST_MODE=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# PRODUCTION MODE - Uncomment when going live
-# ============================================================
-# RAZORPAY_KEY_ID=rzp_live_XXXXXXXXXXXXXXXX
-# RAZORPAY_KEY_SECRET=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-# RAZORPAY_WEBHOOK_SECRET=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-# RAZORPAY_TEST_MODE=false
-
-# ============================================================
-# 💰 PHONEPE PAYMENT GATEWAY
-# ============================================================
-PHONEPE_MERCHANT_ID=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-PHONEPE_SALT_KEY=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-PHONEPE_SALT_INDEX=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-PHONEPE_API_URL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-PHONEPE_STATUS_URL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-PHONEPE_MERCHANT_ID=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-PHONEPE_CLIENT_ID=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-PHONEPE_CLIENT_SECRET=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-PHONEPE_CLIENT_VERSION=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-PHONEPE_ENV=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-PHONEPE_REDIRECT_URL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# UPI ID for receiving payments
-UPI_ID=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-# ============================================================
-# 📢 LOGGING
-# ============================================================
-LOG_LEVEL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-TWILIO_LOG_LEVEL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
-
-
-
-================================================================================
-[   3/ 171] 📄 TEXT FILE: Dockerfile
-📏 SIZE: 2,142 bytes
-🕐 MODIFIED: 2026-11-11 14:38:45
+[   2/ 170] 📄 TEXT FILE: Dockerfile
+📏 SIZE: 3,646 bytes
+🕐 MODIFIED: 2026-11-11 16:31:06
 
 ================================================================================
 
 # ============================================================
 # SEVANEXT BACKEND DOCKERFILE — PRODUCTION READY
-# Multi-stage build, non-root user, works for dev + prod
+# ============================================================
+# Multi-stage build, non-root user, works for dev + prod.
+#
+# Highlights:
+#   - Builder stage: gcc/g++ for compiled Python deps (pymongo C ext, cryptography, etc.)
+#   - Runtime stage: slim, non-root `appuser`, curl for healthcheck
+#   - tini as init (proper signal handling / zombie reaping)
+#   - uvicorn with configurable workers ($WORKERS env var)
+#   - --proxy-headers + --forwarded-allow-ips for nginx upstream
+#   - HEALTHCHECK against /api/v1/health
+#
+# ENV OVERRIDES (from docker-compose):
+#   WORKERS              default 1 (dev) / 4 (prod)
+#   FORWARDED_ALLOW_IPS  default "*"
+#   PORT                 default 8000
 # ============================================================
 
 # ------------------------------------------------------------
@@ -726,27 +376,33 @@ FROM python:3.12-slim AS builder
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10
 
 WORKDIR /app
 
+# Build toolchain for compiled wheels (pymongo, cryptography, bcrypt, etc.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    build-essential \
-    libffi-dev \
-    libssl-dev \
+        gcc \
+        g++ \
+        build-essential \
+        libffi-dev \
+        libssl-dev \
+        libxml2-dev \
+        libxslt1-dev \
+        zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Isolated venv — copied wholesale to runtime stage
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY requirements.txt .
-ENV PIP_DEFAULT_TIMEOUT=120 \
-    PIP_RETRIES=10
-
+# Install Python deps first (layer caching)
+COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
+
 
 # ------------------------------------------------------------
 # STAGE 2: Runtime
@@ -757,20 +413,30 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
     PYTHONUTF8=1 \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/opt/venv/bin:$PATH" \
+    PORT=8000 \
+    WORKERS=1 \
+    FORWARDED_ALLOW_IPS="*"
 
-RUN groupadd -r appuser && useradd -r -g appuser -m appuser
+# Non-root user
+RUN groupadd -r appuser && useradd -r -g appuser -m -d /home/appuser appuser
 
+# Runtime system deps (tini = init, curl = healthcheck)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    ca-certificates \
+        tini \
+        curl \
+        ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
+# Copy the ready-made venv from builder (no compiler in runtime)
 COPY --from=builder /opt/venv /opt/venv
+
+# Copy app code, owned by appuser
 COPY --chown=appuser:appuser . .
 
+# Runtime writable dirs (must be created BEFORE USER switch)
 RUN mkdir -p uploads secure models logs backups && \
     chown -R appuser:appuser /app
 
@@ -778,21 +444,26 @@ USER appuser
 
 EXPOSE 8000
 
+# Healthcheck (backend must expose /api/v1/health)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5 \
-    CMD curl -fsS http://localhost:8000/api/v1/health || exit 1
+    CMD curl -fsS "http://localhost:${PORT}/api/v1/health" || exit 1
 
-CMD ["uvicorn", "app.main:app", \
-     "--host", "0.0.0.0", \
-     "--port", "8000", \
-     "--workers", "1", \
-     "--proxy-headers", \
-     "--forwarded-allow-ips", "*", \
-     "--timeout-keep-alive", "5", \
-     "--access-log"]
+# ✅ tini as PID 1 (proper signal handling + zombie reaping)
+# ✅ uvicorn with configurable workers, proxy headers, keep-alive for nginx
+ENTRYPOINT ["/usr/bin/tini", "--"]
+
+CMD ["sh", "-c", "exec uvicorn app.main:app \
+    --host 0.0.0.0 \
+    --port ${PORT} \
+    --workers ${WORKERS} \
+    --proxy-headers \
+    --forwarded-allow-ips \"${FORWARDED_ALLOW_IPS}\" \
+    --timeout-keep-alive 5 \
+    --access-log"]
 
 
 ================================================================================
-[   4/ 171] 🐍 PYTHON FILE: app\core\__init__.py
+[   3/ 170] 🐍 PYTHON FILE: app\core\__init__.py
 📏 SIZE: 3,808 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -930,7 +601,7 @@ def create_refresh_token(data):
 
 
 ================================================================================
-[   5/ 171] 🐍 PYTHON FILE: app\core\ai\__init__.py
+[   4/ 170] 🐍 PYTHON FILE: app\core\ai\__init__.py
 📏 SIZE: 1,893 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -1001,7 +672,7 @@ __all__ = [
 
 
 ================================================================================
-[   6/ 171] 🐍 PYTHON FILE: app\core\ai\ai_career_service.py
+[   5/ 170] 🐍 PYTHON FILE: app\core\ai\ai_career_service.py
 📏 SIZE: 13,113 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -1302,7 +973,7 @@ ai_career_service = AICareerService()
 
 
 ================================================================================
-[   7/ 171] 🐍 PYTHON FILE: app\core\ai\ai_service.py
+[   6/ 170] 🐍 PYTHON FILE: app\core\ai\ai_service.py
 📏 SIZE: 1,241 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -1345,7 +1016,7 @@ PROFILE: {json.dumps({k: profile.get(k) for k in ['skills','experience','academi
 
 
 ================================================================================
-[   8/ 171] 🐍 PYTHON FILE: app\core\ai\ml_pipeline.py
+[   7/ 170] 🐍 PYTHON FILE: app\core\ai\ml_pipeline.py
 📏 SIZE: 2,607 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -1442,7 +1113,7 @@ auto_ml = AutoMLPipeline()
 
 
 ================================================================================
-[   9/ 171] 🐍 PYTHON FILE: app\core\ai\prompts.py
+[   8/ 170] 🐍 PYTHON FILE: app\core\ai\prompts.py
 📏 SIZE: 981 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -1483,7 +1154,7 @@ Return ONLY valid JSON."""
 
 
 ================================================================================
-[  10/ 171] 🐍 PYTHON FILE: app\core\ai\real_time_market_ai.py
+[   9/ 170] 🐍 PYTHON FILE: app\core\ai\real_time_market_ai.py
 📏 SIZE: 26,214 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -2135,9 +1806,9 @@ real_time_market_ai = RealTimeMarketAI()
 
 
 ================================================================================
-[  11/ 171] 🐍 PYTHON FILE: app\core\ai\ultra_ai_engine.py
-📏 SIZE: 35,787 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+[  10/ 170] 🐍 PYTHON FILE: app\core\ai\ultra_ai_engine.py
+📏 SIZE: 35,785 bytes
+🕐 MODIFIED: 2026-11-11 16:49:40
 
 ================================================================================
 
@@ -2329,7 +2000,7 @@ class UltraAIEngine:
             
             training_doc = AIInsightsModel(
                 type=AIInsightType.TRAINING_DATA,
-                email=data.get('email', 'system@rojgarnest.com'),
+                email=data.get('email', 'system@sevanext.com'),
                 data={"type": data_type, **data},
                 feedback_score=feedback,
                 was_helpful=was_helpful_val,
@@ -3101,7 +2772,7 @@ ultra_ai_engine = UltraAIEngine()
 
 
 ================================================================================
-[  12/ 171] 🐍 PYTHON FILE: app\core\ai\ultra_career_ai.py
+[  11/ 170] 🐍 PYTHON FILE: app\core\ai\ultra_career_ai.py
 📏 SIZE: 57,503 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -4405,7 +4076,7 @@ ultra_career_ai = UltraCareerAI()
 
 
 ================================================================================
-[  13/ 171] 🐍 PYTHON FILE: app\core\analytics\__init__.py
+[  12/ 170] 🐍 PYTHON FILE: app\core\analytics\__init__.py
 📏 SIZE: 262 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -4420,7 +4091,7 @@ __all__ = ['BusinessIntelligence', 'MetricsCollector', 'ReportGenerator']
 
 
 ================================================================================
-[  14/ 171] 🐍 PYTHON FILE: app\core\backup\_init_.py
+[  13/ 170] 🐍 PYTHON FILE: app\core\backup\_init_.py
 📏 SIZE: 329 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -4443,7 +4114,7 @@ __all__ = [
 
 
 ================================================================================
-[  15/ 171] 🐍 PYTHON FILE: app\core\backup\backup_manager.py
+[  14/ 170] 🐍 PYTHON FILE: app\core\backup\backup_manager.py
 📏 SIZE: 8,099 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -4662,7 +4333,7 @@ backup_manager = BackupManager()
 
 
 ================================================================================
-[  16/ 171] 🐍 PYTHON FILE: app\core\base_model.py
+[  15/ 170] 🐍 PYTHON FILE: app\core\base_model.py
 📏 SIZE: 336 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -4682,7 +4353,7 @@ class BaseModel(PydanticBaseModel):
 
 
 ================================================================================
-[  17/ 171] 🐍 PYTHON FILE: app\core\cache\__init__.py
+[  16/ 170] 🐍 PYTHON FILE: app\core\cache\__init__.py
 📏 SIZE: 222 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -4697,7 +4368,7 @@ __all__ = ['CacheStrategy', 'DistributedCache', 'LocalCache']
 
 
 ================================================================================
-[  18/ 171] 🐍 PYTHON FILE: app\core\config\settings.py
+[  17/ 170] 🐍 PYTHON FILE: app\core\config\settings.py
 📏 SIZE: 15,164 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -5097,7 +4768,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  19/ 171] 🐍 PYTHON FILE: app\core\database\__init__.py
+[  18/ 170] 🐍 PYTHON FILE: app\core\database\__init__.py
 📏 SIZE: 619 bytes
 🕐 MODIFIED: 2026-10-29 18:07:00
 
@@ -5128,7 +4799,7 @@ __all__ = [
 
 
 ================================================================================
-[  20/ 171] 🐍 PYTHON FILE: app\core\database\connection.py
+[  19/ 170] 🐍 PYTHON FILE: app\core\database\connection.py
 📏 SIZE: 6,438 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -5339,7 +5010,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  21/ 171] 🐍 PYTHON FILE: app\core\database\indexes.py
+[  20/ 170] 🐍 PYTHON FILE: app\core\database\indexes.py
 📏 SIZE: 6,233 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -5484,7 +5155,7 @@ async def setup_all_indexes() -> Dict[str, Any]:
 
 
 ================================================================================
-[  22/ 171] 🐍 PYTHON FILE: app\core\database\redis.py
+[  21/ 170] 🐍 PYTHON FILE: app\core\database\redis.py
 📏 SIZE: 4,230 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -5628,7 +5299,7 @@ print(f"✅ Redis client loaded (enabled: {redis_client.enabled})")
 
 
 ================================================================================
-[  23/ 171] 🐍 PYTHON FILE: app\core\gdpr\__init__.py
+[  22/ 170] 🐍 PYTHON FILE: app\core\gdpr\__init__.py
 📏 SIZE: 401 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -5653,7 +5324,7 @@ __all__ = [
 
 
 ================================================================================
-[  24/ 171] 🐍 PYTHON FILE: app\core\gdpr\consent_manager.py
+[  23/ 170] 🐍 PYTHON FILE: app\core\gdpr\consent_manager.py
 📏 SIZE: 3,578 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -5766,7 +5437,7 @@ consent_manager = ConsentManager()
 
 
 ================================================================================
-[  25/ 171] 🐍 PYTHON FILE: app\core\gdpr\data_anonymizer.py
+[  24/ 170] 🐍 PYTHON FILE: app\core\gdpr\data_anonymizer.py
 📏 SIZE: 3,568 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -5876,7 +5547,7 @@ data_anonymizer = DataAnonymizer()
 
 
 ================================================================================
-[  26/ 171] 🐍 PYTHON FILE: app\core\location\__init__.py
+[  25/ 170] 🐍 PYTHON FILE: app\core\location\__init__.py
 📏 SIZE: 504 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -5906,7 +5577,7 @@ __all__ = [
 
 
 ================================================================================
-[  27/ 171] 🐍 PYTHON FILE: app\core\location\distance_calculator.py
+[  26/ 170] 🐍 PYTHON FILE: app\core\location\distance_calculator.py
 📏 SIZE: 1,969 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -5961,7 +5632,7 @@ class DistanceCalculator:
 
 
 ================================================================================
-[  28/ 171] 🐍 PYTHON FILE: app\core\location\location_handler.py
+[  27/ 170] 🐍 PYTHON FILE: app\core\location\location_handler.py
 📏 SIZE: 7,450 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -6154,7 +5825,7 @@ logger.info("✅ Location Handler Loaded - NO HARDCODE, REAL GPS ONLY")
 
 
 ================================================================================
-[  29/ 171] 🐍 PYTHON FILE: app\core\location\location_service.py
+[  28/ 170] 🐍 PYTHON FILE: app\core\location\location_service.py
 📏 SIZE: 9,619 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -6418,7 +6089,7 @@ print("✅ Location Helper Loaded - No Separate Database Table")
 
 
 ================================================================================
-[  30/ 171] 🐍 PYTHON FILE: app\core\middleware\__init__.py
+[  29/ 170] 🐍 PYTHON FILE: app\core\middleware\__init__.py
 📏 SIZE: 155 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -6435,7 +6106,7 @@ __all__ = ['ApiResponse']
 
 
 ================================================================================
-[  31/ 171] 🐍 PYTHON FILE: app\core\middleware\response.py
+[  30/ 170] 🐍 PYTHON FILE: app\core\middleware\response.py
 📏 SIZE: 1,182 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -6487,7 +6158,7 @@ class ApiResponse:
 
 
 ================================================================================
-[  32/ 171] 🐍 PYTHON FILE: app\core\monitoring\__init__.py
+[  31/ 170] 🐍 PYTHON FILE: app\core\monitoring\__init__.py
 📏 SIZE: 435 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -6512,7 +6183,7 @@ __all__ = [
 
 
 ================================================================================
-[  33/ 171] 🐍 PYTHON FILE: app\core\monitoring\system_monitor.py
+[  32/ 170] 🐍 PYTHON FILE: app\core\monitoring\system_monitor.py
 📏 SIZE: 4,818 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -6647,7 +6318,7 @@ system_monitor = SystemMonitor()
 
 
 ================================================================================
-[  34/ 171] 🐍 PYTHON FILE: app\core\security\__init__.py
+[  33/ 170] 🐍 PYTHON FILE: app\core\security\__init__.py
 📏 SIZE: 3,908 bytes
 🕐 MODIFIED: 2026-10-29 18:04:32
 
@@ -6772,7 +6443,7 @@ __all__ = [
 
 
 ================================================================================
-[  35/ 171] 🐍 PYTHON FILE: app\core\security\encryption.py
+[  34/ 170] 🐍 PYTHON FILE: app\core\security\encryption.py
 📏 SIZE: 10,692 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -7059,7 +6730,7 @@ class DataProtector:
 
 
 ================================================================================
-[  36/ 171] 🐍 PYTHON FILE: app\core\security\ip_blacklist.py
+[  35/ 170] 🐍 PYTHON FILE: app\core\security\ip_blacklist.py
 📏 SIZE: 8,159 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -7292,7 +6963,7 @@ ip_blacklist = IPBlacklistManager()
 
 
 ================================================================================
-[  37/ 171] 🐍 PYTHON FILE: app\core\security\rate_limiter.py
+[  36/ 170] 🐍 PYTHON FILE: app\core\security\rate_limiter.py
 📏 SIZE: 2,082 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -7361,7 +7032,7 @@ rate_limiter = RateLimiter()
 
 
 ================================================================================
-[  38/ 171] 🐍 PYTHON FILE: app\core\security\security.py
+[  37/ 170] 🐍 PYTHON FILE: app\core\security\security.py
 📏 SIZE: 2,634 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -7442,7 +7113,7 @@ def create_refresh_token(data: dict):
 
 
 ================================================================================
-[  39/ 171] 🐍 PYTHON FILE: app\core\security\security_middleware.py
+[  38/ 170] 🐍 PYTHON FILE: app\core\security\security_middleware.py
 📏 SIZE: 15,394 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -7838,7 +7509,7 @@ print("✅ Security Middleware Loaded Successfully - Using Unified Collections")
 
 
 ================================================================================
-[  40/ 171] 🐍 PYTHON FILE: app\core\services\__init__.py
+[  39/ 170] 🐍 PYTHON FILE: app\core\services\__init__.py
 📏 SIZE: 1,659 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -7919,9 +7590,9 @@ __all__ = [
 
 
 ================================================================================
-[  41/ 171] 🐍 PYTHON FILE: app\core\services\cloudinary.py
-📏 SIZE: 25,124 bytes
-🕐 MODIFIED: 2026-11-11 14:38:45
+[  40/ 170] 🐍 PYTHON FILE: app\core\services\cloudinary.py
+📏 SIZE: 25,114 bytes
+🕐 MODIFIED: 2026-11-11 16:49:40
 
 ================================================================================
 
@@ -7975,7 +7646,7 @@ def parse_cloudinary_url(url: str) -> Optional[Dict[str, Any]]:
     ✅ CRITICAL FIX: Parse a Cloudinary URL to extract components.
     
     Handles URLs like:
-    https://res.cloudinary.com/du64hubaf/image/authenticated/s--AR9AIwnK--/v1/RojgarNest_uploads/users_data/user/file.pdf
+    https://res.cloudinary.com/du64hubaf/image/authenticated/s--AR9AIwnK--/v1/sevanext_uploads/users_data/user/file.pdf
     
     Returns:
     {
@@ -7983,7 +7654,7 @@ def parse_cloudinary_url(url: str) -> Optional[Dict[str, Any]]:
         'resource_type': 'image',
         'type': 'authenticated',
         'version': 'v1',
-        'public_id': 'RojgarNest_uploads/users_data/user/file',
+        'public_id': 'sevanext_uploads/users_data/user/file',
         'format': 'pdf',
         'is_authenticated': True
     }
@@ -8491,7 +8162,7 @@ async def upload_payment_screenshot(
     name_without_ext = Path(original_filename).stem
     safe_name = "".join(c for c in name_without_ext if c.isalnum() or c in '._-')[:50]
     
-    folder = f"RojgarNest_uploads/users_data/{username}/payment"
+    folder = f"sevanext_uploads/users_data/{username}/payment"
     public_id = f"{folder}/{timestamp}_{payment_id}_{safe_name}"
     public_id = public_id.replace("//", "/")
     
@@ -8544,7 +8215,7 @@ async def upload_user_document(
 ) -> Dict[str, Any]:
     """
     Upload user document to Cloudinary under:
-        RojgarNest_uploads/users_data/{username}/{document_type}/
+        sevanext_uploads/users_data/{username}/{document_type}/
     """
     logger.info(f"📤 Uploading user document: {file.filename}")
     
@@ -8561,7 +8232,7 @@ async def upload_user_document(
         
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         
-        cloudinary_folder = f"RojgarNest_uploads/users_data/{username}/{document_type}"
+        cloudinary_folder = f"sevanext_uploads/users_data/{username}/{document_type}"
         
         original_filename = file.filename or "document"
         name_without_ext = Path(original_filename).stem
@@ -8679,7 +8350,7 @@ logger.info("=" * 60)
 
 
 ================================================================================
-[  42/ 171] 🐍 PYTHON FILE: app\core\services\dependencies.py
+[  41/ 170] 🐍 PYTHON FILE: app\core\services\dependencies.py
 📏 SIZE: 3,899 bytes
 🕐 MODIFIED: 2026-10-31 08:40:24
 
@@ -8801,9 +8472,9 @@ def role_required(allowed_roles: Union[str, List[str]]):
 
 
 ================================================================================
-[  43/ 171] 🐍 PYTHON FILE: app\core\services\email.py
-📏 SIZE: 41,501 bytes
-🕐 MODIFIED: 2026-11-11 14:38:45
+[  42/ 170] 🐍 PYTHON FILE: app\core\services\email.py
+📏 SIZE: 41,489 bytes
+🕐 MODIFIED: 2026-11-11 16:49:40
 
 ================================================================================
 
@@ -9486,7 +9157,7 @@ async def send_application_status_email(
         f"Status: {status}\n"
         f"Application Number: {reference_id}\n"
         f"Organization: {organization}\n\n"
-        f"Track your status on https://www.rojgarnest.com\n"
+        f"Track your status on https://www.sevanext.com\n"
     )
 
     logger.info(
@@ -9552,7 +9223,7 @@ def send_application_status_email_sync(
         f"Status: {status}\n"
         f"Application Number: {reference_id}\n"
         f"Organization: {organization}\n\n"
-        f"Track your status on https://www.rojgarnest.com\n"
+        f"Track your status on https://www.sevanext.com\n"
     )
 
     logger.info(
@@ -9995,10 +9666,10 @@ def build_modern_ai_notification_email(
           <div class="brand">{footer_icon} SevaNext</div>
           <div>© 2026 SevaNext — Next-Gen AI Career, Service & Schemes Portal</div>
           <div class="links">
-            <a href="https://www.rojgarnest.com">Home</a> |
-            <a href="https://www.rojgarnest.com/jobs">Jobs</a> |
-            <a href="https://www.rojgarnest.com/schemes">Schemes</a> |
-            <a href="https://www.rojgarnest.com/support">Support</a>
+            <a href="https://www.sevanext.com">Home</a> |
+            <a href="https://www.sevanext.com/jobs">Jobs</a> |
+            <a href="https://www.sevanext.com/schemes">Schemes</a> |
+            <a href="https://www.sevanext.com/support">Support</a>
           </div>
           <div class="social-row">
             <span>📘</span>
@@ -10029,7 +9700,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  44/ 171] 🐍 PYTHON FILE: app\core\services\google_drive.py
+[  43/ 170] 🐍 PYTHON FILE: app\core\services\google_drive.py
 📏 SIZE: 11,966 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -10321,7 +9992,7 @@ google_drive_service = GoogleDriveService()
 
 
 ================================================================================
-[  45/ 171] 🐍 PYTHON FILE: app\core\services\mobile_api.py
+[  44/ 170] 🐍 PYTHON FILE: app\core\services\mobile_api.py
 📏 SIZE: 4,751 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -10462,7 +10133,7 @@ print("✅ Mobile API routes loaded")
 
 
 ================================================================================
-[  46/ 171] 🐍 PYTHON FILE: app\core\services\notification_dispatcher.py
+[  45/ 170] 🐍 PYTHON FILE: app\core\services\notification_dispatcher.py
 📏 SIZE: 19,999 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -10963,7 +10634,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  47/ 171] 🐍 PYTHON FILE: app\core\services\sms.py
+[  46/ 170] 🐍 PYTHON FILE: app\core\services\sms.py
 📏 SIZE: 31,042 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -11752,7 +11423,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  48/ 171] 🐍 PYTHON FILE: app\core\services\whatsapp.py
+[  47/ 170] 🐍 PYTHON FILE: app\core\services\whatsapp.py
 📏 SIZE: 14,374 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -12122,7 +11793,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  49/ 171] 🐍 PYTHON FILE: app\core\task\__init__.py
+[  48/ 170] 🐍 PYTHON FILE: app\core\task\__init__.py
 📏 SIZE: 154 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -12139,7 +11810,7 @@ __all__ = ['auto_scheduler']
 
 
 ================================================================================
-[  50/ 171] 🐍 PYTHON FILE: app\core\task\auto_scheduler.py
+[  49/ 170] 🐍 PYTHON FILE: app\core\task\auto_scheduler.py
 📏 SIZE: 13,062 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -12485,7 +12156,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  51/ 171] 🐍 PYTHON FILE: app\core\utils\__init__.py
+[  50/ 170] 🐍 PYTHON FILE: app\core\utils\__init__.py
 📏 SIZE: 1,152 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -12535,7 +12206,7 @@ __all__ = [
 
 
 ================================================================================
-[  52/ 171] 🐍 PYTHON FILE: app\core\utils\application_number_generator.py
+[  51/ 170] 🐍 PYTHON FILE: app\core\utils\application_number_generator.py
 📏 SIZE: 9,171 bytes
 🕐 MODIFIED: 2026-11-05 08:36:03
 
@@ -12817,7 +12488,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  53/ 171] 🐍 PYTHON FILE: app\core\utils\config.py
+[  52/ 170] 🐍 PYTHON FILE: app\core\utils\config.py
 📏 SIZE: 3,307 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -12926,7 +12597,7 @@ settings = Settings()
 
 
 ================================================================================
-[  54/ 171] 🐍 PYTHON FILE: app\core\utils\constants.py
+[  53/ 170] 🐍 PYTHON FILE: app\core\utils\constants.py
 📏 SIZE: 938 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -12983,7 +12654,7 @@ CACHE_TTL = {
 
 
 ================================================================================
-[  55/ 171] 🐍 PYTHON FILE: app\core\utils\decorators.py
+[  54/ 170] 🐍 PYTHON FILE: app\core\utils\decorators.py
 📏 SIZE: 1,515 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -13034,7 +12705,7 @@ def retry_on_failure(max_retries: int = 3, delay: int = 1):
 
 
 ================================================================================
-[  56/ 171] 🐍 PYTHON FILE: app\core\utils\exceptions.py
+[  55/ 170] 🐍 PYTHON FILE: app\core\utils\exceptions.py
 📏 SIZE: 1,232 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -13071,7 +12742,7 @@ class ForbiddenException(CustomException):
 
 
 ================================================================================
-[  57/ 171] 🐍 PYTHON FILE: app\core\utils\helpers.py
+[  56/ 170] 🐍 PYTHON FILE: app\core\utils\helpers.py
 📏 SIZE: 568 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -13101,7 +12772,7 @@ def clean_text(text: str) -> str:
 
 
 ================================================================================
-[  58/ 171] 🐍 PYTHON FILE: app\core\utils\logger.py
+[  57/ 170] 🐍 PYTHON FILE: app\core\utils\logger.py
 📏 SIZE: 175 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -13118,7 +12789,7 @@ logger = logging.getLogger("SevaNext")
 
 
 ================================================================================
-[  59/ 171] 🐍 PYTHON FILE: app\core\utils\otp_logger.py
+[  58/ 170] 🐍 PYTHON FILE: app\core\utils\otp_logger.py
 📏 SIZE: 12,782 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -13433,7 +13104,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  60/ 171] 🐍 PYTHON FILE: app\core\utils\validators.py
+[  59/ 170] 🐍 PYTHON FILE: app\core\utils\validators.py
 📏 SIZE: 710 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -13465,7 +13136,7 @@ def validate_password(password: str) -> bool:
 
 
 ================================================================================
-[  61/ 171] 🐍 PYTHON FILE: app\db\career_data_manager.py
+[  60/ 170] 🐍 PYTHON FILE: app\db\career_data_manager.py
 📏 SIZE: 17,785 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -13921,7 +13592,7 @@ career_data_manager = CareerDataManager()
 
 
 ================================================================================
-[  62/ 171] 🐍 PYTHON FILE: app\db\connection.py
+[  61/ 170] 🐍 PYTHON FILE: app\db\connection.py
 📏 SIZE: 13,226 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -14255,7 +13926,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  63/ 171] 🐍 PYTHON FILE: app\db\indexes.py
+[  62/ 170] 🐍 PYTHON FILE: app\db\indexes.py
 📏 SIZE: 7,694 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -14448,7 +14119,7 @@ async def setup_all_indexes() -> Dict[str, Any]:
 
 
 ================================================================================
-[  64/ 171] 🐍 PYTHON FILE: app\db\session_manager.py
+[  63/ 170] 🐍 PYTHON FILE: app\db\session_manager.py
 📏 SIZE: 12,611 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -14808,9 +14479,9 @@ print("=" * 60)
 
 
 ================================================================================
-[  65/ 171] 🐍 PYTHON FILE: app\main.py
-📏 SIZE: 26,693 bytes
-🕐 MODIFIED: 2026-11-11 14:38:45
+[  64/ 170] 🐍 PYTHON FILE: app\main.py
+📏 SIZE: 26,689 bytes
+🕐 MODIFIED: 2026-11-11 16:49:39
 
 ================================================================================
 
@@ -15282,8 +14953,8 @@ app.add_middleware(
         "http://localhost:8081",
         "http://127.0.0.1:8081",
         # Production
-        "https://www.rojgarnest.com",
-        "https://rojgarnest.com",
+        "https://www.sevanext.com",
+        "https://sevanext.com",
     ],
     allow_origin_regex=r"https://.*\.(up\.railway\.app|onrender\.com|vercel\.app|netlify\.app)",
     allow_credentials=True,
@@ -15588,7 +15259,7 @@ print("=" * 60)
 
 
 ================================================================================
-[  66/ 171] 🐍 PYTHON FILE: app\models\ai_insights_model.py
+[  65/ 170] 🐍 PYTHON FILE: app\models\ai_insights_model.py
 📏 SIZE: 3,082 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -15691,7 +15362,7 @@ print("✅ AI Insights Model Loaded - NO TTL")
 
 
 ================================================================================
-[  67/ 171] 🐍 PYTHON FILE: app\models\application_model.py
+[  66/ 170] 🐍 PYTHON FILE: app\models\application_model.py
 📏 SIZE: 9,139 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -15923,7 +15594,7 @@ print("✅ Application Model Updated - Uses status='saved' only, apply_mode remo
 
 
 ================================================================================
-[  68/ 171] 🐍 PYTHON FILE: app\models\auth_model.py
+[  67/ 170] 🐍 PYTHON FILE: app\models\auth_model.py
 📏 SIZE: 4,878 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -16063,7 +15734,7 @@ class AuthModel(BaseModel):
 
 
 ================================================================================
-[  69/ 171] 🐍 PYTHON FILE: app\models\job_model.py
+[  68/ 170] 🐍 PYTHON FILE: app\models\job_model.py
 📏 SIZE: 17,427 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -16544,7 +16215,7 @@ print("   Exported: JobModel, JobLocation, JobAttachment, IndividualPost, Multip
 
 
 ================================================================================
-[  70/ 171] 🐍 PYTHON FILE: app\models\notification_model.py
+[  69/ 170] 🐍 PYTHON FILE: app\models\notification_model.py
 📏 SIZE: 876 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -16585,7 +16256,7 @@ print("✅ Notification Model Loaded - NO TTL")
 
 
 ================================================================================
-[  71/ 171] 🐍 PYTHON FILE: app\models\payment_model.py
+[  70/ 170] 🐍 PYTHON FILE: app\models\payment_model.py
 📏 SIZE: 10,781 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -16900,7 +16571,7 @@ print("✅ Payment Model Loaded Successfully")
 
 
 ================================================================================
-[  72/ 171] 🐍 PYTHON FILE: app\models\profile_model.py
+[  71/ 170] 🐍 PYTHON FILE: app\models\profile_model.py
 📏 SIZE: 53,719 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -18198,7 +17869,7 @@ print(f"   Total Models: {len(__all__)}")
 
 
 ================================================================================
-[  73/ 171] 🐍 PYTHON FILE: app\models\security_model.py
+[  72/ 170] 🐍 PYTHON FILE: app\models\security_model.py
 📏 SIZE: 3,398 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -18321,7 +17992,7 @@ print("✅ Security Model Loaded - NO TTL")
 
 
 ================================================================================
-[  74/ 171] 🐍 PYTHON FILE: app\models\session_model.py
+[  73/ 170] 🐍 PYTHON FILE: app\models\session_model.py
 📏 SIZE: 3,448 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -18439,7 +18110,7 @@ print("   ✅ Max 3 sessions per user (oldest ARCHIVED)")
 
 
 ================================================================================
-[  75/ 171] 🐍 PYTHON FILE: app\models\unified_application_model.py
+[  74/ 170] 🐍 PYTHON FILE: app\models\unified_application_model.py
 📏 SIZE: 19,130 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -18924,7 +18595,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  76/ 171] 🐍 PYTHON FILE: app\modules\admin\AI\__init__.py
+[  75/ 170] 🐍 PYTHON FILE: app\modules\admin\AI\__init__.py
 📏 SIZE: 412 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -18947,7 +18618,7 @@ __all__ = [
 
 
 ================================================================================
-[  77/ 171] 🐍 PYTHON FILE: app\modules\admin\AI\ai_routes.py
+[  76/ 170] 🐍 PYTHON FILE: app\modules\admin\AI\ai_routes.py
 📏 SIZE: 7,037 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -19141,7 +18812,7 @@ async def admin_ranked_applications(
 
 
 ================================================================================
-[  78/ 171] 🐍 PYTHON FILE: app\modules\admin\AI\candidate_scoring.py
+[  77/ 170] 🐍 PYTHON FILE: app\modules\admin\AI\candidate_scoring.py
 📏 SIZE: 2,164 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -19218,7 +18889,7 @@ Return ONLY JSON:
 
 
 ================================================================================
-[  79/ 171] 🐍 PYTHON FILE: app\modules\admin\AI\fraud_detection.py
+[  78/ 170] 🐍 PYTHON FILE: app\modules\admin\AI\fraud_detection.py
 📏 SIZE: 1,828 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -19286,7 +18957,7 @@ Return ONLY JSON:
 
 
 ================================================================================
-[  80/ 171] 🐍 PYTHON FILE: app\modules\admin\AI\hiring_predictions.py
+[  79/ 170] 🐍 PYTHON FILE: app\modules\admin\AI\hiring_predictions.py
 📏 SIZE: 2,174 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -19360,7 +19031,7 @@ Return ONLY JSON:
 
 
 ================================================================================
-[  81/ 171] 🐍 PYTHON FILE: app\modules\admin\AI\resume_analyzer.py
+[  80/ 170] 🐍 PYTHON FILE: app\modules\admin\AI\resume_analyzer.py
 📏 SIZE: 1,864 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -19428,9 +19099,9 @@ Return ONLY JSON:
 
 
 ================================================================================
-[  82/ 171] 🐍 PYTHON FILE: app\modules\admin\routes.py
-📏 SIZE: 93,569 bytes
-🕐 MODIFIED: 2026-11-08 15:11:50
+[  81/ 170] 🐍 PYTHON FILE: app\modules\admin\routes.py
+📏 SIZE: 93,567 bytes
+🕐 MODIFIED: 2026-11-11 16:49:40
 
 ================================================================================
 
@@ -19494,7 +19165,7 @@ async def _get_admin_email(user: dict, db) -> str:
             auth_user = await db.auth.find_one({"_id": ObjectId(user_id)})
             if auth_user:
                 admin_email = auth_user.get("email")
-    return admin_email or "admin@rojgarnest.com"
+    return admin_email or "admin@sevanext.com"
 
 
 def _resolve_application_number(application: dict, fallback_id: str) -> str:
@@ -21682,7 +21353,7 @@ print("   ✅ NEW: application_number propagated to ALL notifications")
 
 
 ================================================================================
-[  83/ 171] 🐍 PYTHON FILE: app\modules\admin\schema.py
+[  82/ 170] 🐍 PYTHON FILE: app\modules\admin\schema.py
 📏 SIZE: 1,858 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -21752,7 +21423,7 @@ class BulkStatusUpdateSchema(BaseModel):
 
 
 ================================================================================
-[  84/ 171] 🐍 PYTHON FILE: app\modules\admin\service.py
+[  83/ 170] 🐍 PYTHON FILE: app\modules\admin\service.py
 📏 SIZE: 28,035 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -22516,7 +22187,7 @@ print("   ✅ Reports and analytics")
 
 
 ================================================================================
-[  85/ 171] 🐍 PYTHON FILE: app\modules\auth\routes.py
+[  84/ 170] 🐍 PYTHON FILE: app\modules\auth\routes.py
 📏 SIZE: 21,372 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -23107,7 +22778,7 @@ print("✅ Auth Routes Loaded - All login types with PERMANENT biometric storage
 
 
 ================================================================================
-[  86/ 171] 🐍 PYTHON FILE: app\modules\auth\schema.py
+[  85/ 170] 🐍 PYTHON FILE: app\modules\auth\schema.py
 📏 SIZE: 4,252 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -23252,7 +22923,7 @@ class UserRoleResponseSchema(BaseModel):
 
 
 ================================================================================
-[  87/ 171] 🐍 PYTHON FILE: app\modules\auth\service.py
+[  86/ 170] 🐍 PYTHON FILE: app\modules\auth\service.py
 📏 SIZE: 54,624 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -24733,7 +24404,7 @@ print("=" * 70)
 
 
 ================================================================================
-[  88/ 171] 🐍 PYTHON FILE: app\modules\auth\utils.py
+[  87/ 170] 🐍 PYTHON FILE: app\modules\auth\utils.py
 📏 SIZE: 454 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -24759,7 +24430,7 @@ def get_role_dashboard(role: str) -> str:
 
 
 ================================================================================
-[  89/ 171] 🐍 PYTHON FILE: app\modules\blockchain\routes.py
+[  88/ 170] 🐍 PYTHON FILE: app\modules\blockchain\routes.py
 📏 SIZE: 5,443 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -24930,7 +24601,7 @@ print("✅ Blockchain module loaded (Mock implementation)")
 
 
 ================================================================================
-[  90/ 171] 🐍 PYTHON FILE: app\modules\chat\websocket.py
+[  89/ 170] 🐍 PYTHON FILE: app\modules\chat\websocket.py
 📏 SIZE: 6,677 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -25140,7 +24811,7 @@ print("✅ Chat module loaded")
 
 
 ================================================================================
-[  91/ 171] 🐍 PYTHON FILE: app\modules\common\__init__.py
+[  90/ 170] 🐍 PYTHON FILE: app\modules\common\__init__.py
 📏 SIZE: 177 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -25154,7 +24825,7 @@ __all__ = ['get_ai_client', 'PROMPT_TEMPLATES']
 
 
 ================================================================================
-[  92/ 171] 🐍 PYTHON FILE: app\modules\common\ai_client.py
+[  91/ 170] 🐍 PYTHON FILE: app\modules\common\ai_client.py
 📏 SIZE: 383 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -25175,9 +24846,9 @@ def get_ai_client():
 
 
 ================================================================================
-[  93/ 171] 🐍 PYTHON FILE: app\modules\customadmin\routes.py
-📏 SIZE: 71,696 bytes
-🕐 MODIFIED: 2026-11-08 15:14:28
+[  92/ 170] 🐍 PYTHON FILE: app\modules\customadmin\routes.py
+📏 SIZE: 71,692 bytes
+🕐 MODIFIED: 2026-11-11 16:49:41
 
 ================================================================================
 
@@ -25266,7 +24937,7 @@ def custom_admin_required(current_user=Depends(get_current_user)):
 async def _get_admin_email(user: dict, db) -> str:
     """Get admin email from user dict or database"""
     if db is None:
-        return "customadmin@rojgarnest.com"
+        return "customadmin@sevanext.com"
 
     admin_email = user.get("email")
     if not admin_email:
@@ -25275,7 +24946,7 @@ async def _get_admin_email(user: dict, db) -> str:
             auth_user = await db.auth.find_one({"_id": ObjectId(user_id)})
             if auth_user:
                 admin_email = auth_user.get("email")
-    return admin_email or "customadmin@rojgarnest.com"
+    return admin_email or "customadmin@sevanext.com"
 
 
 def _resolve_application_number(application: dict, fallback_id: str) -> str:
@@ -27030,7 +26701,7 @@ print("      → email header shows YYYYMMDDSSSS, not the raw _id")
 
 
 ================================================================================
-[  94/ 171] 🐍 PYTHON FILE: app\modules\customadmin\service.py
+[  93/ 170] 🐍 PYTHON FILE: app\modules\customadmin\service.py
 📏 SIZE: 29,092 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -27796,7 +27467,7 @@ print("   ✅ Reports generation")
 
 
 ================================================================================
-[  95/ 171] 🐍 PYTHON FILE: app\modules\jobs\AI\__init__.py
+[  94/ 170] 🐍 PYTHON FILE: app\modules\jobs\AI\__init__.py
 📏 SIZE: 320 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -27817,7 +27488,7 @@ __all__ = [
 
 
 ================================================================================
-[  96/ 171] 🐍 PYTHON FILE: app\modules\jobs\AI\ai_routes.py
+[  95/ 170] 🐍 PYTHON FILE: app\modules\jobs\AI\ai_routes.py
 📏 SIZE: 23,489 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -28496,7 +28167,7 @@ print("✅ Jobs AI Routes Loaded - Real-time Analysis & Matching")
 
 
 ================================================================================
-[  97/ 171] 🐍 PYTHON FILE: app\modules\jobs\AI\fake_job_detector.py
+[  96/ 170] 🐍 PYTHON FILE: app\modules\jobs\AI\fake_job_detector.py
 📏 SIZE: 4,005 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -28618,7 +28289,7 @@ fake_job_detector = FakeJobDetectorAI()
 
 
 ================================================================================
-[  98/ 171] 🐍 PYTHON FILE: app\modules\jobs\AI\job_parser.py
+[  97/ 170] 🐍 PYTHON FILE: app\modules\jobs\AI\job_parser.py
 📏 SIZE: 2,348 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -28690,7 +28361,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[  99/ 171] 🐍 PYTHON FILE: app\modules\jobs\AI\salary_predictor.py
+[  98/ 170] 🐍 PYTHON FILE: app\modules\jobs\AI\salary_predictor.py
 📏 SIZE: 2,481 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -28770,7 +28441,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 100/ 171] 🐍 PYTHON FILE: app\modules\jobs\AI\ultra_career_ai.py
+[  99/ 170] 🐍 PYTHON FILE: app\modules\jobs\AI\ultra_career_ai.py
 📏 SIZE: 58,932 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -30102,7 +29773,7 @@ ultra_career_ai = UltraCareerAI()
 
 
 ================================================================================
-[ 101/ 171] 🐍 PYTHON FILE: app\modules\jobs\job_fetch.py
+[ 100/ 170] 🐍 PYTHON FILE: app\modules\jobs\job_fetch.py
 📏 SIZE: 27,598 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -30774,7 +30445,7 @@ print("✅ Job Fetch Module Loaded (With job_location and short location names)"
 
 
 ================================================================================
-[ 102/ 171] 🐍 PYTHON FILE: app\modules\jobs\routes.py
+[ 101/ 170] 🐍 PYTHON FILE: app\modules\jobs\routes.py
 📏 SIZE: 40,637 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -31844,7 +31515,7 @@ print("✅ NEW: color_type query param added to list_jobs")
 
 
 ================================================================================
-[ 103/ 171] 🐍 PYTHON FILE: app\modules\jobs\schema.py
+[ 102/ 170] 🐍 PYTHON FILE: app\modules\jobs\schema.py
 📏 SIZE: 1,832 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -31914,9 +31585,9 @@ class RecommendedJobResponse(BaseModel):
 
 
 ================================================================================
-[ 104/ 171] 🐍 PYTHON FILE: app\modules\jobs\service.py
-📏 SIZE: 73,423 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+[ 103/ 170] 🐍 PYTHON FILE: app\modules\jobs\service.py
+📏 SIZE: 73,411 bytes
+🕐 MODIFIED: 2026-11-11 16:49:41
 
 ================================================================================
 
@@ -32055,7 +31726,7 @@ class JobService:
                             admin_name = user.get("name", "")
 
             if not admin_email:
-                admin_email = "admin@rojgarnest.com"
+                admin_email = "admin@sevanext.com"
 
             use_current_location = job_dict.get("use_current_location", False)
 
@@ -32498,7 +32169,7 @@ class JobService:
                 "job_id": job_id,
                 "job_title": job.get("post_name", "Job Opportunity"),
                 "organization": job.get("organization", "Company"),
-                "added_by": job.get("added_by", "admin@rojgarnest.com"),
+                "added_by": job.get("added_by", "admin@sevanext.com"),
                 "applicant_email": user_email,
                 "applicant_name": applicant_name,
                 "user_email": user_email,
@@ -32635,7 +32306,7 @@ class JobService:
             job_id=job_id,
             job_title=job.get("post_name", "Job Opportunity"),
             organization=job.get("organization", "Company"),
-            added_by=job.get("added_by", "admin@rojgarnest.com"),
+            added_by=job.get("added_by", "admin@sevanext.com"),
             applicant_name=applicant_name,
             applicant_email=applicant_email,
             resume_url=application_data.resume_url,
@@ -32677,7 +32348,7 @@ class JobService:
                 "applicant_email": applicant_email
             },
             job,
-            job.get("added_by", "admin@rojgarnest.com")
+            job.get("added_by", "admin@sevanext.com")
         )
 
         return {
@@ -32783,7 +32454,7 @@ class JobService:
             job_id=job_id,
             job_title=job.get("post_name", "Job Opportunity"),
             organization=job.get("organization", "Company"),
-            added_by=job.get("added_by", "admin@rojgarnest.com"),
+            added_by=job.get("added_by", "admin@sevanext.com"),
             applicant_name=applicant_name,
             applicant_email=applicant_email,
             status="saved",
@@ -33196,7 +32867,7 @@ class JobService:
                 "applicant_email": applicant_email
             },
             job,
-            job.get("added_by", "admin@rojgarnest.com")
+            job.get("added_by", "admin@sevanext.com")
         )
 
         status_message = "Your application has been submitted successfully."
@@ -33659,7 +33330,7 @@ print("=" * 70)
 
 
 ================================================================================
-[ 105/ 171] 🐍 PYTHON FILE: app\modules\location\__init__.py
+[ 104/ 170] 🐍 PYTHON FILE: app\modules\location\__init__.py
 📏 SIZE: 283 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -33678,9 +33349,9 @@ __all__ = ['router', 'LocationService']
 
 
 ================================================================================
-[ 106/ 171] 🐍 PYTHON FILE: app\modules\location\routes.py
-📏 SIZE: 16,543 bytes
-🕐 MODIFIED: 2026-11-11 14:38:45
+[ 105/ 170] 🐍 PYTHON FILE: app\modules\location\routes.py
+📏 SIZE: 16,539 bytes
+🕐 MODIFIED: 2026-11-11 16:49:41
 
 ================================================================================
 
@@ -34117,7 +33788,7 @@ async def geocode_address(
                     "namedetails": 1,
                     "extratags": 1
                 },
-                headers={"User-Agent": "sevanext/1.0 (https://rojgarnest.com; support@rojgarnest.com)"}
+                headers={"User-Agent": "sevanext/1.0 (https://sevanext.com; support@sevanext.com)"}
             )
             
             if response.status_code == 200:
@@ -34184,7 +33855,7 @@ print("✅ Centralized Location Module Routes Loaded")
 
 
 ================================================================================
-[ 107/ 171] 🐍 PYTHON FILE: app\modules\location\schema.py
+[ 106/ 170] 🐍 PYTHON FILE: app\modules\location\schema.py
 📏 SIZE: 2,232 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -34264,9 +33935,9 @@ class LocationResponse(BaseModel):
 
 
 ================================================================================
-[ 108/ 171] 🐍 PYTHON FILE: app\modules\location\service.py
-📏 SIZE: 23,150 bytes
-🕐 MODIFIED: 2026-11-11 14:38:45
+[ 107/ 170] 🐍 PYTHON FILE: app\modules\location\service.py
+📏 SIZE: 23,148 bytes
+🕐 MODIFIED: 2026-11-11 16:49:41
 
 ================================================================================
 
@@ -34543,7 +34214,7 @@ class LocationService:
                         "extratags": 1,
                         "namedetails": 1
                     },
-                    headers={"User-Agent": "sevanext/1.0 (https://rojgarnest.com)"}
+                    headers={"User-Agent": "sevanext/1.0 (https://sevanext.com)"}
                 )
                 
                 if response.status_code == 200:
@@ -34859,7 +34530,7 @@ print("✅ Centralized Location Service Loaded - Can be called from any module")
 
 
 ================================================================================
-[ 109/ 171] 🐍 PYTHON FILE: app\modules\market\AI\__init__.py
+[ 108/ 170] 🐍 PYTHON FILE: app\modules\market\AI\__init__.py
 📏 SIZE: 106 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -34872,7 +34543,7 @@ __all__ = ['ai_router']
 
 
 ================================================================================
-[ 110/ 171] 🐍 PYTHON FILE: app\modules\market\AI\ai_routes.py
+[ 109/ 170] 🐍 PYTHON FILE: app\modules\market\AI\ai_routes.py
 📏 SIZE: 1,925 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -34937,7 +34608,7 @@ async def skill_forecast(
 
 
 ================================================================================
-[ 111/ 171] 🐍 PYTHON FILE: app\modules\market\routes.py
+[ 110/ 170] 🐍 PYTHON FILE: app\modules\market\routes.py
 📏 SIZE: 12,245 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -35307,7 +34978,7 @@ print("✅ Real-Time Market Intelligence Routes loaded - World's First Live Mark
 
 
 ================================================================================
-[ 112/ 171] 🐍 PYTHON FILE: app\modules\notification\AI\__init__.py
+[ 111/ 170] 🐍 PYTHON FILE: app\modules\notification\AI\__init__.py
 📏 SIZE: 112 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -35320,7 +34991,7 @@ __all__ = ['ai_router']
 
 
 ================================================================================
-[ 113/ 171] 🐍 PYTHON FILE: app\modules\notification\AI\ai_routes.py
+[ 112/ 170] 🐍 PYTHON FILE: app\modules\notification\AI\ai_routes.py
 📏 SIZE: 3,086 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -35426,7 +35097,7 @@ print("✅ Notification AI Routes Loaded")
 
 
 ================================================================================
-[ 114/ 171] 🐍 PYTHON FILE: app\modules\notification\routes.py
+[ 113/ 170] 🐍 PYTHON FILE: app\modules\notification\routes.py
 📏 SIZE: 7,391 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -35684,7 +35355,7 @@ print("✅ Notification Routes Loaded")
 
 
 ================================================================================
-[ 115/ 171] 🐍 PYTHON FILE: app\modules\notification\schema.py
+[ 114/ 170] 🐍 PYTHON FILE: app\modules\notification\schema.py
 📏 SIZE: 929 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -35730,7 +35401,7 @@ class NotificationResponseSchema(BaseModel):
 
 
 ================================================================================
-[ 116/ 171] 🐍 PYTHON FILE: app\modules\notification\service.py
+[ 115/ 170] 🐍 PYTHON FILE: app\modules\notification\service.py
 📏 SIZE: 110,412 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -38526,7 +38197,7 @@ print("        a raw DB id")
 
 
 ================================================================================
-[ 117/ 171] 🐍 PYTHON FILE: app\modules\notification\watcher.py
+[ 116/ 170] 🐍 PYTHON FILE: app\modules\notification\watcher.py
 📏 SIZE: 1,183 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -38560,7 +38231,7 @@ async def start_job_watcher():
 
 
 ================================================================================
-[ 118/ 171] 🐍 PYTHON FILE: app\modules\notification\websocket.py
+[ 117/ 170] 🐍 PYTHON FILE: app\modules\notification\websocket.py
 📏 SIZE: 10,064 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -38841,7 +38512,7 @@ print("✅ WebSocket Manager Loaded - Fixed token verification")
 
 
 ================================================================================
-[ 119/ 171] 🐍 PYTHON FILE: app\modules\payment\phonepe_sdk_service.py
+[ 118/ 170] 🐍 PYTHON FILE: app\modules\payment\phonepe_sdk_service.py
 📏 SIZE: 8,094 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -39050,7 +38721,7 @@ phonepe_sdk_service = PhonePeSDKService()
 
 
 ================================================================================
-[ 120/ 171] 🐍 PYTHON FILE: app\modules\payment\phonepe_simple_service.py
+[ 119/ 170] 🐍 PYTHON FILE: app\modules\payment\phonepe_simple_service.py
 📏 SIZE: 5,447 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -39198,7 +38869,7 @@ phonepe_simple_service = PhonePeSimpleService()
 
 
 ================================================================================
-[ 121/ 171] 🐍 PYTHON FILE: app\modules\payment\razorpay_integration.py
+[ 120/ 170] 🐍 PYTHON FILE: app\modules\payment\razorpay_integration.py
 📏 SIZE: 36,067 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -40022,9 +39693,9 @@ print("=" * 70)
 
 
 ================================================================================
-[ 122/ 171] 🐍 PYTHON FILE: app\modules\payment\routes.py
-📏 SIZE: 140,599 bytes
-🕐 MODIFIED: 2026-10-23 12:02:32
+[ 121/ 170] 🐍 PYTHON FILE: app\modules\payment\routes.py
+📏 SIZE: 140,583 bytes
+🕐 MODIFIED: 2026-11-11 16:49:41
 
 ================================================================================
 
@@ -40434,7 +40105,7 @@ async def create_razorpay_order(
     category_used = data.category_used or "none"
     job_title = ""
     organization = ""
-    added_by = "admin@rojgarnest.com"
+    added_by = "admin@sevanext.com"
     scheme_name = ""
     scheme_name_hindi = ""
     service_name = ""
@@ -40456,7 +40127,7 @@ async def create_razorpay_order(
 
             job_title = data.job_title or job.get("post_name", "Job Application")
             organization = job.get("organization", "Company")
-            added_by = job.get("added_by", "admin@rojgarnest.com")
+            added_by = job.get("added_by", "admin@sevanext.com")
 
             existing = await db.applications.find_one({
                 "job_id": data.job_id,
@@ -40622,7 +40293,7 @@ async def create_razorpay_order(
 
             job_title = data.job_title or job.get("post_name", "Job Application")
             organization = job.get("organization", "Company")
-            added_by = job.get("added_by", "admin@rojgarnest.com")
+            added_by = job.get("added_by", "admin@sevanext.com")
 
             existing = await db.applications.find_one({
                 "job_id": data.job_id,
@@ -41038,7 +40709,7 @@ async def verify_razorpay_payment(
     job_id = payment_record.get("job_id", "")
     job_title = payment_record.get("job_title", "")
     organization = payment_record.get("organization", "")
-    added_by = payment_record.get("added_by", "admin@rojgarnest.com")
+    added_by = payment_record.get("added_by", "admin@sevanext.com")
     service_id = payment_record.get("service_id", "")
     service_type = payment_record.get("service_type", "")
     sub_type_id = payment_record.get("sub_type_id", "")
@@ -42175,7 +41846,7 @@ async def verify_payment_no_signature(
             job_id = payment_record.get("job_id", "")
             job_title = payment_record.get("job_title", "")
             organization = payment_record.get("organization", "")
-            added_by = payment_record.get("added_by", "admin@rojgarnest.com")
+            added_by = payment_record.get("added_by", "admin@sevanext.com")
             service_id = payment_record.get("service_id", "")
             sub_type_id = payment_record.get("sub_type_id", "")
             sub_service_name = payment_record.get("sub_service_name", "")
@@ -42222,7 +41893,7 @@ async def verify_payment_no_signature(
             job_id = order_notes.get("job_id", "")
             job_title = order_notes.get("job_title", "")
             organization = order_notes.get("organization", "")
-            added_by = order_notes.get("added_by", "admin@rojgarnest.com")
+            added_by = order_notes.get("added_by", "admin@sevanext.com")
             service_id = order_notes.get("service_id", "")
             sub_type_id = order_notes.get("sub_type_id", "")
             sub_service_name = order_notes.get("sub_service_name", "")
@@ -42812,7 +42483,7 @@ async def razorpay_webhook(
                         job_id = payment_record.get("job_id", "")
                         job_title = payment_record.get("job_title", "")
                         organization = payment_record.get("organization", "")
-                        added_by = payment_record.get("added_by", "admin@rojgarnest.com")
+                        added_by = payment_record.get("added_by", "admin@sevanext.com")
                         service_id = payment_record.get("service_id", "")
                         sub_type_id = payment_record.get("sub_type_id", "")
                         service_name = payment_record.get("service_name", "")
@@ -42857,7 +42528,7 @@ async def razorpay_webhook(
                         job_id = order_notes.get("job_id", "")
                         job_title = order_notes.get("job_title", "")
                         organization = order_notes.get("organization", "")
-                        added_by = order_notes.get("added_by", "admin@rojgarnest.com")
+                        added_by = order_notes.get("added_by", "admin@sevanext.com")
                         service_id = order_notes.get("service_id", "")
                         sub_type_id = order_notes.get("sub_type_id", "")
                         service_name = order_notes.get("service_name", "")
@@ -43139,7 +42810,7 @@ print("=" * 70)
 
 
 ================================================================================
-[ 123/ 171] 🐍 PYTHON FILE: app\modules\resume\AI\__init__.py
+[ 122/ 170] 🐍 PYTHON FILE: app\modules\resume\AI\__init__.py
 📏 SIZE: 2,045 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -43213,7 +42884,7 @@ __all__ = [
 
 
 ================================================================================
-[ 124/ 171] 🐍 PYTHON FILE: app\modules\resume\AI\ai_routes.py
+[ 123/ 170] 🐍 PYTHON FILE: app\modules\resume\AI\ai_routes.py
 📏 SIZE: 9,788 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -43501,7 +43172,7 @@ async def quick_score(current_user: dict = Depends(get_current_user)):
 
 
 ================================================================================
-[ 125/ 171] 🐍 PYTHON FILE: app\modules\resume\AI\ats_optimizer.py
+[ 124/ 170] 🐍 PYTHON FILE: app\modules\resume\AI\ats_optimizer.py
 📏 SIZE: 26,858 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -44175,7 +43846,7 @@ ats_optimizer = ATSOptimizer()
 
 
 ================================================================================
-[ 126/ 171] 🐍 PYTHON FILE: app\modules\resume\AI\resume_enhancer.py
+[ 125/ 170] 🐍 PYTHON FILE: app\modules\resume\AI\resume_enhancer.py
 📏 SIZE: 3,503 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -44288,7 +43959,7 @@ resume_enhancer = ResumeEnhancer()
 
 
 ================================================================================
-[ 127/ 171] 🐍 PYTHON FILE: app\modules\resume\AI\resume_generator.py
+[ 126/ 170] 🐍 PYTHON FILE: app\modules\resume\AI\resume_generator.py
 📏 SIZE: 28,735 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -45030,7 +44701,7 @@ resume_generator = ResumeGenerator()
 
 
 ================================================================================
-[ 128/ 171] 🐍 PYTHON FILE: app\modules\resume\AI\resume_parser.py
+[ 127/ 170] 🐍 PYTHON FILE: app\modules\resume\AI\resume_parser.py
 📏 SIZE: 2,373 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -45111,9 +44782,9 @@ RESUME CONTENT: {content[:2000]}
 
 
 ================================================================================
-[ 129/ 171] 🐍 PYTHON FILE: app\modules\resume\routes.py
-📏 SIZE: 14,008 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+[ 128/ 170] 🐍 PYTHON FILE: app\modules\resume\routes.py
+📏 SIZE: 14,006 bytes
+🕐 MODIFIED: 2026-11-11 16:49:41
 
 ================================================================================
 
@@ -45157,7 +44828,7 @@ async def upload_user_resume(
 ):
     """
     User uploads resume to Cloudinary
-    Folder: RojgarNest_uploads/users_data/{username}/resume/
+    Folder: sevanext_uploads/users_data/{username}/resume/
     """
     if not file or not file.filename:
         raise HTTPException(status_code=400, detail="Resume file is required")
@@ -45543,7 +45214,7 @@ print("✅ NEW: /profile-photo — lightweight current photo URL endpoint")
 
 
 ================================================================================
-[ 130/ 171] 🐍 PYTHON FILE: app\modules\resume\schema.py
+[ 129/ 170] 🐍 PYTHON FILE: app\modules\resume\schema.py
 📏 SIZE: 557 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -45576,7 +45247,7 @@ class ResumeListResponse(BaseModel):
 
 
 ================================================================================
-[ 131/ 171] 🐍 PYTHON FILE: app\modules\resume\service.py
+[ 130/ 170] 🐍 PYTHON FILE: app\modules\resume\service.py
 📏 SIZE: 48,635 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -46713,7 +46384,7 @@ print("✅ Resume Service Loaded - Complete Profile Resume View Available")
 
 
 ================================================================================
-[ 132/ 171] 🐍 PYTHON FILE: app\modules\schemes\__init__.py
+[ 131/ 170] 🐍 PYTHON FILE: app\modules\schemes\__init__.py
 📏 SIZE: 255 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -46732,7 +46403,7 @@ __all__ = ['router', 'SchemeService']
 
 
 ================================================================================
-[ 133/ 171] 🐍 PYTHON FILE: app\modules\schemes\routes.py
+[ 132/ 170] 🐍 PYTHON FILE: app\modules\schemes\routes.py
 📏 SIZE: 47,049 bytes
 🕐 MODIFIED: 2026-11-08 11:08:00
 
@@ -47877,7 +47548,7 @@ print("=" * 70)
 
 
 ================================================================================
-[ 134/ 171] 🐍 PYTHON FILE: app\modules\schemes\schemas.py
+[ 133/ 170] 🐍 PYTHON FILE: app\modules\schemes\schemas.py
 📏 SIZE: 13,203 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -48265,7 +47936,7 @@ print("✅ Schemes Schemas Loaded — scheme_documents support")
 
 
 ================================================================================
-[ 135/ 171] 🐍 PYTHON FILE: app\modules\schemes\service.py
+[ 134/ 170] 🐍 PYTHON FILE: app\modules\schemes\service.py
 📏 SIZE: 64,000 bytes
 🕐 MODIFIED: 2026-10-22 18:17:35
 
@@ -49900,7 +49571,7 @@ print("   ✅ Dedicated get_application_documents() merges both arrays")
 
 
 ================================================================================
-[ 136/ 171] 🐍 PYTHON FILE: app\modules\services\__init__.py
+[ 135/ 170] 🐍 PYTHON FILE: app\modules\services\__init__.py
 📏 SIZE: 200 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -49918,7 +49589,7 @@ __all__ = ['router', 'ServiceService']
 
 
 ================================================================================
-[ 137/ 171] 🐍 PYTHON FILE: app\modules\services\models\service_types.py
+[ 136/ 170] 🐍 PYTHON FILE: app\modules\services\models\service_types.py
 📏 SIZE: 18,287 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -50353,7 +50024,7 @@ class ServiceMasterData:
 
 
 ================================================================================
-[ 138/ 171] 🐍 PYTHON FILE: app\modules\services\routes.py
+[ 137/ 170] 🐍 PYTHON FILE: app\modules\services\routes.py
 📏 SIZE: 48,775 bytes
 🕐 MODIFIED: 2026-11-08 11:06:30
 
@@ -51631,7 +51302,7 @@ print("   ✅ NEW: Previously-missing user notifications now fire")
 
 
 ================================================================================
-[ 139/ 171] 🐍 PYTHON FILE: app\modules\services\schema.py
+[ 138/ 170] 🐍 PYTHON FILE: app\modules\services\schema.py
 📏 SIZE: 5,743 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -51813,7 +51484,7 @@ print("✅ Services Schema Loaded - With CONFIRMED_APPLICATION and UPDATE_APPLIC
 
 
 ================================================================================
-[ 140/ 171] 🐍 PYTHON FILE: app\modules\services\service.py
+[ 139/ 170] 🐍 PYTHON FILE: app\modules\services\service.py
 📏 SIZE: 48,954 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -52970,7 +52641,7 @@ print("=" * 70)
 
 
 ================================================================================
-[ 141/ 171] 🐍 PYTHON FILE: app\modules\superadmin\AI\__init__.py
+[ 140/ 170] 🐍 PYTHON FILE: app\modules\superadmin\AI\__init__.py
 📏 SIZE: 433 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -52993,7 +52664,7 @@ __all__ = [
 
 
 ================================================================================
-[ 142/ 171] 🐍 PYTHON FILE: app\modules\superadmin\AI\ai_routes.py
+[ 141/ 170] 🐍 PYTHON FILE: app\modules\superadmin\AI\ai_routes.py
 📏 SIZE: 4,037 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -53112,7 +52783,7 @@ async def superadmin_sentiment_analysis(
 
 
 ================================================================================
-[ 143/ 171] 🐍 PYTHON FILE: app\modules\superadmin\AI\anomaly_detection.py
+[ 142/ 170] 🐍 PYTHON FILE: app\modules\superadmin\AI\anomaly_detection.py
 📏 SIZE: 2,307 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -53188,7 +52859,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 144/ 171] 🐍 PYTHON FILE: app\modules\superadmin\AI\growth_predictor.py
+[ 143/ 170] 🐍 PYTHON FILE: app\modules\superadmin\AI\growth_predictor.py
 📏 SIZE: 2,302 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -53262,7 +52933,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 145/ 171] 🐍 PYTHON FILE: app\modules\superadmin\AI\platform_analytics.py
+[ 144/ 170] 🐍 PYTHON FILE: app\modules\superadmin\AI\platform_analytics.py
 📏 SIZE: 2,387 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -53335,7 +53006,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 146/ 171] 🐍 PYTHON FILE: app\modules\superadmin\AI\sentiment_analysis.py
+[ 145/ 170] 🐍 PYTHON FILE: app\modules\superadmin\AI\sentiment_analysis.py
 📏 SIZE: 4,412 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -53463,7 +53134,7 @@ Return ONLY valid JSON:
 
 
 ================================================================================
-[ 147/ 171] 🐍 PYTHON FILE: app\modules\superadmin\routes.py
+[ 146/ 170] 🐍 PYTHON FILE: app\modules\superadmin\routes.py
 📏 SIZE: 10,637 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -53766,7 +53437,7 @@ print("✅ SuperAdmin Routes Loaded - AUTH DELETION DISABLED (Soft Delete Only)"
 
 
 ================================================================================
-[ 148/ 171] 🐍 PYTHON FILE: app\modules\superadmin\schema.py
+[ 147/ 170] 🐍 PYTHON FILE: app\modules\superadmin\schema.py
 📏 SIZE: 1,427 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -53825,7 +53496,7 @@ class AISmartDashboardResponse(BaseModel):
 
 
 ================================================================================
-[ 149/ 171] 🐍 PYTHON FILE: app\modules\superadmin\service.py
+[ 148/ 170] 🐍 PYTHON FILE: app\modules\superadmin\service.py
 📏 SIZE: 15,167 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -54225,7 +53896,7 @@ print("   ✅ All user records are PERMANENT")
 
 
 ================================================================================
-[ 150/ 171] 🐍 PYTHON FILE: app\modules\support\routes.py
+[ 149/ 170] 🐍 PYTHON FILE: app\modules\support\routes.py
 📏 SIZE: 10,926 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -54556,7 +54227,7 @@ print("✅ Support Routes Loaded")
 
 
 ================================================================================
-[ 151/ 171] 🐍 PYTHON FILE: app\modules\user\AI\__init__.py
+[ 150/ 170] 🐍 PYTHON FILE: app\modules\user\AI\__init__.py
 📏 SIZE: 291 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -54572,7 +54243,7 @@ __all__ = ['AICareerAnalyzer', 'AIJobMatcher', 'AISkillAnalyzer', 'ai_router']
 
 
 ================================================================================
-[ 152/ 171] 🐍 PYTHON FILE: app\modules\user\AI\ai_routes.py
+[ 151/ 170] 🐍 PYTHON FILE: app\modules\user\AI\ai_routes.py
 📏 SIZE: 41,523 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -55631,7 +55302,7 @@ print("✅ User AI Routes Loaded - Real-time Data & Full Analysis")
 
 
 ================================================================================
-[ 153/ 171] 🐍 PYTHON FILE: app\modules\user\AI\career_analysis.py
+[ 152/ 170] 🐍 PYTHON FILE: app\modules\user\AI\career_analysis.py
 📏 SIZE: 13,305 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -55937,7 +55608,7 @@ print("✅ AICareerAnalyzer loaded")
 
 
 ================================================================================
-[ 154/ 171] 🐍 PYTHON FILE: app\modules\user\AI\job_matching.py
+[ 153/ 170] 🐍 PYTHON FILE: app\modules\user\AI\job_matching.py
 📏 SIZE: 4,749 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -56066,7 +55737,7 @@ print("✅ AIJobMatcher loaded")
 
 
 ================================================================================
-[ 155/ 171] 🐍 PYTHON FILE: app\modules\user\AI\skill_analyzer.py
+[ 154/ 170] 🐍 PYTHON FILE: app\modules\user\AI\skill_analyzer.py
 📏 SIZE: 3,416 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -56160,7 +55831,7 @@ print("✅ AISkillAnalyzer loaded")
 
 
 ================================================================================
-[ 156/ 171] 🐍 PYTHON FILE: app\modules\user\career_routes.py
+[ 155/ 170] 🐍 PYTHON FILE: app\modules\user\career_routes.py
 📏 SIZE: 18,241 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -56659,7 +56330,7 @@ print("✅ Ultra Career Guidance Routes loaded - Using Unified AI Insights Colle
 
 
 ================================================================================
-[ 157/ 171] 🐍 PYTHON FILE: app\modules\user\dashboard_service.py
+[ 156/ 170] 🐍 PYTHON FILE: app\modules\user\dashboard_service.py
 📏 SIZE: 30,434 bytes
 🕐 MODIFIED: 2026-10-23 12:29:43
 
@@ -57531,7 +57202,7 @@ print("✅ FIXED: Service double-count, Scheme 0-count, payment tracking")
 
 
 ================================================================================
-[ 158/ 171] 🐍 PYTHON FILE: app\modules\user\routes.py
+[ 157/ 170] 🐍 PYTHON FILE: app\modules\user\routes.py
 📏 SIZE: 74,676 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -59573,7 +59244,7 @@ print("✅ NEW: /upload-profile-photo — auto-rebuilds resume after photo uploa
 
 
 ================================================================================
-[ 159/ 171] 🐍 PYTHON FILE: app\modules\user\schema.py
+[ 158/ 170] 🐍 PYTHON FILE: app\modules\user\schema.py
 📏 SIZE: 13,620 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -60049,7 +59720,7 @@ class OtherDetailsSchema(BaseModel):
 
 
 ================================================================================
-[ 160/ 171] 🐍 PYTHON FILE: app\modules\user\service.py
+[ 159/ 170] 🐍 PYTHON FILE: app\modules\user\service.py
 📏 SIZE: 70,006 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -61581,7 +61252,7 @@ print("✅ Profile Service Loaded - Fixed for KeyError issues and Phone sync")
 
 
 ================================================================================
-[ 161/ 171] 🐍 PYTHON FILE: app\modules\voice\routes.py
+[ 160/ 170] 🐍 PYTHON FILE: app\modules\voice\routes.py
 📏 SIZE: 6,027 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -61748,7 +61419,7 @@ print("✅ Voice module loaded")
 
 
 ================================================================================
-[ 162/ 171] 🐍 PYTHON FILE: debug_schemes.py
+[ 161/ 170] 🐍 PYTHON FILE: debug_schemes.py
 📏 SIZE: 2,793 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -61833,7 +61504,7 @@ print("=" * 70)
 
 
 ================================================================================
-[ 163/ 171] 📄 TEXT FILE: requirements.txt
+[ 162/ 170] 📄 TEXT FILE: requirements.txt
 📏 SIZE: 6,908 bytes
 🕐 MODIFIED: 2026-11-07 16:07:09
 
@@ -62010,7 +61681,7 @@ wheel==0.47.0
 
 
 ================================================================================
-[ 164/ 171] 🐍 PYTHON FILE: scripts\color.py
+[ 163/ 170] 🐍 PYTHON FILE: scripts\color.py
 📏 SIZE: 2,922 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -62115,7 +61786,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[ 165/ 171] 🐍 PYTHON FILE: scripts\python test_atlas_connection.py
+[ 164/ 170] 🐍 PYTHON FILE: scripts\python test_atlas_connection.py
 📏 SIZE: 9,456 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -62377,7 +62048,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[ 166/ 171] 🐍 PYTHON FILE: scripts\remove_ttl_indexes.py
+[ 165/ 170] 🐍 PYTHON FILE: scripts\remove_ttl_indexes.py
 📏 SIZE: 2,348 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -62457,7 +62128,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[ 167/ 171] 🐍 PYTHON FILE: scripts\seed_schemes.py
+[ 166/ 170] 🐍 PYTHON FILE: scripts\seed_schemes.py
 📏 SIZE: 75,452 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -63429,7 +63100,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[ 168/ 171] 🐍 PYTHON FILE: scripts\test.py
+[ 167/ 170] 🐍 PYTHON FILE: scripts\test.py
 📏 SIZE: 2,028 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 
@@ -63499,7 +63170,7 @@ print("=" * 60)
 
 
 ================================================================================
-[ 169/ 171] 🐍 PYTHON FILE: scripts\test_connection.py
+[ 168/ 170] 🐍 PYTHON FILE: scripts\test_connection.py
 📏 SIZE: 1,538 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -63550,7 +63221,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[ 170/ 171] 🐍 PYTHON FILE: scripts\test_network.py
+[ 169/ 170] 🐍 PYTHON FILE: scripts\test_network.py
 📏 SIZE: 5,491 bytes
 🕐 MODIFIED: 2026-11-11 14:38:45
 
@@ -63716,7 +63387,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[ 171/ 171] 🐍 PYTHON FILE: seed_schemes.py
+[ 170/ 170] 🐍 PYTHON FILE: seed_schemes.py
 📏 SIZE: 66,729 bytes
 🕐 MODIFIED: 2026-10-18 08:35:42
 

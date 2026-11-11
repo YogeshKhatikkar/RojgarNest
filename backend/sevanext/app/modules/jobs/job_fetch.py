@@ -28,7 +28,7 @@ router = APIRouter()
 organization_cache = {}
 
 # Default email for added_by field
-default_email = "yhk.capital@gmail.com"
+default_email = "sevanext01@gmail.com"
 
 
 # ==================== HELPER FUNCTIONS ====================

@@ -271,7 +271,7 @@ class LocationService:
                         "extratags": 1,
                         "namedetails": 1
                     },
-                    headers={"User-Agent": "sevanext/1.0 (https://rojgarnest.com)"}
+                    headers={"User-Agent": "sevanext/1.0 (https://sevanext.com)"}
                 )
                 
                 if response.status_code == 200:

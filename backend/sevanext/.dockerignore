@@ -1,44 +1,87 @@
 # ============================================================
-# BACKEND .dockerignore
+# SevaNext Backend — Docker ignore
 # ============================================================
+# Files/folders NOT sent to Docker build context.
+# Prevents secret leaks + speeds up builds 10×.
+# ============================================================
+
+# ---- Secrets ----
 .env
 .env.*
 !.env.example
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-.git
+
+# ---- Git ----
+.git/
 .gitignore
-.venv
-venv
-env
-ENV
-uploads/
-secure/
-models/*.pkl
-models/*.joblib
-logs/
-backups/
-*.log
-*.db
-*.sqlite
-*.sqlite3
-.pytest_cache
+.gitattributes
+
+# ---- Python cache ----
+__pycache__/
+*.py[cod]
+*.so
+.Python
+*$py.class
+
+# ---- Virtualenv ----
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# ---- Test / coverage ----
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
-.mypy_cache
-.ruff_cache
-dist/
-build/
-*.egg-info/
+coverage.xml
+.tox/
+.nox/
+
+# ---- IDE / OS ----
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
 .DS_Store
 Thumbs.db
-.vscode/
-.idea/
-tests/
-docs/
+
+# ---- Runtime data (bind-mounted at runtime) ----
+logs/
+uploads/
+secure/
+models/
+backups/
+*.log
+
+# ---- Node (Flutter web build leftovers) ----
+node_modules/
+
+# ---- Docs ----
 README.md
-service-account-key.json
+CHANGELOG.md
+LICENSE
+docs/
+
+# ---- Docker / CI ----
+Dockerfile
+.dockerignore
+docker-compose*.yml
+.github/
+
+# ---- Large model files ----
+*.h5
+*.pkl
+*.joblib
+*.pt
+*.onnx
+*.bin
+
+# ---- Misc ----
+*.sqlite3
+*.db
+*.sql
+*.tar.gz
+*.zip

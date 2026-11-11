@@ -1,65 +1,53 @@
 # ============================================================
-# SEVANEXT FRONTEND — DOCKERIGNORE
+# SevaNext Frontend — Docker ignore
 # ============================================================
 
-# Git
-.git
-.gitignore
-.gitattributes
-
-# Flutter / Dart build artifacts
+# ---- Build outputs ----
+build/
 .dart_tool/
 .packages
 .pub-cache/
 .pub/
-build/
-.flutter-plugins
-.flutter-plugins-dependencies
-*.iml
+coverage/
+flutter_export_environment.sh
 
-# IDE
+# ---- IDE / OS ----
 .idea/
 .vscode/
+*.iml
 *.swp
 *.swo
+.DS_Store
+Thumbs.db
 
-# Platform folders (not needed for web)
+# ---- Git ----
+.git/
+.gitignore
+.gitattributes
+
+# ---- Platform folders not needed for web build ----
 android/
 ios/
 linux/
 macos/
 windows/
 
-# Test / coverage
-coverage/
-test/
-integration_test/
-
-# Scripts
-fix_wakelock.ps1
-*.sh
-*.bat
-
-# Logs
-*.log
-logs/
-
-# Environment files (secrets)
-.env
-.env.*
-!.env.example
-
-# Docs
+# ---- Docs / CI ----
 README.md
 CHANGELOG.md
 LICENSE
-docs/
+.github/
 
-# OS
-.DS_Store
-Thumbs.db
+# ---- Local env / secrets ----
+.env
+.env.*
+!env.example
 
-# Caches
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+# ---- Test / debug ----
+test/
+integration_test/
+*.log
+
+# ---- Docker artifacts ----
+Dockerfile
+.dockerignore

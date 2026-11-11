@@ -46,7 +46,7 @@ class ApiConfig {
 
     // Production
     if (kReleaseMode) {
-      return "https://www.rojgarnest.com/api/v1";
+      return "https://www.sevanext.com/api/v1";
     }
 
     // Web
@@ -81,7 +81,7 @@ class ApiConfig {
 
     // ✅ Priority 2: Runtime defaults
     if (kReleaseMode) {
-      return "wss://www.rojgarnest.com/ws/notification/ws";
+      return "wss://www.sevanext.com/ws/notification/ws";
     }
 
     return "ws://localhost:8000/notification/ws";

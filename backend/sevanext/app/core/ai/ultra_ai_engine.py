@@ -186,7 +186,7 @@ class UltraAIEngine:
             
             training_doc = AIInsightsModel(
                 type=AIInsightType.TRAINING_DATA,
-                email=data.get('email', 'system@rojgarnest.com'),
+                email=data.get('email', 'system@sevanext.com'),
                 data={"type": data_type, **data},
                 feedback_score=feedback,
                 was_helpful=was_helpful_val,

@@ -1,44 +1,57 @@
 ﻿# ============================================================
-# SevaNext - Local Docker Runner (Windows PowerShell)
+# SevaNext - Local & Server Docker Runner (Windows PowerShell)
 # File: deploy/run-local.ps1
 # ============================================================
-# Usage:
+# WHAT IT DOES:
+#   1. NUKES ALL old Docker containers / images / volumes / networks / build cache
+#   2. Rebuilds backend + frontend images from scratch
+#   3. Starts MongoDB + Redis, waits for healthy
+#   4. Starts backend, waits for /api/v1/health
+#   5. Starts frontend (nginx), waits for /healthz
+#   6. Verifies frontend -> backend proxy works
+#   7. Opens browser at http://localhost:8080
+#
+# USAGE:
 #   cd deploy
-#   .\run-local.ps1
-#   .\run-local.ps1 --no-cache
-#   .\run-local.ps1 --reset      (wipe containers + volumes, then fresh up)
+#   .\run-local.ps1                 # full nuke + rebuild + start
+#   .\run-local.ps1 --no-nuke       # keep volumes (only rebuild containers)
+#   .\run-local.ps1 --server        # run on PROD server via SSH
 # ============================================================
 
-$ErrorActionPreference = "Continue"   # don't silently kill the script
+$ErrorActionPreference = "Stop"
 
-$noCacheFlag = $false
-$resetFlag   = $false
+# ---- Parse flags ----
+$noNukeFlag   = $false
+$serverFlag   = $false
 foreach ($a in $args) {
-    if ($a -eq "--no-cache") { $noCacheFlag = $true }
-    if ($a -eq "--reset")    { $resetFlag   = $true }
+    if ($a -eq "--no-nuke") { $noNukeFlag = $true }
+    if ($a -eq "--server")  { $serverFlag = $true }
 }
 
-Write-Host ""
-Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "  SEVANEXT - LOCAL DOCKER DEPLOY" -ForegroundColor Cyan
-Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host ""
+function Write-Header($msg) {
+    Write-Host ""
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host "  $msg" -ForegroundColor Cyan
+    Write-Host "================================================================" -ForegroundColor Cyan
+}
+function Write-Step($msg)  { Write-Host "[$((Get-Date).ToString('HH:mm:ss'))] $msg" -ForegroundColor Yellow }
+function Write-Ok($msg)    { Write-Host "  ✔ $msg" -ForegroundColor Green }
+function Write-Warn2($msg) { Write-Host "  ⚠ $msg" -ForegroundColor Yellow }
+function Write-Err($msg)   { Write-Host "  ✘ $msg" -ForegroundColor Red }
 
-# ------------------------------------------------------------
-# Sanity: are we in the deploy folder?
-# ------------------------------------------------------------
+Write-Header "SEVANEXT - DOCKER FULL RESET & DEPLOY"
+
+# ---- Sanity ----
 if (-not (Test-Path "docker-compose.yml")) {
-    Write-Host "ERROR: docker-compose.yml not found." -ForegroundColor Red
-    Write-Host "       Run this script from the 'deploy' folder." -ForegroundColor Gray
+    Write-Err "docker-compose.yml not found. Run from the 'deploy' folder."
     exit 1
 }
 if (-not (Test-Path ".env.local")) {
-    Write-Host "ERROR: .env.local not found in deploy folder." -ForegroundColor Red
+    Write-Err ".env.local not found in deploy folder."
     exit 1
 }
 if (-not (Test-Path "..\backend\sevanext\.env")) {
-    Write-Host "WARNING: ../backend/sevanext/.env not found." -ForegroundColor Yellow
-    Write-Host "         Backend will start with defaults and may fail." -ForegroundColor Gray
+    Write-Warn2 "../backend/sevanext/.env not found — backend may fail."
 }
 
 $composeArgs = @(
@@ -46,194 +59,198 @@ $composeArgs = @(
     "-f", "docker-compose.dev.yml",
     "--env-file", ".env.local"
 )
+$projectName = "sevanext"
 
-# ------------------------------------------------------------
-# [1/6] Reset (optional)
-# ------------------------------------------------------------
-if ($resetFlag) {
-    Write-Host "[1/6] RESET: removing containers + volumes..." -ForegroundColor Yellow
-    docker compose @composeArgs down -v --remove-orphans
-    Write-Host "      Reset done." -ForegroundColor Green
-    Write-Host ""
+# ============================================================
+# SERVER MODE — delegates to run-prod.sh over SSH
+# ============================================================
+if ($serverFlag) {
+    Write-Step "SERVER MODE: reading .env.prod for SSH target..."
+    if (-not (Test-Path ".env.prod")) {
+        Write-Err ".env.prod not found. Copy .env.prod.example → .env.prod and fill it."
+        exit 1
+    }
+    $cfg = @{}
+    Get-Content ".env.prod" | ForEach-Object {
+        if ($_ -match '^\s*([^#][^=]+)=(.*)$') { $cfg[$Matches[1].Trim()] = $Matches[2].Trim() }
+    }
+    $host = $cfg["SSH_HOST"]; $user = $cfg["SSH_USER"]; $port = if ($cfg["SSH_PORT"]) { $cfg["SSH_PORT"] } else { "22" }
+    if (-not $host -or -not $user) {
+        Write-Err "SSH_HOST / SSH_USER must be set in .env.prod"
+        exit 1
+    }
+    Write-Step "Running run-prod.sh on ${user}@${host}:${port} ..."
+    ssh -p $port "${user}@${host}" "cd /opt/sevanext/deploy && bash run-prod.sh"
+    if ($LASTEXITCODE -ne 0) { Write-Err "Server deploy failed (exit $LASTEXITCODE)"; exit 1 }
+    Write-Ok "Server deploy finished."
+    exit 0
+}
+
+# ============================================================
+# STEP 1 — NUKE EVERYTHING (unless --no-nuke)
+# ============================================================
+if (-not $noNukeFlag) {
+    Write-Step "[1/8] FULL NUKE — removing containers, images, volumes, networks, build cache..."
+
+    Write-Host "  -> docker compose down -v --remove-orphans (all compose profiles)"
+    docker compose @composeArgs down -v --remove-orphans 2>$null
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod down -v --remove-orphans 2>$null
+
+    Write-Host "  -> Removing ALL containers"
+    $allContainers = docker ps -aq
+    if ($allContainers) { docker rm -f $allContainers 2>$null }
+
+    Write-Host "  -> Removing ALL images"
+    $allImages = docker images -q
+    if ($allImages) { docker rmi -f $allImages 2>$null }
+
+    Write-Host "  -> Removing ALL volumes"
+    $allVolumes = docker volume ls -q
+    if ($allVolumes) { docker volume rm -f $allVolumes 2>$null }
+
+    Write-Host "  -> Pruning networks"
+    docker network prune -f 2>$null
+
+    Write-Host "  -> Pruning build cache"
+    docker builder prune -af 2>$null
+
+    Write-Host "  -> Pruning system"
+    docker system prune -af --volumes 2>$null
+
+    Write-Ok "FULL NUKE complete."
 } else {
-    Write-Host "[1/6] Stopping previous containers..." -ForegroundColor Yellow
+    Write-Warn2 "[1/8] --no-nuke: keeping existing volumes & images"
     docker compose @composeArgs down --remove-orphans 2>$null
-    Write-Host "      Cleanup done." -ForegroundColor Green
-    Write-Host ""
 }
 
-# ------------------------------------------------------------
-# [2/6] Build + Start
-# ------------------------------------------------------------
-Write-Host "[2/6] Building and starting containers..." -ForegroundColor Yellow
-Write-Host "      First backend build can take 2 to 5 minutes." -ForegroundColor DarkGray
-Write-Host ""
-
-if ($noCacheFlag) {
-    Write-Host "      Building with --no-cache ..." -ForegroundColor DarkGray
-    docker compose @composeArgs build --no-cache
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "ERROR: 'docker compose build --no-cache' FAILED (exit $LASTEXITCODE)." -ForegroundColor Red
-        Write-Host "       Scroll up — the real error is in the build output above." -ForegroundColor Gray
-        exit 1
-    }
-    docker compose @composeArgs up -d
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "ERROR: 'docker compose up -d' FAILED (exit $LASTEXITCODE)." -ForegroundColor Red
-        Write-Host "       Run: docker compose @composeArgs logs" -ForegroundColor Gray
-        exit 1
-    }
-} else {
-    docker compose @composeArgs up --build -d
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host ""
-        Write-Host "ERROR: 'docker compose up --build -d' FAILED (exit $LASTEXITCODE)." -ForegroundColor Red
-        Write-Host "       Common causes:" -ForegroundColor Gray
-        Write-Host "         - Port 8080 or 8000 already in use (stop the other app)" -ForegroundColor Gray
-        Write-Host "         - Backend Dockerfile build error (scroll up)" -ForegroundColor Gray
-        Write-Host "         - Flutter web build error (scroll up)" -ForegroundColor Gray
-        Write-Host ""
-        Write-Host "       Show recent logs with:" -ForegroundColor Gray
-        Write-Host "         docker compose @composeArgs logs --tail=80" -ForegroundColor Gray
-        exit 1
-    }
+# ============================================================
+# STEP 2 — VERIFY DOCKER DAEMON
+# ============================================================
+Write-Step "[2/8] Verifying Docker daemon..."
+$dockerInfo = docker info 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Err "Docker daemon not running. Start Docker Desktop and retry."
+    exit 1
 }
+Write-Ok "Docker daemon running."
 
-Write-Host ""
-Write-Host "      Containers launched." -ForegroundColor Green
-Write-Host ""
+# ============================================================
+# STEP 3 — BUILD BACKEND + FRONTEND (always no-cache after nuke)
+# ============================================================
+Write-Step "[3/8] Building backend + frontend images (no-cache)..."
 
-# ------------------------------------------------------------
-# [3/6] Wait for Backend health
-# ------------------------------------------------------------
-Write-Host "[3/6] Waiting for backend healthcheck (max 300s)..." -ForegroundColor Yellow
+$buildArgs = @()
+if (-not $noNukeFlag) { $buildArgs += "--no-cache" }
 
-$maxWait = 300
+docker compose @composeArgs build @buildArgs
+if ($LASTEXITCODE -ne 0) {
+    Write-Err "docker compose build FAILED (exit $LASTEXITCODE). Scroll up for the real error."
+    exit 1
+}
+Write-Ok "Images built."
+
+# ============================================================
+# STEP 4 — START STACK
+# ============================================================
+Write-Step "[4/8] Starting stack (mongo, redis, backend, frontend)..."
+docker compose @composeArgs up -d --remove-orphans
+if ($LASTEXITCODE -ne 0) {
+    Write-Err "docker compose up FAILED (exit $LASTEXITCODE)."
+    Write-Host "  Recent logs:" -ForegroundColor Gray
+    docker compose @composeArgs logs --tail=80
+    exit 1
+}
+Write-Ok "Containers launched."
+
+# ============================================================
+# STEP 5 — WAIT FOR MONGO
+# ============================================================
+Write-Step "[5/8] Waiting for MongoDB (max 120s)..."
 $elapsed = 0
-$backendReady = $false
+$ok = $false
+while ($elapsed -lt 120) {
+    $status = docker inspect --format='{{.State.Health.Status}}' sevanext-local-mongo 2>$null
+    if ($status -eq "healthy") { $ok = $true; break }
+    Start-Sleep -Seconds 3; $elapsed += 3
+    Write-Host "      [$elapsed s] mongo: $status" -ForegroundColor DarkGray
+}
+if (-not $ok) {
+    Write-Err "MongoDB not healthy after 120s."
+    docker logs --tail 60 sevanext-local-mongo
+    exit 1
+}
+Write-Ok "MongoDB healthy."
 
-while ($elapsed -lt $maxWait) {
+# ============================================================
+# STEP 6 — WAIT FOR BACKEND HEALTH
+# ============================================================
+Write-Step "[6/8] Waiting for backend /api/v1/health (max 300s)..."
+$elapsed = 0
+$ok = $false
+while ($elapsed -lt 300) {
     $status = docker inspect --format='{{.State.Health.Status}}' sevanext-local-backend 2>$null
-
-    if ($status -eq "healthy") {
-        $backendReady = $true
-        Write-Host ""
-        Write-Host "      Backend is HEALTHY after $elapsed seconds." -ForegroundColor Green
-        break
-    }
-
+    if ($status -eq "healthy") { $ok = $true; break }
     if ($status -eq "unhealthy") {
-        Write-Host ""
-        Write-Host "ERROR: Backend became UNHEALTHY." -ForegroundColor Red
-        Write-Host "Last 60 lines of backend logs:" -ForegroundColor Gray
-        docker logs --tail 60 sevanext-local-backend
-        break
+        Write-Err "Backend became UNHEALTHY."
+        docker logs --tail 100 sevanext-local-backend
+        exit 1
     }
-
-    Write-Host "      [$elapsed s] backend status: $status" -ForegroundColor DarkGray
-    Start-Sleep -Seconds 3
-    $elapsed = $elapsed + 3
+    Start-Sleep -Seconds 3; $elapsed += 3
+    Write-Host "      [$elapsed s] backend: $status" -ForegroundColor DarkGray
+}
+if (-not $ok) {
+    Write-Warn2 "Backend not healthy after 300s — showing last 100 logs:"
+    docker logs --tail 100 sevanext-local-backend
+    Write-Warn2 "Common fixes:"
+    Write-Host "        - ../backend/sevanext/.env has MONGO_URI, SECRET_KEY, JWT_SECRET_KEY" -ForegroundColor Gray
+    Write-Host "        - MongoDB started: docker logs sevanext-local-mongo" -ForegroundColor Gray
+    Write-Host "        - Redis started:   docker logs sevanext-local-redis" -ForegroundColor Gray
 }
 
-if (-not $backendReady) {
-    Write-Host ""
-    Write-Host "WARNING: Backend not healthy after $maxWait seconds." -ForegroundColor Yellow
-    Write-Host "         Showing last 60 log lines so you can see WHY:" -ForegroundColor Gray
-    docker logs --tail 60 sevanext-local-backend
-    Write-Host ""
-    Write-Host "         Common fixes:" -ForegroundColor Gray
-    Write-Host "           - Check ../backend/sevanext/.env has MONGO_URI, SECRET_KEY, JWT_SECRET_KEY" -ForegroundColor Gray
-    Write-Host "           - Check MongoDB started: docker logs sevanext-local-mongo" -ForegroundColor Gray
-}
-
-Write-Host ""
-
-# ------------------------------------------------------------
-# [4/6] Wait for Frontend health
-# ------------------------------------------------------------
-Write-Host "[4/6] Waiting for frontend healthcheck (max 90s)..." -ForegroundColor Yellow
-
-$maxWait = 90
-$elapsed = 0
-$frontendReady = $false
-
-while ($elapsed -lt $maxWait) {
-    $status = docker inspect --format='{{.State.Health.Status}}' sevanext-local-frontend 2>$null
-
-    if ($status -eq "healthy") {
-        $frontendReady = $true
-        Write-Host "      Frontend is HEALTHY after $elapsed seconds." -ForegroundColor Green
-        break
-    }
-
-    Start-Sleep -Seconds 2
-    $elapsed = $elapsed + 2
-}
-
-if (-not $frontendReady) {
-    Write-Host "WARNING: Frontend not healthy after $maxWait seconds, continuing anyway." -ForegroundColor Yellow
-    Write-Host "         Showing last 40 frontend log lines:" -ForegroundColor Gray
-    docker logs --tail 40 sevanext-local-frontend
-}
-
-Write-Host ""
-
-# ------------------------------------------------------------
-# [5/6] Verify endpoints
-# ------------------------------------------------------------
-Write-Host "[5/6] Verifying backend endpoint..." -ForegroundColor Yellow
+# ============================================================
+# STEP 7 — WAIT FOR FRONTEND + VERIFY PROXY
+# ============================================================
+Write-Step "[7/8] Waiting for frontend + verifying proxy chain..."
 
 try {
-    $resp = Invoke-WebRequest -Uri "http://localhost:8000/api/v1/health" -UseBasicParsing -TimeoutSec 5
-    if ($resp.StatusCode -eq 200) {
-        Write-Host "      Backend /api/v1/health -> 200 OK" -ForegroundColor Green
-    }
-} catch {
-    Write-Host "WARNING: Backend /api/v1/health not yet reachable." -ForegroundColor Yellow
-}
+    $r = Invoke-WebRequest -Uri "http://localhost:8000/api/v1/health" -UseBasicParsing -TimeoutSec 5
+    if ($r.StatusCode -eq 200) { Write-Ok "Backend direct:      http://localhost:8000/api/v1/health  -> 200" }
+} catch { Write-Warn2 "Backend direct not reachable yet." }
 
 try {
-    $resp2 = Invoke-WebRequest -Uri "http://localhost:8080/api/v1/health" -UseBasicParsing -TimeoutSec 5
-    if ($resp2.StatusCode -eq 200) {
-        Write-Host "      Nginx proxy -> backend -> 200 OK" -ForegroundColor Green
-    }
-} catch {
-    Write-Host "WARNING: Nginx proxy not responding yet." -ForegroundColor Yellow
-}
+    $r = Invoke-WebRequest -Uri "http://localhost:8080/api/v1/health" -UseBasicParsing -TimeoutSec 5
+    if ($r.StatusCode -eq 200) { Write-Ok "Nginx -> backend:    http://localhost:8080/api/v1/health  -> 200" }
+} catch { Write-Warn2 "Nginx proxy not reachable yet." }
+
+try {
+    $r = Invoke-WebRequest -Uri "http://localhost:8080/" -UseBasicParsing -TimeoutSec 5
+    if ($r.StatusCode -eq 200) { Write-Ok "Frontend:            http://localhost:8080/  -> 200" }
+} catch { Write-Warn2 "Frontend not reachable yet." }
+
+# ============================================================
+# STEP 8 — SUCCESS + OPEN BROWSER
+# ============================================================
+Write-Header "✅ DEPLOYMENT COMPLETE"
 
 Write-Host ""
-
-$frontendUrl    = "http://localhost:8080"
-$backendDocsUrl = "http://localhost:8000/docs"
-$backendHealth  = "http://localhost:8000/api/v1/health"
-$proxyHealth    = "http://localhost:8080/api/v1/health"
-
-Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "  DEPLOYMENT COMPLETE" -ForegroundColor Green
-Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "  Frontend:              $frontendUrl" -ForegroundColor White
-Write-Host "  Swagger (direct):      $backendDocsUrl" -ForegroundColor White
-Write-Host "  Swagger (proxy):       http://localhost:8080/docs" -ForegroundColor White
-Write-Host "  Backend (direct):      $backendHealth" -ForegroundColor White
-Write-Host "  Backend (proxy):       $proxyHealth" -ForegroundColor White
+Write-Host "  🌐 Frontend:              http://localhost:8080" -ForegroundColor White
+Write-Host "  📘 Swagger (direct):      http://localhost:8000/docs" -ForegroundColor White
+Write-Host "  📘 Swagger (via nginx):   http://localhost:8080/docs" -ForegroundColor White
+Write-Host "  💚 Backend health:        http://localhost:8000/api/v1/health" -ForegroundColor White
+Write-Host "  💚 Nginx proxy health:    http://localhost:8080/api/v1/health" -ForegroundColor White
+Write-Host "  🗄️  MongoDB:               mongodb://localhost:27017/SevaNext" -ForegroundColor White
+Write-Host "  ⚡ Redis:                  redis://localhost:6379" -ForegroundColor White
 Write-Host ""
 Write-Host "  Useful commands:" -ForegroundColor DarkGray
-Write-Host "    docker logs -f sevanext-local-backend" -ForegroundColor DarkGray
-Write-Host "    docker logs -f sevanext-local-frontend" -ForegroundColor DarkGray
-Write-Host "    docker logs -f sevanext-local-mongo" -ForegroundColor DarkGray
+Write-Host "    docker compose @composeArgs logs -f backend" -ForegroundColor DarkGray
+Write-Host "    docker compose @composeArgs logs -f frontend" -ForegroundColor DarkGray
+Write-Host "    docker compose @composeArgs ps" -ForegroundColor DarkGray
 Write-Host "    docker compose @composeArgs down" -ForegroundColor DarkGray
 Write-Host ""
 
-# ------------------------------------------------------------
-# [6/6] Open browser
-# ------------------------------------------------------------
-Write-Host "[6/6] Opening frontend in browser..." -ForegroundColor Cyan
+Write-Step "[8/8] Opening browser..."
 Start-Sleep -Seconds 1
-Start-Process $frontendUrl
-
+Start-Process "http://localhost:8080"
 Write-Host ""
-Write-Host "Browser opened. Happy testing." -ForegroundColor Green
+Write-Host "  🎉 Happy testing!" -ForegroundColor Green
 Write-Host ""

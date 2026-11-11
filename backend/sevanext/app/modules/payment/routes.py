@@ -404,7 +404,7 @@ async def create_razorpay_order(
     category_used = data.category_used or "none"
     job_title = ""
     organization = ""
-    added_by = "admin@rojgarnest.com"
+    added_by = "admin@sevanext.com"
     scheme_name = ""
     scheme_name_hindi = ""
     service_name = ""
@@ -426,7 +426,7 @@ async def create_razorpay_order(
 
             job_title = data.job_title or job.get("post_name", "Job Application")
             organization = job.get("organization", "Company")
-            added_by = job.get("added_by", "admin@rojgarnest.com")
+            added_by = job.get("added_by", "admin@sevanext.com")
 
             existing = await db.applications.find_one({
                 "job_id": data.job_id,
@@ -592,7 +592,7 @@ async def create_razorpay_order(
 
             job_title = data.job_title or job.get("post_name", "Job Application")
             organization = job.get("organization", "Company")
-            added_by = job.get("added_by", "admin@rojgarnest.com")
+            added_by = job.get("added_by", "admin@sevanext.com")
 
             existing = await db.applications.find_one({
                 "job_id": data.job_id,
@@ -1008,7 +1008,7 @@ async def verify_razorpay_payment(
     job_id = payment_record.get("job_id", "")
     job_title = payment_record.get("job_title", "")
     organization = payment_record.get("organization", "")
-    added_by = payment_record.get("added_by", "admin@rojgarnest.com")
+    added_by = payment_record.get("added_by", "admin@sevanext.com")
     service_id = payment_record.get("service_id", "")
     service_type = payment_record.get("service_type", "")
     sub_type_id = payment_record.get("sub_type_id", "")
@@ -2145,7 +2145,7 @@ async def verify_payment_no_signature(
             job_id = payment_record.get("job_id", "")
             job_title = payment_record.get("job_title", "")
             organization = payment_record.get("organization", "")
-            added_by = payment_record.get("added_by", "admin@rojgarnest.com")
+            added_by = payment_record.get("added_by", "admin@sevanext.com")
             service_id = payment_record.get("service_id", "")
             sub_type_id = payment_record.get("sub_type_id", "")
             sub_service_name = payment_record.get("sub_service_name", "")
@@ -2192,7 +2192,7 @@ async def verify_payment_no_signature(
             job_id = order_notes.get("job_id", "")
             job_title = order_notes.get("job_title", "")
             organization = order_notes.get("organization", "")
-            added_by = order_notes.get("added_by", "admin@rojgarnest.com")
+            added_by = order_notes.get("added_by", "admin@sevanext.com")
             service_id = order_notes.get("service_id", "")
             sub_type_id = order_notes.get("sub_type_id", "")
             sub_service_name = order_notes.get("sub_service_name", "")
@@ -2782,7 +2782,7 @@ async def razorpay_webhook(
                         job_id = payment_record.get("job_id", "")
                         job_title = payment_record.get("job_title", "")
                         organization = payment_record.get("organization", "")
-                        added_by = payment_record.get("added_by", "admin@rojgarnest.com")
+                        added_by = payment_record.get("added_by", "admin@sevanext.com")
                         service_id = payment_record.get("service_id", "")
                         sub_type_id = payment_record.get("sub_type_id", "")
                         service_name = payment_record.get("service_name", "")
@@ -2827,7 +2827,7 @@ async def razorpay_webhook(
                         job_id = order_notes.get("job_id", "")
                         job_title = order_notes.get("job_title", "")
                         organization = order_notes.get("organization", "")
-                        added_by = order_notes.get("added_by", "admin@rojgarnest.com")
+                        added_by = order_notes.get("added_by", "admin@sevanext.com")
                         service_id = order_notes.get("service_id", "")
                         sub_type_id = order_notes.get("sub_type_id", "")
                         service_name = order_notes.get("service_name", "")

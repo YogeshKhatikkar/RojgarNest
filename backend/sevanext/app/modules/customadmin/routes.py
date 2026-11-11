@@ -83,7 +83,7 @@ def custom_admin_required(current_user=Depends(get_current_user)):
 async def _get_admin_email(user: dict, db) -> str:
     """Get admin email from user dict or database"""
     if db is None:
-        return "customadmin@rojgarnest.com"
+        return "customadmin@sevanext.com"
 
     admin_email = user.get("email")
     if not admin_email:
@@ -92,7 +92,7 @@ async def _get_admin_email(user: dict, db) -> str:
             auth_user = await db.auth.find_one({"_id": ObjectId(user_id)})
             if auth_user:
                 admin_email = auth_user.get("email")
-    return admin_email or "customadmin@rojgarnest.com"
+    return admin_email or "customadmin@sevanext.com"
 
 
 def _resolve_application_number(application: dict, fallback_id: str) -> str:

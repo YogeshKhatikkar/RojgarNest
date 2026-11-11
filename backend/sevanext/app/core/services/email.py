@@ -677,7 +677,7 @@ async def send_application_status_email(
         f"Status: {status}\n"
         f"Application Number: {reference_id}\n"
         f"Organization: {organization}\n\n"
-        f"Track your status on https://www.rojgarnest.com\n"
+        f"Track your status on https://www.sevanext.com\n"
     )
 
     logger.info(
@@ -743,7 +743,7 @@ def send_application_status_email_sync(
         f"Status: {status}\n"
         f"Application Number: {reference_id}\n"
         f"Organization: {organization}\n\n"
-        f"Track your status on https://www.rojgarnest.com\n"
+        f"Track your status on https://www.sevanext.com\n"
     )
 
     logger.info(
@@ -1186,10 +1186,10 @@ def build_modern_ai_notification_email(
           <div class="brand">{footer_icon} SevaNext</div>
           <div>© 2026 SevaNext — Next-Gen AI Career, Service & Schemes Portal</div>
           <div class="links">
-            <a href="https://www.rojgarnest.com">Home</a> |
-            <a href="https://www.rojgarnest.com/jobs">Jobs</a> |
-            <a href="https://www.rojgarnest.com/schemes">Schemes</a> |
-            <a href="https://www.rojgarnest.com/support">Support</a>
+            <a href="https://www.sevanext.com">Home</a> |
+            <a href="https://www.sevanext.com/jobs">Jobs</a> |
+            <a href="https://www.sevanext.com/schemes">Schemes</a> |
+            <a href="https://www.sevanext.com/support">Support</a>
           </div>
           <div class="social-row">
             <span>📘</span>

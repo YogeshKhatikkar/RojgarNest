@@ -12,7 +12,7 @@ services:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 20s
 
   redis:
@@ -27,7 +27,7 @@ services:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 10s
 
   backend:
@@ -50,7 +50,6 @@ services:
       redis:
         condition: service_healthy
     ports:
-      # ✅ EXPOSE 8000 so Swagger/docs accessible from browser directly
       - "8000:8000"
     volumes:
       - backend_uploads:/app/uploads
@@ -64,7 +63,7 @@ services:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
       interval: 15s
       timeout: 10s
-      retries: 5
+      retries: 20
       start_period: 180s
 
   frontend:
@@ -72,8 +71,6 @@ services:
       context: ../frontend/sevanext
       dockerfile: Dockerfile
       args:
-        # ✅ PROXY MODE — same-origin, zero CORS issues
-        #    nginx.conf forwards /api/v1/* → backend:8000/api/v1/*
         API_BASE_URL: /api/v1
         WS_BASE_URL: /notification/ws
         BUILD_NUMBER: "1"
@@ -84,7 +81,6 @@ services:
       backend:
         condition: service_healthy
     ports:
-      # ✅ FIXED: 80 → 8080 (Windows me port 80 reserved)
       - "8080:80"
     networks:
       - sevanext-net
@@ -92,7 +88,7 @@ services:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
       interval: 15s
       timeout: 5s
-      retries: 3
+      retries: 5
       start_period: 20s
 
 networks:
