@@ -1,22 +1,22 @@
 ================================================================================
-ROJGARNEST - FULL PROJECT EXPORT (EXCLUDE MODE)
+SEVANEXT - FULL PROJECT EXPORT (EXCLUDE MODE)
 ================================================================================
-Generated: 2026-11-11 14:19:06
+Generated: 2026-11-11 15:02:22
 Source: E:\YOGESH\website\SevaNext
 Excluded folders: .git, backend, frontend
 Excluded extensions: .txt
-Total Files Included: 25
+Total Files Included: 26
 Total Skipped: 8
-Total Size: 84.3 KB
+Total Size: 110.2 KB
 ================================================================================
 
 ================================================================================
 📁 FOLDER BREAKDOWN
 ================================================================================
 
-  (root)/: 6 files (44.9 KB)
-  .github/: 6 files (13.7 KB)
-  deploy/: 11 files (24.7 KB)
+  (root)/: 7 files (70.9 KB)
+  .github/: 6 files (13.6 KB)
+  deploy/: 11 files (24.6 KB)
   monitoring/: 2 files (1.1 KB)
 
 
@@ -38,7 +38,7 @@ Total Size: 84.3 KB
 📁 DIRECTORY STRUCTURE
 ================================================================================
 
-📁 RojgarNest/
+📁 SevaNext/
 ├── 📁 .github/
 │   └── 📁 workflows/
 │       ├── ⚙️ android-release.yml
@@ -64,6 +64,7 @@ Total Size: 84.3 KB
 ├── 🐍 export_backend_code.py
 ├── 🐍 export_frontend.py
 ├── 🐍 export_remaining.py
+├── 🐍 migrate_all_to_sevanext.py
 ├── 📁 monitoring/
 │   ├── ⚙️ logstash.conf
 │   └── ⚙️ prometheus.yml
@@ -75,19 +76,19 @@ Total Size: 84.3 KB
 📊 FILE SUMMARY
 ================================================================================
 
-Total Files: 25
-Total Size: 84.3 KB
+Total Files: 26
+Total Size: 110.2 KB
 
 By extension:
-  .yml: 10 files (18.7 KB)
-  .sh: 3 files (2.9 KB)
-  .py: 3 files (43.9 KB)
+  .yml: 10 files (18.6 KB)
+  .py: 4 files (69.9 KB)
+  .sh: 3 files (3.0 KB)
   .conf: 2 files (7.0 KB)
-  .json: 2 files (964 B)
+  .json: 2 files (960 B)
   (no ext): 1 files (76 B)
-  .local: 1 files (346 B)
-  .prod: 1 files (155 B)
-  .example: 1 files (721 B)
+  .local: 1 files (334 B)
+  .prod: 1 files (148 B)
+  .example: 1 files (714 B)
   .ps1: 1 files (9.6 KB)
 
 
@@ -96,7 +97,7 @@ By extension:
 ================================================================================
 
 ================================================================================
-[   1/  25] ⚙️ .github/workflows/android-release.yml
+[   1/  26] ⚙️ .github/workflows/android-release.yml
 📏 SIZE: 0 B
 🕐 MODIFIED: 2026-09-25 19:53:10
 ================================================================================
@@ -104,7 +105,7 @@ By extension:
 
 
 ================================================================================
-[   2/  25] ⚙️ .github/workflows/backend-deploy.yml
+[   2/  26] ⚙️ .github/workflows/backend-deploy.yml
 📏 SIZE: 0 B
 🕐 MODIFIED: 2026-09-25 19:53:36
 ================================================================================
@@ -112,9 +113,9 @@ By extension:
 
 
 ================================================================================
-[   3/  25] ⚙️ .github/workflows/ci-cd.yml
+[   3/  26] ⚙️ .github/workflows/ci-cd.yml
 📏 SIZE: 11.4 KB
-🕐 MODIFIED: 2026-11-09 18:41:35
+🕐 MODIFIED: 2026-11-11 14:41:05
 ================================================================================
 
 name: 🚀 Full CI/CD Pipeline
@@ -128,7 +129,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/rojgarnest
+  IMAGE_PREFIX: ${{ github.repository_owner }}/sevanext
   # ✅ FIXED: Flutter 3.27.1 ships Dart SDK 3.6.2
   # Required by fl_chart >=1.0.0
   FLUTTER_VERSION: '3.27.1'
@@ -164,19 +165,19 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: backend/rojgarnest/requirements.txt
+          cache-dependency-path: backend/sevanext/requirements.txt
 
       - name: Install dependencies
-        working-directory: backend/rojgarnest
+        working-directory: backend/sevanext
         run: |
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-cov
 
       - name: Run tests
-        working-directory: backend/rojgarnest
+        working-directory: backend/sevanext
         env:
-          MONGO_URI: mongodb://localhost:27017/rojgarnext_test
+          MONGO_URI: mongodb://localhost:27017/sevanext_test
           REDIS_URL: redis://localhost:6379
           ENVIRONMENT: test
           SECRET_KEY: test-secret-key-minimum-32-characters-long
@@ -203,24 +204,24 @@ jobs:
         run: flutter doctor -v
 
       - name: Get dependencies
-        working-directory: frontend/rojgarnest
+        working-directory: frontend/sevanext
         run: flutter pub get
 
       - name: Analyze code
-        working-directory: frontend/rojgarnest
+        working-directory: frontend/sevanext
         run: flutter analyze --no-fatal-infos || true
 
       - name: Build Web (Release)
-        working-directory: frontend/rojgarnest
+        working-directory: frontend/sevanext
         run: |
           flutter build web --release \
             --base-href=/ \
-            --dart-define=API_BASE_URL=https://www.rojgarnest.com/api/v1
+            --dart-define=API_BASE_URL=https://www.sevanext.com/api/v1
 
       - uses: actions/upload-artifact@v4
         with:
           name: flutter-web-build
-          path: frontend/rojgarnest/build/web
+          path: frontend/sevanext/build/web
           retention-days: 7
 
   # ============================================================
@@ -245,17 +246,17 @@ jobs:
           cache: true
 
       - name: Get dependencies
-        working-directory: frontend/rojgarnest
+        working-directory: frontend/sevanext
         run: flutter pub get
 
       - name: Decode Keystore
         if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > frontend/rojgarnest/android/app/rojgarnext-release-key.jks
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > frontend/sevanext/android/app/rojgarnext-release-key.jks
 
       - name: Create key.properties
         if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
-        working-directory: frontend/rojgarnest/android
+        working-directory: frontend/sevanext/android
         run: |
           cat > key.properties <<EOF
           storePassword=${{ secrets.ANDROID_STORE_PASSWORD }}
@@ -267,43 +268,43 @@ jobs:
       - name: Create google-services.json
         if: ${{ secrets.GOOGLE_SERVICES_JSON != '' }}
         run: |
-          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > frontend/rojgarnest/android/app/google-services.json
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > frontend/sevanext/android/app/google-services.json
 
       - name: Build APK (Split per ABI)
-        working-directory: frontend/rojgarnest
+        working-directory: frontend/sevanext
         run: |
           flutter build apk --release \
             --flavor prod \
-            --dart-define=API_BASE_URL=https://www.rojgarnest.com/api/v1 \
+            --dart-define=API_BASE_URL=https://www.sevanext.com/api/v1 \
             --split-per-abi
 
       - name: Build App Bundle (AAB)
-        working-directory: frontend/rojgarnest
+        working-directory: frontend/sevanext
         run: |
           flutter build appbundle --release \
             --flavor prod \
-            --dart-define=API_BASE_URL=https://www.rojgarnest.com/api/v1
+            --dart-define=API_BASE_URL=https://www.sevanext.com/api/v1
 
       - name: Rename artifacts
         run: |
-          cd frontend/rojgarnest/build/app/outputs
+          cd frontend/sevanext/build/app/outputs
           VERSION=$(date +%Y%m%d)-${GITHUB_SHA::7}
           mkdir -p release-artifacts
           for f in flutter-apk/*.apk; do
-            cp "$f" "release-artifacts/rojgarnext-$(basename $f .apk)-${VERSION}.apk"
+            cp "$f" "release-artifacts/sevanext-$(basename $f .apk)-${VERSION}.apk"
           done
-          cp bundle/release/app-release.aab release-artifacts/rojgarnext-${VERSION}.aab
+          cp bundle/release/app-release.aab release-artifacts/sevanext-${VERSION}.aab
 
       - uses: actions/upload-artifact@v4
         with:
           name: android-apks
-          path: frontend/rojgarnest/build/app/outputs/release-artifacts/*.apk
+          path: frontend/sevanext/build/app/outputs/release-artifacts/*.apk
           retention-days: 30
 
       - uses: actions/upload-artifact@v4
         with:
           name: android-aab
-          path: frontend/rojgarnest/build/app/outputs/release-artifacts/*.aab
+          path: frontend/sevanext/build/app/outputs/release-artifacts/*.aab
           retention-days: 30
 
       - name: Upload to Play Store (Internal Track)
@@ -312,7 +313,7 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}
           packageName: com.rojgarnext.app
-          releaseFiles: frontend/rojgarnest/build/app/outputs/bundle/release/app-release.aab
+          releaseFiles: frontend/sevanext/build/app/outputs/bundle/release/app-release.aab
           track: internal
           status: completed
 
@@ -321,8 +322,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            frontend/rojgarnest/build/app/outputs/release-artifacts/*.apk
-            frontend/rojgarnest/build/app/outputs/release-artifacts/*.aab
+            frontend/sevanext/build/app/outputs/release-artifacts/*.apk
+            frontend/sevanext/build/app/outputs/release-artifacts/*.aab
           generate_release_notes: true
 
   # ============================================================
@@ -373,8 +374,8 @@ jobs:
       - name: Build & Push Backend
         uses: docker/build-push-action@v6
         with:
-          context: backend/rojgarnest
-          file: backend/rojgarnest/Dockerfile
+          context: backend/sevanext
+          file: backend/sevanext/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
@@ -385,8 +386,8 @@ jobs:
       - name: Build & Push Frontend
         uses: docker/build-push-action@v6
         with:
-          context: frontend/rojgarnest
-          file: frontend/rojgarnest/Dockerfile
+          context: frontend/sevanext
+          file: frontend/sevanext/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:${{ github.sha }}
@@ -404,7 +405,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     environment:
       name: production
-      url: https://www.rojgarnest.com
+      url: https://www.sevanext.com
     steps:
       - uses: actions/checkout@v4
 
@@ -417,7 +418,7 @@ jobs:
           port: ${{ secrets.PROD_PORT || 22 }}
           script: |
             set -e
-            cd /opt/rojgarnest
+            cd /opt/sevanext
 
             echo "📥 Pulling latest code..."
             git pull origin main
@@ -470,12 +471,12 @@ jobs:
         continue-on-error: true
 
 ================================================================================
-[   4/  25] ⚙️ .github/workflows/deploy.yml
+[   4/  26] ⚙️ .github/workflows/deploy.yml
 📏 SIZE: 2.2 KB
-🕐 MODIFIED: 2026-11-09 17:50:21
+🕐 MODIFIED: 2026-11-11 14:38:45
 ================================================================================
 
-name: Deploy RojgarNext
+name: Deploy SevaNext
 
 on:
   push:
@@ -494,19 +495,19 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        working-directory: backend/rojgarnest
+        working-directory: backend/sevanext
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Lint with flake8
-        working-directory: backend/rojgarnest
+        working-directory: backend/sevanext
         run: |
           pip install flake8
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Run tests
-        working-directory: backend/rojgarnest
+        working-directory: backend/sevanext
         run: |
           pip install pytest
           pytest tests/ || true
@@ -531,7 +532,7 @@ jobs:
           port: ${{ secrets.PROD_PORT || 22 }}
           script: |
             set -e
-            cd /opt/rojgarnest
+            cd /opt/sevanext
 
             echo "📥 Pulling latest code..."
             git pull origin main
@@ -561,7 +562,7 @@ jobs:
             exit 1
 
 ================================================================================
-[   5/  25] ⚙️ .github/workflows/security-scan.yml
+[   5/  26] ⚙️ .github/workflows/security-scan.yml
 📏 SIZE: 0 B
 🕐 MODIFIED: 2026-09-25 19:53:50
 ================================================================================
@@ -569,7 +570,7 @@ jobs:
 
 
 ================================================================================
-[   6/  25] ⚙️ .github/workflows/web-deploy.yml
+[   6/  26] ⚙️ .github/workflows/web-deploy.yml
 📏 SIZE: 0 B
 🕐 MODIFIED: 2026-09-25 19:53:22
 ================================================================================
@@ -577,7 +578,7 @@ jobs:
 
 
 ================================================================================
-[   7/  25] 📄 .gitignore
+[   7/  26] 📄 .gitignore
 📏 SIZE: 76 B
 🕐 MODIFIED: 2026-11-09 21:39:20
 ================================================================================
@@ -591,26 +592,26 @@ deploy/.env.local
 
 
 ================================================================================
-[   8/  25] 📄 deploy/.env.local
-📏 SIZE: 346 B
-🕐 MODIFIED: 2026-11-10 20:40:08
+[   8/  26] 📄 deploy/.env.local
+📏 SIZE: 334 B
+🕐 MODIFIED: 2026-11-11 14:39:02
 ================================================================================
 
 # ============================================================
-# ROJGARNEST — LOCAL DOCKER ENV
+# SEVANEXT — LOCAL DOCKER ENV
 # ============================================================
-COMPOSE_PROJECT_NAME=rojgarnest-local
+COMPOSE_PROJECT_NAME=sevanext
 
-# Backend env is loaded from ../backend/rojgarnest/.env via env_file,
+# Backend env is loaded from ../backend/sevanext/.env via env_file,
 # so make sure THAT file has MONGO_URI, SECRET_KEY, JWT_SECRET_KEY etc.
 
 ================================================================================
-[   9/  25] 📄 deploy/.env.prod
-📏 SIZE: 155 B
-🕐 MODIFIED: 2026-11-10 20:33:45
+[   9/  26] 📄 deploy/.env.prod
+📏 SIZE: 148 B
+🕐 MODIFIED: 2026-11-11 14:39:02
 ================================================================================
 
-COMPOSE_PROJECT_NAME=rojgarnest-prod
+COMPOSE_PROJECT_NAME=sevanext
 
 MONGO_ROOT_USERNAME=rojgar_admin
 MONGO_ROOT_PASSWORD=localdev123456789012345678901234
@@ -618,9 +619,9 @@ MONGO_ROOT_PASSWORD=localdev123456789012345678901234
 DOMAIN=www.rojgarnest.com
 
 ================================================================================
-[  10/  25] 📄 deploy/.env.prod.example
-📏 SIZE: 721 B
-🕐 MODIFIED: 2026-11-09 21:35:35
+[  10/  26] 📄 deploy/.env.prod.example
+📏 SIZE: 714 B
+🕐 MODIFIED: 2026-11-11 14:39:02
 ================================================================================
 
 # ============================================================
@@ -634,7 +635,7 @@ DOMAIN=www.rojgarnest.com
 # ⚠️ .env.prod NEVER commit to git. Sirf ye .example file commit hoti hai.
 # ============================================================
 
-COMPOSE_PROJECT_NAME=rojgarnest-prod
+COMPOSE_PROJECT_NAME=sevanext
 
 # ⚠️ CRITICAL — MongoDB root user
 # Only use alphanumeric (A-Z, a-z, 0-9). Min 32 chars.
@@ -646,25 +647,25 @@ MONGO_ROOT_PASSWORD=CHANGE_ME_STRONG_32_CHAR_PASSWORD
 DOMAIN=www.rojgarnest.com
 
 ================================================================================
-[  11/  25] 📜 deploy/backup.sh
+[  11/  26] 📜 deploy/backup.sh
 📏 SIZE: 1.7 KB
-🕐 MODIFIED: 2026-11-09 21:37:31
+🕐 MODIFIED: 2026-11-11 14:38:45
 ================================================================================
 
 #!/usr/bin/env bash
 # ============================================================
-# ROJGARNEST — BACKUP SCRIPT
+# SEVANEXT — BACKUP SCRIPT
 # ============================================================
 # Usage:
 #   ./backup.sh
 #
 # Cron (daily at 2 AM):
-#   0 2 * * * cd /opt/rojgarnest/deploy && ./backup.sh >> /var/log/rojgarnest-backup.log 2>&1
+#   0 2 * * * cd /opt/sevanext/deploy && ./backup.sh >> /var/log/sevanext-backup.log 2>&1
 # ============================================================
 set -euo pipefail
 
 DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
-BACKUP_DIR="/opt/rojgarnest/backups"
+BACKUP_DIR="/opt/sevanext/backups"
 TS=$(date +%Y%m%d_%H%M%S)
 mkdir -p "$BACKUP_DIR"
 
@@ -682,7 +683,7 @@ REDIS_C=$(docker compose \
 # ─── Mongo backup ───
 if [ -n "$MONGO_C" ]; then
   echo "📦 Backing up MongoDB ($MONGO_C)..."
-  docker exec "$MONGO_C" mongodump --db=RojgarNest --archive --gzip \
+  docker exec "$MONGO_C" mongodump --db=SevaNext --archive --gzip \
     > "$BACKUP_DIR/mongo_${TS}.archive.gz" 2>/dev/null || true
 else
   echo "⚠️  MongoDB container not running — skipping"
@@ -705,7 +706,7 @@ echo "✅ Backup complete: $BACKUP_DIR"
 ls -lh "$BACKUP_DIR" | tail -5
 
 ================================================================================
-[  12/  25] ⚙️ deploy/docker-compose.dev.yml
+[  12/  26] ⚙️ deploy/docker-compose.dev.yml
 📏 SIZE: 467 B
 🕐 MODIFIED: 2026-11-10 12:29:22
 ================================================================================
@@ -737,9 +738,9 @@ services:
       - "8080:80"
 
 ================================================================================
-[  13/  25] ⚙️ deploy/docker-compose.prod.yml
+[  13/  26] ⚙️ deploy/docker-compose.prod.yml
 📏 SIZE: 1.3 KB
-🕐 MODIFIED: 2026-11-10 12:29:38
+🕐 MODIFIED: 2026-11-11 14:38:45
 ================================================================================
 
 services:
@@ -770,7 +771,7 @@ services:
       MOBILE_OTP_BYPASS: "false"
       DEV_MODE_LOG_ONLY: "false"
       LOG_LEVEL: WARNING
-      MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/RojgarNest?authSource=admin
+      MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/SevaNext?authSource=admin
       APP_BASE_URL: https://www.rojgarnest.com
     restart: always
     deploy:
@@ -796,9 +797,9 @@ services:
           memory: 128M
 
 ================================================================================
-[  14/  25] ⚙️ deploy/docker-compose.yml
+[  14/  26] ⚙️ deploy/docker-compose.yml
 📏 SIZE: 2.8 KB
-🕐 MODIFIED: 2026-11-10 20:43:17
+🕐 MODIFIED: 2026-11-11 14:38:45
 ================================================================================
 
 services:
@@ -806,11 +807,11 @@ services:
     image: mongo:7
     restart: unless-stopped
     environment:
-      MONGO_INITDB_DATABASE: RojgarNest
+      MONGO_INITDB_DATABASE: SevaNext
     volumes:
       - mongo_data:/data/db
     networks:
-      - rojgarnest-net
+      - sevanext-net
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
@@ -825,7 +826,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - rojgarnest-net
+      - sevanext-net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -835,18 +836,18 @@ services:
 
   backend:
     build:
-      context: ../backend/rojgarnest
+      context: ../backend/sevanext
       dockerfile: Dockerfile
-    container_name: rojgarnest-local-backend
+    container_name: sevanext-local-backend
     restart: unless-stopped
     environment:
-      MONGO_URI: mongodb://mongo:27017/RojgarNest
-      DATABASE_NAME: RojgarNest
+      MONGO_URI: mongodb://mongo:27017/SevaNext
+      DATABASE_NAME: SevaNext
       REDIS_URL: redis://redis:6379
       PORT: "8000"
       ENVIRONMENT: development
     env_file:
-      - ../backend/rojgarnest/.env
+      - ../backend/sevanext/.env
     depends_on:
       mongo:
         condition: service_healthy
@@ -862,7 +863,7 @@ services:
       - backend_logs:/app/logs
       - backend_backups:/app/backups
     networks:
-      - rojgarnest-net
+      - sevanext-net
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
       interval: 15s
@@ -872,7 +873,7 @@ services:
 
   frontend:
     build:
-      context: ../frontend/rojgarnest
+      context: ../frontend/sevanext
       dockerfile: Dockerfile
       args:
         # ✅ PROXY MODE — same-origin, zero CORS issues
@@ -881,7 +882,7 @@ services:
         WS_BASE_URL: /notification/ws
         BUILD_NUMBER: "1"
         BUILD_NAME: "2.0.0"
-    container_name: rojgarnest-local-frontend
+    container_name: sevanext-local-frontend
     restart: unless-stopped
     depends_on:
       backend:
@@ -890,7 +891,7 @@ services:
       # ✅ FIXED: 80 → 8080 (Windows me port 80 reserved)
       - "8080:80"
     networks:
-      - rojgarnest-net
+      - sevanext-net
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
       interval: 15s
@@ -899,7 +900,7 @@ services:
       start_period: 20s
 
 networks:
-  rojgarnest-net:
+  sevanext-net:
     driver: bridge
 
 volumes:
@@ -912,7 +913,7 @@ volumes:
   backend_backups:
 
 ================================================================================
-[  15/  25] ⚙️ deploy/nginx/nginx.prod.conf
+[  15/  26] ⚙️ deploy/nginx/nginx.prod.conf
 📏 SIZE: 6.4 KB
 🕐 MODIFIED: 2026-11-09 17:48:47
 ================================================================================
@@ -1122,13 +1123,13 @@ http {
 }
 
 ================================================================================
-[  16/  25] 💻 deploy/run-local.ps1
+[  16/  26] 💻 deploy/run-local.ps1
 📏 SIZE: 9.6 KB
-🕐 MODIFIED: 2026-11-11 08:04:13
+🕐 MODIFIED: 2026-11-11 14:38:45
 ================================================================================
 
 ﻿# ============================================================
-# RojgarNest - Local Docker Runner (Windows PowerShell)
+# SevaNext - Local Docker Runner (Windows PowerShell)
 # File: deploy/run-local.ps1
 # ============================================================
 # Usage:
@@ -1149,7 +1150,7 @@ foreach ($a in $args) {
 
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Cyan
-Write-Host "  ROJGARNEST - LOCAL DOCKER DEPLOY" -ForegroundColor Cyan
+Write-Host "  SEVANEXT - LOCAL DOCKER DEPLOY" -ForegroundColor Cyan
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -1165,8 +1166,8 @@ if (-not (Test-Path ".env.local")) {
     Write-Host "ERROR: .env.local not found in deploy folder." -ForegroundColor Red
     exit 1
 }
-if (-not (Test-Path "..\backend\rojgarnest\.env")) {
-    Write-Host "WARNING: ../backend/rojgarnest/.env not found." -ForegroundColor Yellow
+if (-not (Test-Path "..\backend\sevanext\.env")) {
+    Write-Host "WARNING: ../backend/sevanext/.env not found." -ForegroundColor Yellow
     Write-Host "         Backend will start with defaults and may fail." -ForegroundColor Gray
 }
 
@@ -1244,7 +1245,7 @@ $elapsed = 0
 $backendReady = $false
 
 while ($elapsed -lt $maxWait) {
-    $status = docker inspect --format='{{.State.Health.Status}}' rojgarnest-local-backend 2>$null
+    $status = docker inspect --format='{{.State.Health.Status}}' sevanext-local-backend 2>$null
 
     if ($status -eq "healthy") {
         $backendReady = $true
@@ -1257,7 +1258,7 @@ while ($elapsed -lt $maxWait) {
         Write-Host ""
         Write-Host "ERROR: Backend became UNHEALTHY." -ForegroundColor Red
         Write-Host "Last 60 lines of backend logs:" -ForegroundColor Gray
-        docker logs --tail 60 rojgarnest-local-backend
+        docker logs --tail 60 sevanext-local-backend
         break
     }
 
@@ -1270,11 +1271,11 @@ if (-not $backendReady) {
     Write-Host ""
     Write-Host "WARNING: Backend not healthy after $maxWait seconds." -ForegroundColor Yellow
     Write-Host "         Showing last 60 log lines so you can see WHY:" -ForegroundColor Gray
-    docker logs --tail 60 rojgarnest-local-backend
+    docker logs --tail 60 sevanext-local-backend
     Write-Host ""
     Write-Host "         Common fixes:" -ForegroundColor Gray
-    Write-Host "           - Check ../backend/rojgarnest/.env has MONGO_URI, SECRET_KEY, JWT_SECRET_KEY" -ForegroundColor Gray
-    Write-Host "           - Check MongoDB started: docker logs rojgarnest-local-mongo" -ForegroundColor Gray
+    Write-Host "           - Check ../backend/sevanext/.env has MONGO_URI, SECRET_KEY, JWT_SECRET_KEY" -ForegroundColor Gray
+    Write-Host "           - Check MongoDB started: docker logs sevanext-local-mongo" -ForegroundColor Gray
 }
 
 Write-Host ""
@@ -1289,7 +1290,7 @@ $elapsed = 0
 $frontendReady = $false
 
 while ($elapsed -lt $maxWait) {
-    $status = docker inspect --format='{{.State.Health.Status}}' rojgarnest-local-frontend 2>$null
+    $status = docker inspect --format='{{.State.Health.Status}}' sevanext-local-frontend 2>$null
 
     if ($status -eq "healthy") {
         $frontendReady = $true
@@ -1304,7 +1305,7 @@ while ($elapsed -lt $maxWait) {
 if (-not $frontendReady) {
     Write-Host "WARNING: Frontend not healthy after $maxWait seconds, continuing anyway." -ForegroundColor Yellow
     Write-Host "         Showing last 40 frontend log lines:" -ForegroundColor Gray
-    docker logs --tail 40 rojgarnest-local-frontend
+    docker logs --tail 40 sevanext-local-frontend
 }
 
 Write-Host ""
@@ -1350,9 +1351,9 @@ Write-Host "  Backend (direct):      $backendHealth" -ForegroundColor White
 Write-Host "  Backend (proxy):       $proxyHealth" -ForegroundColor White
 Write-Host ""
 Write-Host "  Useful commands:" -ForegroundColor DarkGray
-Write-Host "    docker logs -f rojgarnest-local-backend" -ForegroundColor DarkGray
-Write-Host "    docker logs -f rojgarnest-local-frontend" -ForegroundColor DarkGray
-Write-Host "    docker logs -f rojgarnest-local-mongo" -ForegroundColor DarkGray
+Write-Host "    docker logs -f sevanext-local-backend" -ForegroundColor DarkGray
+Write-Host "    docker logs -f sevanext-local-frontend" -ForegroundColor DarkGray
+Write-Host "    docker logs -f sevanext-local-mongo" -ForegroundColor DarkGray
 Write-Host "    docker compose @composeArgs down" -ForegroundColor DarkGray
 Write-Host ""
 
@@ -1368,7 +1369,7 @@ Write-Host "Browser opened. Happy testing." -ForegroundColor Green
 Write-Host ""
 
 ================================================================================
-[  17/  25] 📜 deploy/run-local.sh
+[  17/  26] 📜 deploy/run-local.sh
 📏 SIZE: 186 B
 🕐 MODIFIED: 2026-11-09 21:41:37
 ================================================================================
@@ -1384,7 +1385,7 @@ exec docker compose \
   "${@:-up}"
 
 ================================================================================
-[  18/  25] 📜 deploy/run-prod.sh
+[  18/  26] 📜 deploy/run-prod.sh
 📏 SIZE: 1.1 KB
 🕐 MODIFIED: 2026-11-09 21:54:38
 ================================================================================
@@ -1430,15 +1431,15 @@ exec docker compose \
     "$@"
 
 ================================================================================
-[  19/  25] 🐍 export_backend_code.py
+[  19/  26] 🐍 export_backend_code.py
 📏 SIZE: 17.1 KB
-🕐 MODIFIED: 2026-11-11 12:20:25
+🕐 MODIFIED: 2026-11-11 14:38:45
 ================================================================================
 
 #!/usr/bin/env python3
 """
 Export Backend Code to a Single Text File - WITH ENV SANITIZATION
-This script scans the entire backend/rojgarnext/ folder and exports ALL code files
+This script scans the entire backend/sevanext/ folder and exports ALL code files
 to a single txt file, BUT it sanitizes the .env file by replacing ALL actual values
 with dummy/placeholder values.
 
@@ -1458,12 +1459,12 @@ from typing import List, Dict, Tuple
 BACKEND_ROOT = Path(__file__).parent / "backend" / "sevanext"
 
 if not BACKEND_ROOT.exists():
-    if Path.cwd().name == "rojgarnext" and (Path.cwd() / "app").exists():
+    if Path.cwd().name == "sevanext" and (Path.cwd() / "app").exists():
         BACKEND_ROOT = Path.cwd()
     else:
         for path in Path.cwd().parents:
-            if (path / "backend" / "rojgarnext").exists():
-                BACKEND_ROOT = path / "backend" / "rojgarnext"
+            if (path / "backend" / "sevanext").exists():
+                BACKEND_ROOT = path / "backend" / "sevanext"
                 break
 
 OUTPUT_FILE = "backend_complete_export.txt"
@@ -1485,8 +1486,8 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 # KEY ke according dummy value map karo
 ENV_SANITIZATION_RULES = {
     # Database
-    'MONGO_URI': 'mongodb://localhost:27017/rojgarnext',
-    'DATABASE_NAME': 'rojgarnext',
+    'MONGO_URI': 'mongodb://localhost:27017/sevanext',
+    'DATABASE_NAME': 'sevanext',
     'ENVIRONMENT': 'development',
     
     # Security
@@ -1540,7 +1541,7 @@ ENV_SANITIZATION_RULES = {
     'GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL': 'your-service-account@project.iam.gserviceaccount.com',
     'GOOGLE_DRIVE_PRIVATE_KEY': '-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----',
     'GOOGLE_DRIVE_FOLDER_ID': 'your_google_drive_folder_id_here',
-    'GOOGLE_DRIVE_FOLDER_NAME': 'rojgarnext_advertisements',
+    'GOOGLE_DRIVE_FOLDER_NAME': 'sevanext_advertisements',
     
     # Blockchain
     'WEB3_PROVIDER_URL': 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID',
@@ -1851,7 +1852,7 @@ def main():
     output_lines.append("📁 COMPLETE DIRECTORY STRUCTURE")
     output_lines.append("=" * 80)
     output_lines.append("")
-    output_lines.append(f"📁 backend/rojgarnext/")
+    output_lines.append(f"📁 backend/sevanext/")
     output_lines.extend(generate_tree_structure(BACKEND_ROOT, BACKEND_ROOT))
     output_lines.append("")
     output_lines.append("")
@@ -1915,14 +1916,14 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[  20/  25] 🐍 export_frontend.py
+[  20/  26] 🐍 export_frontend.py
 📏 SIZE: 13.0 KB
-🕐 MODIFIED: 2026-11-11 12:20:43
+🕐 MODIFIED: 2026-11-11 14:38:45
 ================================================================================
 
 # scripts/export_frontend.py
 """
-Frontend Code Exporter for RojgarNext
+Frontend Code Exporter for SevaNext
 Exports all Flutter frontend code to a single text file
 Run: python scripts/export_frontend.py
 """
@@ -2175,7 +2176,7 @@ def export_frontend():
     """Main export function"""
     
     print("=" * 80)
-    print("🚀 FRONTEND CODE EXPORTER - RojgarNext")
+    print("🚀 FRONTEND CODE EXPORTER - SevaNext")
     print("=" * 80)
     print()
     
@@ -2218,7 +2219,7 @@ def export_frontend():
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as out_file:
         # Write header
         out_file.write("=" * 80 + "\n")
-        out_file.write("ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT\n")
+        out_file.write("SEVANEXT FRONTEND - COMPLETE CODE EXPORT\n")
         out_file.write("=" * 80 + "\n")
         out_file.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         out_file.write(f"Source: {FRONTEND_PATH}\n")
@@ -2323,14 +2324,14 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[  21/  25] 🐍 export_remaining.py
+[  21/  26] 🐍 export_remaining.py
 📏 SIZE: 13.8 KB
-🕐 MODIFIED: 2026-11-11 12:39:20
+🕐 MODIFIED: 2026-11-11 14:38:45
 ================================================================================
 
 # scripts/export_all_except.py
 """
-RojgarNest - Full Project Exporter (EXCLUDE MODE)
+SevaNext - Full Project Exporter (EXCLUDE MODE)
 Exports EVERY file under ROOT_PATH EXCEPT:
   - backend/   (entire folder)
   - frontend/  (entire folder)
@@ -2560,7 +2561,7 @@ def generate_tree(folder: Path, root: Path, prefix: str = "") -> List[str]:
 
 def export_all():
     print("=" * 80)
-    print("🚀 ROJGARNEST - FULL PROJECT EXPORTER (EXCLUDE MODE)")
+    print("🚀 SEVANEXT - FULL PROJECT EXPORTER (EXCLUDE MODE)")
     print("=" * 80)
     print(f"   ROOT_PATH:  {ROOT_PATH}")
     print(f"   OUTPUT_FILE: {OUTPUT_FILE}")
@@ -2618,7 +2619,7 @@ def export_all():
 
     with out:
         out.write("=" * 80 + "\n")
-        out.write("ROJGARNEST - FULL PROJECT EXPORT (EXCLUDE MODE)\n")
+        out.write("SEVANEXT - FULL PROJECT EXPORT (EXCLUDE MODE)\n")
         out.write("=" * 80 + "\n")
         out.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         out.write(f"Source: {ROOT_PATH}\n")
@@ -2647,7 +2648,7 @@ def export_all():
 
         # Tree
         out.write("=" * 80 + "\n📁 DIRECTORY STRUCTURE\n" + "=" * 80 + "\n\n")
-        out.write(f"📁 RojgarNest/\n")
+        out.write(f"📁 SevaNext/\n")
         for line in generate_tree(root, root):
             out.write(line + "\n")
         out.write("\n\n")
@@ -2726,9 +2727,759 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[  22/  25] ⚙️ monitoring/logstash.conf
-📏 SIZE: 578 B
-🕐 MODIFIED: 2026-09-10 10:40:32
+[  22/  26] 🐍 migrate_all_to_sevanext.py
+📏 SIZE: 26.0 KB
+🕐 MODIFIED: 2026-11-11 14:37:55
+================================================================================
+
+#!/usr/bin/env python3
+"""
+============================================================
+🚀 SEVANEXT — ONE-SHOT MIGRATION SCRIPT
+============================================================
+Ye ek hi script sab kuch karti hai:
+
+  1. Backup      — automatic .bak copy of every file it touches
+  2. Rewrite     — rojgarnext/rojgarnest → sevanext in ALL text files
+  3. Rename      — file/folder names containing rojgarnext → sevanext
+  4. Docker Fix  — docker-compose*.yml ki DB names + network + container names
+  5. .env Fix    — .env, .env.* files me MONGO_URI + DATABASE_NAME
+  6. Sanitize    — export_backend_code.py ki ENV_SANITIZATION_RULES
+  7. Verify      — akhir me scan karke report deti hai
+
+KAISE CHALAYE:
+    cd E:\\YOGESH\\website\\SevaNext
+    python migrate_all_to_sevanext.py                # LIVE (apply all)
+    python migrate_all_to_sevanext.py --dry-run      # preview only
+    python migrate_all_to_sevanext.py --no-backup    # skip .bak copies
+    python migrate_all_to_sevanext.py --no-rename    # skip path renames
+
+KAUNSE PATHS KEEP karna hai (protected):
+  - rojgarnest.com / www.rojgarnest.com   (domain)
+  - com.rojgarnext.app                    (Android app ID)
+  - rojgarnext-release-key.jks            (keystore)
+  - RojgarNest_uploads                    (Cloudinary folder)
+============================================================
+"""
+
+import argparse
+import os
+import re
+import shutil
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import List, Tuple
+
+# ============================================================
+# CONFIG
+# ============================================================
+
+ROOT_PATH = Path(__file__).parent.resolve()
+
+# Folders that are NEVER touched
+HARD_SKIP_DIRS = {
+    '.git', '.vscode', '.idea', 'node_modules', '__pycache__',
+    '.pytest_cache', '.mypy_cache', '.ruff_cache', '.dart_tool',
+    '.gradle', 'build', 'dist', 'coverage', 'htmlcov', '.next',
+    '.cache', '.turbo', '.venv', 'venv', 'env',
+}
+
+# Binary extensions — never rewrite content
+BINARY_EXTENSIONS = {
+    '.zip', '.tar', '.tgz', '.rar', '.7z', '.gz', '.bz2', '.xz',
+    '.pyc', '.pyo', '.class', '.o', '.obj', '.so', '.dll', '.exe',
+    '.dylib', '.wasm', '.jpg', '.jpeg', '.png', '.gif', '.bmp',
+    '.ico', '.webp', '.svg', '.mp4', '.mov', '.avi', '.mkv', '.webm',
+    '.flv', '.m4v', '.3gp', '.mp3', '.wav', '.ogg', '.flac', '.aac',
+    '.m4a', '.woff', '.woff2', '.ttf', '.otf', '.eot', '.pdf', '.doc',
+    '.docx', '.pptx', '.xlsx', '.xls', '.db', '.sqlite', '.sqlite3',
+    '.rdb', '.dump', '.pem', '.key', '.crt', '.cer', '.p12', '.pfx',
+    '.jks', '.keystore', '.bin', '.lz4',
+}
+
+# Output/backup files — never rewrite
+SKIP_FILE_NAMES = {
+    'full_project_export.txt',
+    'backend_complete_export.txt',
+    'frontend_export.txt',
+    'migrate_all_to_sevanext.py',
+    'migrate_to_sevanext.py',
+    'post_migration_verify.py',
+    '.DS_Store',
+    'Thumbs.db',
+    'desktop.ini',
+}
+
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+# ============================================================
+# PROTECTED PATTERNS
+# ------------------------------------------------------------
+# These strings are replaced with a placeholder FIRST so generic
+# replacement doesn't break them, then restored at the end.
+# ============================================================
+
+PROTECTED_PATTERNS = [
+    # domain (used everywhere) — keep exact
+    'www.rojgarnest.com',
+    'rojgarnest.com',
+    # android app id (Play Store — immutable)
+    'com.rojgarnext.app',
+    # keystore file (Android signing)
+    'rojgarnext-release-key.jks',
+    # cloudinary folder (existing assets)
+    'RojgarNest_uploads',
+    # android package folders in Flutter
+    '/com/rojgarnext/',
+    'com/rojgarnext',
+    # gradle applicationId
+    'applicationId "com.rojgarnext.app"',
+    'applicationId = "com.rojgarnext.app"',
+]
+
+# ============================================================
+# REPLACEMENT ORDER (longest variants first)
+# ============================================================
+
+REPLACEMENTS: List[Tuple[str, str]] = [
+    # TitleCase variants (mixed, longest first)
+    ('RojgarNext', 'SevaNext'),
+    ('RojgarNest', 'SevaNext'),
+    ('Rojgarnext', 'Sevanext'),
+    ('Rojgarnest', 'Sevanext'),
+    # lower
+    ('rojgarnext', 'sevanext'),
+    ('rojgarnest', 'sevanext'),
+    # UPPER
+    ('ROJGARNEXT', 'SEVANEXT'),
+    ('ROJGARNEST', 'SEVANEXT'),
+]
+
+# ============================================================
+# DIRECT DOCKER / ENV OVERRIDES
+# ------------------------------------------------------------
+# After generic replacement we additionally FORCE these exact
+# key=value pairs in known files so there is zero ambiguity.
+# ============================================================
+
+DOCKER_DB_NAME = 'SevaNext'
+DOCKER_PROJECT = 'sevanext'
+DOCKER_NETWORK = 'sevanext-net'
+
+ENV_TARGETS = {
+    'MONGO_URI': {
+        'dev': 'mongodb://mongo:27017/SevaNext',
+        'prod': 'mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/SevaNext?authSource=admin',
+    },
+    'DATABASE_NAME': 'SevaNext',
+    'MONGO_INITDB_DATABASE': 'SevaNext',
+    'MONGO_DATABASE': 'SevaNext',
+}
+
+# ============================================================
+# STATS
+# ============================================================
+
+class Stats:
+    def __init__(self):
+        self.files_scanned = 0
+        self.files_rewritten = 0
+        self.files_skipped = 0
+        self.files_failed = 0
+        self.total_replacements = 0
+        self.paths_renamed = 0
+        self.docker_files_fixed = 0
+        self.env_files_fixed = 0
+        self.backups_created = 0
+        self.errors: List[str] = []
+
+    def report(self) -> str:
+        lines = [
+            '=' * 80,
+            '📊 MIGRATION SUMMARY',
+            '=' * 80,
+            f"  Files scanned:         {self.files_scanned}",
+            f"  Files rewritten:       {self.files_rewritten}",
+            f"  Files skipped:         {self.files_skipped}",
+            f"  Files failed:          {self.files_failed}",
+            f"  Total replacements:    {self.total_replacements}",
+            f"  Paths renamed:         {self.paths_renamed}",
+            f"  Docker files fixed:    {self.docker_files_fixed}",
+            f"  Env files fixed:       {self.env_files_fixed}",
+            f"  Backups created:       {self.backups_created}",
+            '=' * 80,
+        ]
+        if self.errors:
+            lines.append('')
+            lines.append('⚠️  ERRORS:')
+            for e in self.errors[:30]:
+                lines.append(f'    • {e}')
+        return '\n'.join(lines)
+
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+def is_hard_skipped(dir_name: str) -> bool:
+    return dir_name in HARD_SKIP_DIRS
+
+
+def should_skip_file(path: Path) -> bool:
+    if path.name in SKIP_FILE_NAMES:
+        return True
+    if path.suffix.lower() in BINARY_EXTENSIONS:
+        return True
+    try:
+        s = path.stat().st_size
+        if s == 0 or s > MAX_FILE_SIZE:
+            return True
+    except Exception:
+        return True
+    return False
+
+
+def read_text(path: Path) -> Tuple[str | None, str]:
+    for enc in ('utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1'):
+        try:
+            return path.read_text(encoding=enc), enc
+        except UnicodeDecodeError:
+            continue
+        except Exception:
+            return None, 'read-error'
+    try:
+        return path.read_text(encoding='utf-8', errors='replace'), 'utf-8-replace'
+    except Exception as e:
+        return None, f'error: {e}'
+
+
+def write_text(path: Path, content: str, enc: str) -> bool:
+    try:
+        enc = 'utf-8' if enc in ('utf-8-replace', 'read-error') else enc
+        path.write_text(content, encoding=enc)
+        return True
+    except Exception as e:
+        print(f"    ❌ write error: {e}")
+        return False
+
+
+def make_backup(path: Path, backup_root: Path) -> bool:
+    try:
+        rel = path.relative_to(ROOT_PATH)
+        dst = backup_root / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(path, dst)
+        return True
+    except Exception as e:
+        print(f"    ⚠️  backup failed for {path}: {e}")
+        return False
+
+
+def protect(content: str) -> Tuple[str, dict]:
+    """Replace protected patterns with unique tokens."""
+    mapping = {}
+    for i, pat in enumerate(PROTECTED_PATTERNS):
+        token = f"__SEVANEXT_PROTECT_{i}__"
+        if pat in content:
+            content = content.replace(pat, token)
+            mapping[token] = pat
+    return content, mapping
+
+
+def unprotect(content: str, mapping: dict) -> str:
+    for token, pat in mapping.items():
+        content = content.replace(token, pat)
+    return content
+
+
+def apply_replacements(content: str) -> Tuple[str, int]:
+    total = 0
+    for old, new in REPLACEMENTS:
+        if old in content:
+            total += content.count(old)
+            content = content.replace(old, new)
+    return content, total
+
+
+# ============================================================
+# DOCKER COMPOSE FORCE-FIX
+# ------------------------------------------------------------
+# Ensures MONGO_URI / DATABASE_NAME / MONGO_INITDB_DATABASE /
+# network / container / project names are exactly SevaNext.
+# ============================================================
+
+def fix_compose_file(path: Path, kind: str) -> bool:
+    content, enc = read_text(path)
+    if content is None:
+        return False
+
+    original = content
+    changed = False
+
+    # 1. MONGO_URI inside compose
+    if kind == 'base':
+        content = re.sub(
+            r'(MONGO_URI:\s*)(mongodb://[^\s]+/[A-Za-z0-9_]+)',
+            lambda m: m.group(1) + m.group(2).rsplit('/', 1)[0] + '/' + DOCKER_DB_NAME,
+            content,
+        )
+        content = re.sub(
+            r'(DATABASE_NAME:\s*)[A-Za-z0-9_]+',
+            rf'\1{DOCKER_DB_NAME}',
+            content,
+        )
+        content = re.sub(
+            r'(MONGO_INITDB_DATABASE:\s*)[A-Za-z0-9_]+',
+            rf'\1{DOCKER_DB_NAME}',
+            content,
+        )
+        content = re.sub(
+            r'(container_name:\s*)rojgarnest-local-(backend|frontend)',
+            rf'\1sevanext-local-\2',
+            content,
+        )
+        content = content.replace('rojgarnest-net', DOCKER_NETWORK)
+
+    elif kind == 'prod':
+        content = re.sub(
+            r'(MONGO_URI:\s*)(mongodb://[^\s]+/[A-Za-z0-9_]+)(\?authSource=admin)',
+            lambda m: m.group(1) + m.group(2).rsplit('/', 1)[0] + '/' + DOCKER_DB_NAME + m.group(3),
+            content,
+        )
+        content = re.sub(
+            r'(DATABASE_NAME:\s*)[A-Za-z0-9_]+',
+            rf'\1{DOCKER_DB_NAME}',
+            content,
+        )
+
+    if content != original:
+        changed = True
+        if not write_text(path, content, enc):
+            return False
+    return changed
+
+
+def fix_env_file(path: Path) -> bool:
+    """Force DB-related keys in .env* files."""
+    content, enc = read_text(path)
+    if content is None:
+        return False
+
+    lines = content.splitlines(keepends=False)
+    out: List[str] = []
+    seen_keys: set = set()
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith('#'):
+            out.append(line)
+            continue
+        if '=' not in line:
+            out.append(line)
+            continue
+
+        key, _, val = line.partition('=')
+        key_clean = key.strip()
+        seen_keys.add(key_clean)
+
+        if key_clean == 'MONGO_URI':
+            # decide dev vs prod based on filename
+            fname = path.name.lower()
+            if 'prod' in fname:
+                value = 'mongodb://mongo:27017/SevaNext'  # overridden by compose env anyway
+            else:
+                value = 'mongodb://localhost:27017/sevanext'
+            out.append(f'{key_clean}={value}')
+        elif key_clean in ('DATABASE_NAME', 'MONGO_INITDB_DATABASE', 'MONGO_DATABASE'):
+            out.append(f'{key_clean}={DOCKER_DB_NAME}')
+        elif key_clean == 'COMPOSE_PROJECT_NAME':
+            out.append(f'{key_clean}={DOCKER_PROJECT}')
+        else:
+            out.append(line)
+
+    # Ensure MONGO_URI + DATABASE_NAME exist in backend .env files
+    if path.name == '.env' and 'backend' in str(path).lower().replace('\\', '/'):
+        if 'MONGO_URI' not in seen_keys:
+            out.append('MONGO_URI=mongodb://localhost:27017/sevanext')
+        if 'DATABASE_NAME' not in seen_keys:
+            out.append('DATABASE_NAME=SevaNext')
+
+    new_content = '\n'.join(out)
+    if content.endswith('\n') and not new_content.endswith('\n'):
+        new_content += '\n'
+
+    if new_content != content:
+        return write_text(path, new_content, enc)
+    return False
+
+
+# ============================================================
+# MIGRATE ONE FILE
+# ============================================================
+
+def migrate_file(
+    path: Path,
+    dry_run: bool,
+    backup_root: Path | None,
+    stats: Stats,
+) -> None:
+    stats.files_scanned += 1
+
+    if should_skip_file(path):
+        stats.files_skipped += 1
+        return
+
+    content, enc = read_text(path)
+    if content is None:
+        stats.files_skipped += 1
+        print(f"  ⏭️  skip (unreadable): {path.relative_to(ROOT_PATH)} ({enc})")
+        return
+
+    # Step 1: protect domain / app-id / keystore / cloudinary
+    protected, mapping = protect(content)
+
+    # Step 2: generic replacement
+    replaced, changes = apply_replacements(protected)
+
+    # Step 3: restore protected
+    new_content = unprotect(replaced, mapping)
+
+    if changes == 0:
+        stats.files_skipped += 1
+        return
+
+    if dry_run:
+        stats.files_rewritten += 1
+        stats.total_replacements += changes
+        print(f"  [DRY] ✅ {path.relative_to(ROOT_PATH)}  ({changes} replacements)")
+        return
+
+    # backup
+    if backup_root is not None:
+        if make_backup(path, backup_root):
+            stats.backups_created += 1
+
+    # write
+    if write_text(path, new_content, enc):
+        stats.files_rewritten += 1
+        stats.total_replacements += changes
+        print(f"  ✅ {path.relative_to(ROOT_PATH)}  ({changes} replacements)")
+    else:
+        stats.files_failed += 1
+        stats.errors.append(str(path))
+
+
+# ============================================================
+# PATH RENAME (files & dirs)
+# ============================================================
+
+def rename_paths(dry_run: bool, stats: Stats) -> None:
+    # Rename dirs deepest-first
+    dirs = []
+    for current_dir, subdirs, _ in os.walk(ROOT_PATH):
+        subdirs[:] = [d for d in subdirs if not is_hard_skipped(d)]
+        for d in subdirs:
+            dirs.append(Path(current_dir) / d)
+
+    for old in sorted(dirs, key=lambda p: len(p.parts), reverse=True):
+        if not old.exists():
+            continue
+        new_name, ch = apply_replacements(old.name)
+        if ch == 0 or new_name == old.name:
+            continue
+        new_path = old.parent / new_name
+        if dry_run:
+            print(f"  [DRY] 📁 RENAME  {old.relative_to(ROOT_PATH)}  →  {new_name}")
+            stats.paths_renamed += 1
+        else:
+            try:
+                old.rename(new_path)
+                print(f"  ✅ 📁 RENAMED  {old.relative_to(ROOT_PATH)}  →  {new_name}")
+                stats.paths_renamed += 1
+            except Exception as e:
+                stats.errors.append(f'rename {old}: {e}')
+                print(f"  ❌ rename {old}: {e}")
+
+    # Rename files
+    for current_dir, subdirs, files in os.walk(ROOT_PATH):
+        subdirs[:] = [d for d in subdirs if not is_hard_skipped(d)]
+        for filename in files:
+            old = Path(current_dir) / filename
+            new_name, ch = apply_replacements(filename)
+            if ch == 0 or new_name == filename:
+                continue
+            new_path = old.parent / new_name
+            if dry_run:
+                print(f"  [DRY] 📄 RENAME  {old.relative_to(ROOT_PATH)}  →  {new_name}")
+                stats.paths_renamed += 1
+            else:
+                try:
+                    old.rename(new_path)
+                    print(f"  ✅ 📄 RENAMED  {old.relative_to(ROOT_PATH)}  →  {new_name}")
+                    stats.paths_renamed += 1
+                except Exception as e:
+                    stats.errors.append(f'rename {old}: {e}')
+                    print(f"  ❌ rename {old}: {e}")
+
+
+# ============================================================
+# VERIFY
+# ============================================================
+
+def verify() -> int:
+    """Return number of leftover occurrences."""
+    patterns = ['rojgarnext', 'rojgarnest', 'RojgarNext',
+                'RojgarNest', 'ROJGARNEXT', 'ROJGARNEST']
+    protected_tokens = [p.lower() for p in PROTECTED_PATTERNS]
+
+    hits = 0
+    print()
+    print("=" * 80)
+    print("🔍 POST-MIGRATION VERIFICATION")
+    print("=" * 80)
+
+    for current_dir, subdirs, files in os.walk(ROOT_PATH):
+        subdirs[:] = [d for d in subdirs if not is_hard_skipped(d)]
+        for filename in files:
+            path = Path(current_dir) / filename
+            if should_skip_file(path):
+                continue
+            content, _ = read_text(path)
+            if content is None:
+                continue
+            lower = content.lower()
+            for pat in patterns:
+                if pat.lower() in lower:
+                    # ignore if line only contains a protected pattern
+                    for line in content.splitlines():
+                        l = line.lower()
+                        if pat.lower() in l:
+                            if any(pt in l for pt in protected_tokens):
+                                continue
+                            # ignore self-reference to script name
+                            if 'migrate_to_sevanext' in l or 'migrate_all_to' in l:
+                                continue
+                            hits += 1
+                            print(f"  ⚠️  {path.relative_to(ROOT_PATH)}  →  '{pat}'")
+                            break
+
+    print("=" * 80)
+    if hits == 0:
+        print("✅ VERIFICATION PASSED — no stray rojgarnest/rojgarnext")
+    else:
+        print(f"⚠️  {hits} potential leftover(s) — review above")
+    print("=" * 80)
+    return hits
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+    ap = argparse.ArgumentParser(
+        description='One-shot rojgarnest → sevanext migration.'
+    )
+    ap.add_argument('--dry-run', action='store_true',
+                    help='Preview only — do not modify files.')
+    ap.add_argument('--no-backup', action='store_true',
+                    help='Skip .bak copies (faster, riskier).')
+    ap.add_argument('--no-rename', action='store_true',
+                    help='Skip renaming files/folders.')
+    ap.add_argument('--skip-verify', action='store_true',
+                    help='Skip post-migration verification.')
+    args = ap.parse_args()
+
+    print("=" * 80)
+    print("🚀 SEVANEXT — ONE-SHOT MIGRATION")
+    print("=" * 80)
+    print(f"   ROOT:          {ROOT_PATH}")
+    print(f"   DRY RUN:       {args.dry_run}")
+    print(f"   BACKUP:        {not args.no_backup}")
+    print(f"   RENAME PATHS:  {not args.no_rename}")
+    print("=" * 80)
+
+    if not ROOT_PATH.exists():
+        print(f"❌ Root not found: {ROOT_PATH}")
+        sys.exit(1)
+
+    if not args.dry_run:
+        print("⚠️  LIVE MODE — you have 5 seconds to abort (Ctrl+C).")
+        try:
+            time.sleep(5)
+        except KeyboardInterrupt:
+            print("\n❌ Aborted.")
+            sys.exit(1)
+
+    # ---- Backup dir ----
+    backup_root = None
+    if not args.no_backup and not args.dry_run:
+        backup_root = ROOT_PATH / f'.migration_backup_{datetime.now():%Y%m%d_%H%M%S}'
+        backup_root.mkdir(parents=True, exist_ok=True)
+        print(f"📦 Backup directory: {backup_root.name}\n")
+
+    stats = Stats()
+
+    # ---- STEP 1: rewrite all file contents ----
+    print("📝 STEP 1/4 — Rewriting file contents ...")
+    print("-" * 80)
+    for current_dir, subdirs, files in os.walk(ROOT_PATH):
+        subdirs[:] = [d for d in subdirs if not is_hard_skipped(d)]
+        # Also skip the backup directory itself
+        if backup_root is not None:
+            subdirs[:] = [d for d in subdirs if (Path(current_dir) / d) != backup_root]
+        for filename in files:
+            migrate_file(Path(current_dir) / filename,
+                         args.dry_run, backup_root, stats)
+    print()
+
+    # ---- STEP 2: force-fix docker / env / sanitizer ----
+    print("🐳 STEP 2/4 — Force-fixing Docker / .env files ...")
+    print("-" * 80)
+
+    # 2a. docker-compose files
+    for current_dir, subdirs, files in os.walk(ROOT_PATH):
+        subdirs[:] = [d for d in subdirs if not is_hard_skipped(d)]
+        for filename in files:
+            p = Path(current_dir) / filename
+            rel = str(p.relative_to(ROOT_PATH)).replace('\\', '/')
+
+            if filename == 'docker-compose.yml':
+                if not args.dry_run:
+                    if fix_compose_file(p, 'base'):
+                        stats.docker_files_fixed += 1
+                        print(f"  ✅ fixed: {rel}")
+                else:
+                    print(f"  [DRY] docker-fix: {rel}")
+
+            elif filename == 'docker-compose.prod.yml':
+                if not args.dry_run:
+                    if fix_compose_file(p, 'prod'):
+                        stats.docker_files_fixed += 1
+                        print(f"  ✅ fixed: {rel}")
+                else:
+                    print(f"  [DRY] docker-prod-fix: {rel}")
+
+            elif filename == '.env' or filename.startswith('.env.'):
+                if not args.dry_run:
+                    # backup already made in step 1 if modified
+                    if fix_env_file(p):
+                        stats.env_files_fixed += 1
+                        print(f"  ✅ env-fixed: {rel}")
+                else:
+                    print(f"  [DRY] env-fix: {rel}")
+
+    # 2b. export_backend_code.py — sanitization rules
+    exporters = [
+        ROOT_PATH / 'export_backend_code.py',
+        ROOT_PATH / 'scripts' / 'export_backend_code.py',
+    ]
+    for exporter in exporters:
+        if not exporter.exists():
+            continue
+        content, enc = read_text(exporter)
+        if content is None:
+            continue
+        new_content = re.sub(
+            r"('MONGO_URI'\s*:\s*')[^']*(')",
+            rf"\1mongodb://localhost:27017/sevanext\2",
+            content,
+        )
+        new_content = re.sub(
+            r"('DATABASE_NAME'\s*:\s*')[^']*(')",
+            rf"\1sevanext\2",
+            new_content,
+        )
+        if new_content != content:
+            if not args.dry_run:
+                write_text(exporter, new_content, enc)
+                print(f"  ✅ sanitizer rules fixed: {exporter.name}")
+            else:
+                print(f"  [DRY] sanitizer-fix: {exporter.name}")
+    print()
+
+    # ---- STEP 3: rename paths (optional) ----
+    if not args.no_rename:
+        print("📁 STEP 3/4 — Renaming files / folders ...")
+        print("-" * 80)
+        rename_paths(args.dry_run, stats)
+        print()
+    else:
+        print("📁 STEP 3/4 — Rename skipped (--no-rename).\n")
+
+    # ---- STEP 4: verify ----
+    if not args.skip_verify:
+        print("🔍 STEP 4/4 — Verifying ...")
+        leftover = verify()
+    else:
+        print("🔍 STEP 4/4 — Verify skipped (--skip-verify).\n")
+        leftover = 0
+
+    # ---- Final report ----
+    print()
+    print(stats.report())
+
+    if not args.dry_run:
+        print("\n🎉 MIGRATION COMPLETE")
+        print("=" * 80)
+        print("📋 NEXT STEPS:")
+        print("=" * 80)
+        print("  1. Review the diff:")
+        print("       git diff")
+        print()
+        print("  2. Migrate MongoDB data:")
+        print("       mongodump --db=rojgarnext --archive=old.gz --gzip")
+        print("       mongorestore --archive=old.gz --gzip \\")
+        print("                    --nsFrom='rojgarnext.*' \\")
+        print("                    --nsTo='sevanext.*'")
+        print()
+        print("  3. Rebuild & restart Docker:")
+        print("       cd deploy")
+        print("       docker compose -f docker-compose.yml \\")
+        print("                      -f docker-compose.dev.yml \\")
+        print("                      --env-file .env.local down")
+        print("       docker compose -f docker-compose.yml \\")
+        print("                      -f docker-compose.dev.yml \\")
+        print("                      --env-file .env.local up --build -d")
+        print()
+        print("  4. Verify backend connected to right DB:")
+        print("       docker exec -it sevanext-local-backend sh -c \\")
+        print("         \"python -c 'from app.database.mongodb import db; print(db.name)'\"")
+        print()
+        print("  5. After 1 week of confirmed operation, drop old DB:")
+        print("       mongosh --eval \"db.getSiblingDB('rojgarnext').dropDatabase()\"")
+        print("=" * 80)
+
+        if backup_root is not None:
+            print(f"\n💾 Backup saved at: {backup_root}")
+            print("   You can restore a file by copying from that folder.")
+            print("   Delete it after verifying migration is OK.")
+
+    if leftover > 0:
+        print(f"\n⚠️  {leftover} potential leftover(s) detected — review above.")
+        sys.exit(2)
+
+    sys.exit(0)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n❌ Cancelled by user.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n\n❌ Fatal error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+================================================================================
+[  23/  26] ⚙️ monitoring/logstash.conf
+📏 SIZE: 576 B
+🕐 MODIFIED: 2026-11-11 14:39:02
 ================================================================================
 
 input {
@@ -2758,13 +3509,13 @@ filter {
 output {
   elasticsearch {
     hosts => ["elasticsearch:9200"]
-    index => "rojgarnext-logs-%{+YYYY.MM.dd}"
+    index => "sevanext-logs-%{+YYYY.MM.dd}"
   }
   stdout { codec => rubydebug }
 }
 
 ================================================================================
-[  23/  25] ⚙️ monitoring/prometheus.yml
+[  24/  26] ⚙️ monitoring/prometheus.yml
 📏 SIZE: 536 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -2796,16 +3547,16 @@ scrape_configs:
       - targets: ['redis:9121']
 
 ================================================================================
-[  24/  25] 📋 railway.frontend.json
-📏 SIZE: 431 B
-🕐 MODIFIED: 2026-11-05 21:52:26
+[  25/  26] 📋 railway.frontend.json
+📏 SIZE: 429 B
+🕐 MODIFIED: 2026-11-11 14:38:45
 ================================================================================
 
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "frontend/rojgarnest/Dockerfile",
+    "dockerfilePath": "frontend/sevanext/Dockerfile",
     "buildArgs": {
       "API_BASE_URL": "https://www.rojgarnest.com/api/v1"
     }
@@ -2820,16 +3571,16 @@ scrape_configs:
 }
 
 ================================================================================
-[  25/  25] 📋 railway.json
-📏 SIZE: 533 B
-🕐 MODIFIED: 2026-11-07 17:44:06
+[  26/  26] 📋 railway.json
+📏 SIZE: 531 B
+🕐 MODIFIED: 2026-11-11 14:38:45
 ================================================================================
 
 {
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "DOCKERFILE",
-    "dockerfilePath": "backend/rojgarnest/Dockerfile"
+    "dockerfilePath": "backend/sevanext/Dockerfile"
   },
   "deploy": {
     "startCommand": "gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT --timeout 120 --access-logfile - --error-logfile -",
@@ -2844,6 +3595,6 @@ scrape_configs:
 ================================================================================
 🎉 EXPORT COMPLETED!
 ================================================================================
-Total Files: 25
-Generated: 2026-11-11 14:19:06
+Total Files: 26
+Generated: 2026-11-11 15:02:23
 ================================================================================

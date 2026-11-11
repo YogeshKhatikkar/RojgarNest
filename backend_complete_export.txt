@@ -1,7 +1,7 @@
 ================================================================================
 ROJARGAR NEXT BACKEND - COMPLETE CODE EXPORT (SANITIZED)
 ================================================================================
-Generated: 2026-11-11 14:18:58
+Generated: 2026-11-11 15:02:27
 Source: E:\YOGESH\website\SevaNext\backend\sevanext
 Total Files: 171
   - Python Files: 167
@@ -17,7 +17,7 @@ Total Files: 171
 📁 COMPLETE DIRECTORY STRUCTURE
 ================================================================================
 
-📁 backend/rojgarnext/
+📁 backend/sevanext/
 ├── 📄 .dockerignore
 ├── 🔐 .env
 ├── 📁 app/
@@ -302,8 +302,8 @@ service-account-key.json
 
 ================================================================================
 [   2/ 171] 🔐 ENV FILE (SANITIZED - Dummy Values Only): .env
-📏 SIZE: 23,636 bytes
-🕐 MODIFIED: 2026-11-11 11:15:55
+📏 SIZE: 23,596 bytes
+🕐 MODIFIED: 2026-11-11 14:39:02
 
 ⚠️  NOTE: This .env file has been sanitized. All original values replaced with dummy placeholders.
 
@@ -332,14 +332,14 @@ PYTHONUTF8=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
 # ============================================================
 # ================= LOCAL DATABASE =================
 # When ENVIRONMENT=development, use local MongoDB
-MONGO_URI=mongodb://localhost:27017/rojgarnext
-DATABASE_NAME=rojgarnext
+MONGO_URI=mongodb://localhost:27017/sevanext
+DATABASE_NAME=sevanext
 ENVIRONMENT=development
 
 # ================= ATLAS DATABASE =================
 # When ENVIRONMENT=production, uncomment and use Atlas
-#MONGO_URI=mongodb+srv://rojgarnext_db:Rojgarnext123@cluster0.bmbx8bu.mongodb.net/rojgarnext?retryWrites=true&w=majority
-#DATABASE_NAME=rojgarnext
+#MONGO_URI=mongodb+srv://sevanext_db:Sevanext123@cluster0.bmbx8bu.mongodb.net/sevanext?retryWrites=true&w=majority
+#DATABASE_NAME=sevanext
 #ENVIRONMENT=production
 
 PORT=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
@@ -396,7 +396,7 @@ EMAIL_PROVIDER=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
 #SMTP_USER=yogeshkhatikkar.yk@gmail.com
 #SMTP_PASSWORD=wvntknbzurfaxzje     # ← App Password (16 chars, with spaces)
 #SMTP_FROM=yogeshkhatikkar.yk@gmail.com
-#SMTP_FROM_NAME=RojgarNest
+#SMTP_FROM_NAME=SevaNext
 
 # -------- SMTP (Hostinger) --------
 SMTP_HOST=smtp.gmail.com
@@ -660,7 +660,7 @@ GOOGLE_DRIVE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----
 YOUR_PRIVATE_KEY_HERE
 -----END PRIVATE KEY-----"
 GOOGLE_DRIVE_FOLDER_ID=your_google_drive_folder_id_here
-GOOGLE_DRIVE_FOLDER_NAME=rojgarnext_advertisements
+GOOGLE_DRIVE_FOLDER_NAME=sevanext_advertisements
 
 
 # ============================================================
@@ -708,13 +708,13 @@ TWILIO_LOG_LEVEL=[REDACTED_ADD_TO_ENV_SANITIZATION_RULES]
 
 ================================================================================
 [   3/ 171] 📄 TEXT FILE: Dockerfile
-📏 SIZE: 2,144 bytes
-🕐 MODIFIED: 2026-11-10 22:12:53
+📏 SIZE: 2,142 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
 # ============================================================
-# ROJGARNEST BACKEND DOCKERFILE — PRODUCTION READY
+# SEVANEXT BACKEND DOCKERFILE — PRODUCTION READY
 # Multi-stage build, non-root user, works for dev + prod
 # ============================================================
 
@@ -793,14 +793,14 @@ CMD ["uvicorn", "app.main:app", \
 
 ================================================================================
 [   4/ 171] 🐍 PYTHON FILE: app\core\__init__.py
-📏 SIZE: 3,810 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 3,808 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
 # app/core/__init__.py - FIXED VERSION
 """
-RojgarNest Core Module
+SevaNext Core Module
 """
 
 from app.core.config.settings import settings
@@ -4698,8 +4698,8 @@ __all__ = ['CacheStrategy', 'DistributedCache', 'LocalCache']
 
 ================================================================================
 [  18/ 171] 🐍 PYTHON FILE: app\core\config\settings.py
-📏 SIZE: 15,182 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 15,164 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -4718,8 +4718,8 @@ class Settings(BaseSettings):
     # ============================================================
     # 🗄️ DATABASE
     # ============================================================
-    MONGO_URI: str = "mongodb://localhost:27017/RojgarNest"
-    DATABASE_NAME: str = "RojgarNest"
+    MONGO_URI: str = "mongodb://localhost:27017/SevaNext"
+    DATABASE_NAME: str = "SevaNext"
     ENVIRONMENT: str = "development"
     PORT: int = 8000
 
@@ -4775,7 +4775,7 @@ class Settings(BaseSettings):
     FAST2SMS_API_KEY: str = ""
 
     BREVO_API_KEY: str = ""
-    BREVO_SMS_SENDER: str = "RojgarNest"
+    BREVO_SMS_SENDER: str = "SevaNext"
     BREVO_SMS_API_KEY: str = ""
 
     # ============================================================
@@ -4812,10 +4812,10 @@ class Settings(BaseSettings):
     SMTP_USER: str = ""
     SMTP_PASSWORD: str = ""
     SMTP_FROM: str = ""
-    SMTP_FROM_NAME: str = "RojgarNest"
+    SMTP_FROM_NAME: str = "SevaNext"
 
     BREVO_SENDER_EMAIL: str = ""
-    BREVO_SENDER_NAME: str = "RojgarNest"
+    BREVO_SENDER_NAME: str = "SevaNext"
     BREVO_SMTP_HOST: str = "smtp-relay.brevo.com"
     BREVO_SMTP_PORT: int = 587
     BREVO_SMTP_USER: str = ""
@@ -4823,12 +4823,12 @@ class Settings(BaseSettings):
 
     SENDGRID_API_KEY: str = ""
     SENDGRID_FROM_EMAIL: str = ""
-    SENDGRID_FROM_NAME: str = "RojgarNest"
+    SENDGRID_FROM_NAME: str = "SevaNext"
 
     MAILGUN_API_KEY: str = ""
     MAILGUN_DOMAIN: str = ""
     MAILGUN_FROM_EMAIL: str = ""
-    MAILGUN_FROM_NAME: str = "RojgarNest"
+    MAILGUN_FROM_NAME: str = "SevaNext"
 
     # ============================================================
     # 🌐 OTHER
@@ -5015,7 +5015,7 @@ class Settings(BaseSettings):
     # ============================================================
     @property
     def SAFE_MONGO_URI(self) -> str:
-        uri = self.MONGO_URI or "mongodb://localhost:27017/RojgarNest"
+        uri = self.MONGO_URI or "mongodb://localhost:27017/SevaNext"
         if uri.startswith("mongodb+srv://"):
             if "retryWrites=" not in uri:
                 separator = "&" if "?" in uri else "?"
@@ -5073,7 +5073,7 @@ settings = Settings()
 # 🎯 STARTUP DIAGNOSTIC
 # ============================================================
 print("=" * 70)
-print("🔧 RojgarNest SETTINGS LOADED")
+print("🔧 SevaNext SETTINGS LOADED")
 print("=" * 70)
 print(f"   Environment: {settings.ENVIRONMENT}")
 print(f"   MOBILE_OTP_BYPASS: {settings.MOBILE_OTP_BYPASS}")
@@ -5962,8 +5962,8 @@ class DistanceCalculator:
 
 ================================================================================
 [  28/ 171] 🐍 PYTHON FILE: app\core\location\location_handler.py
-📏 SIZE: 7,454 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 7,450 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -6066,7 +6066,7 @@ class SimpleLocationHandler:
                 response = await client.get(
                     "https://nominatim.openstreetmap.org/reverse",
                     params={"lat": latitude, "lon": longitude, "format": "json", "zoom": 18, "addressdetails": 1},
-                    headers={"User-Agent": "rojgarnest/1.0"}
+                    headers={"User-Agent": "sevanext/1.0"}
                 )
                 
                 if response.status_code == 200:
@@ -6112,7 +6112,7 @@ class SimpleLocationHandler:
                 response = await client.get(
                     "https://nominatim.openstreetmap.org/search",
                     params={"q": address, "format": "json", "limit": 1},
-                    headers={"User-Agent": "rojgarnest/1.0"}
+                    headers={"User-Agent": "sevanext/1.0"}
                 )
                 
                 if response.status_code == 200:
@@ -6155,8 +6155,8 @@ logger.info("✅ Location Handler Loaded - NO HARDCODE, REAL GPS ONLY")
 
 ================================================================================
 [  29/ 171] 🐍 PYTHON FILE: app\core\location\location_service.py
-📏 SIZE: 9,621 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 9,619 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -6389,7 +6389,7 @@ class LocationHelper:
                         "zoom": 18,
                         "addressdetails": 1
                     },
-                    headers={"User-Agent": "rojgarnest/1.0"}
+                    headers={"User-Agent": "sevanext/1.0"}
                 )
                 
                 if response.status_code == 200:
@@ -6773,8 +6773,8 @@ __all__ = [
 
 ================================================================================
 [  35/ 171] 🐍 PYTHON FILE: app\core\security\encryption.py
-📏 SIZE: 10,696 bytes
-🕐 MODIFIED: 2026-11-07 18:39:21
+📏 SIZE: 10,692 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -6806,9 +6806,9 @@ logger = logging.getLogger(__name__)
 
 _FERNET_KEY_BYTES = 32           # Fernet requires exactly 32 raw bytes
 _FERNET_KEY_B64_LEN = 44         # 32 bytes → 44 chars base64 (with '=' padding)
-_PBKDF2_SALT = b"rojgarnest_salt_2024"
+_PBKDF2_SALT = b"sevanext_salt_2024"
 _PBKDF2_ITERATIONS = 100_000
-_HASH_SALT = b"rojgarnest_hash_salt"
+_HASH_SALT = b"sevanext_hash_salt"
 
 
 class EncryptionManager:
@@ -7920,8 +7920,8 @@ __all__ = [
 
 ================================================================================
 [  41/ 171] 🐍 PYTHON FILE: app\core\services\cloudinary.py
-📏 SIZE: 25,140 bytes
-🕐 MODIFIED: 2026-10-29 08:49:56
+📏 SIZE: 25,124 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -8241,7 +8241,7 @@ async def get_signed_download_url(
 
 async def upload_private_file(
     file: UploadFile,
-    folder: str = "RojgarNest",
+    folder: str = "SevaNext",
     job_id: str = None,
     organization: str = None,
     post_name: str = None,
@@ -8266,7 +8266,7 @@ async def upload_private_file(
         await file.seek(0)
         
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        cloudinary_folder = f"rojgarnest/{folder}" if folder else "RojgarNest"
+        cloudinary_folder = f"sevanext/{folder}" if folder else "SevaNext"
         
         original_filename = file.filename or "file"
         name_without_ext = Path(original_filename).stem
@@ -8334,7 +8334,7 @@ async def upload_private_file(
 
 async def upload_to_cloudinary(
     file: UploadFile,
-    folder: str = "RojgarNest",
+    folder: str = "SevaNext",
     job_id: str = None,
     organization: str = None,
     post_name: str = None,
@@ -8355,7 +8355,7 @@ async def upload_to_cloudinary(
         await file.seek(0)
         
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-        cloudinary_folder = f"rojgarnest/{folder}" if folder else "RojgarNest"
+        cloudinary_folder = f"sevanext/{folder}" if folder else "SevaNext"
         
         original_filename = file.filename or "file"
         name_without_ext = Path(original_filename).stem
@@ -8639,7 +8639,7 @@ async def upload_advertisement_file(file: UploadFile, job_id: str) -> dict:
     """
     timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     base_name = (file.filename or "advertisement").rsplit(".", 1)[0]
-    public_id = f"rojgarnest/jobs/advertisements/{timestamp}_{job_id}_{base_name}"
+    public_id = f"sevanext/jobs/advertisements/{timestamp}_{job_id}_{base_name}"
 
     contents = await file.read()
 
@@ -8657,7 +8657,7 @@ async def upload_advertisement_file(file: UploadFile, job_id: str) -> dict:
         public_id=public_id,
         resource_type=resource_type,
         type="authenticated",   # PRIVATE — matches your existing flow
-        folder="rojgarnest/jobs/advertisements",
+        folder="sevanext/jobs/advertisements",
         overwrite=True,
     )
 
@@ -8802,8 +8802,8 @@ def role_required(allowed_roles: Union[str, List[str]]):
 
 ================================================================================
 [  43/ 171] 🐍 PYTHON FILE: app\core\services\email.py
-📏 SIZE: 41,517 bytes
-🕐 MODIFIED: 2026-11-08 16:28:36
+📏 SIZE: 41,501 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -9387,7 +9387,7 @@ def get_email_service() -> UnifiedEmailService:
 
 def send_email(to_email: str, otp: str) -> bool:
     html_body = _build_otp_email_html(otp, purpose="verification")
-    subject = "Your RojgarNest Verification OTP"
+    subject = "Your SevaNext Verification OTP"
     return get_email_service().send_email_sync(
         to_email=to_email,
         subject=subject,
@@ -9478,7 +9478,7 @@ async def send_application_status_email(
         action_url=action_url,
     )
 
-    subject = f"RojgarNest | {status} | {title} | #{reference_id}"
+    subject = f"SevaNext | {status} | {title} | #{reference_id}"
 
     text_body = (
         f"Hello {user_name or 'Applicant'},\n\n"
@@ -9544,7 +9544,7 @@ def send_application_status_email_sync(
         action_url=action_url,
     )
 
-    subject = f"RojgarNest | {status} | {title} | #{reference_id}"
+    subject = f"SevaNext | {status} | {title} | #{reference_id}"
 
     text_body = (
         f"Hello {user_name or 'Applicant'},\n\n"
@@ -9586,13 +9586,13 @@ def _build_otp_email_html(otp: str, purpose: str = "verification") -> str:
 </style></head>
 <body>
   <div class="container">
-    <div class="header"><h1>🔐 RojgarNest</h1></div>
+    <div class="header"><h1>🔐 SevaNext</h1></div>
     <div class="content">
       <p>Your one-time password (OTP) for <strong>{purpose}</strong> is:</p>
       <div class="otp-box">{otp}</div>
       <p>This code is valid for <strong>10 minutes</strong>.<br>Do not share it with anyone.</p>
     </div>
-    <div class="footer">© RojgarNest — AI-Powered Career Platform</div>
+    <div class="footer">© SevaNext — AI-Powered Career Platform</div>
   </div>
 </body></html>"""
 
@@ -9986,14 +9986,14 @@ def build_modern_ai_notification_email(
 
           <p style="font-size: 13px; color: #64748b; margin-top: 24px; text-align: center;">
             If you have any questions or require support, reply directly to this message
-            or visit your RojgarNest user portal.
+            or visit your SevaNext user portal.
           </p>
         </td>
       </tr>
       <tr>
         <td class="footer">
-          <div class="brand">{footer_icon} RojgarNest</div>
-          <div>© 2026 RojgarNest — Next-Gen AI Career, Service & Schemes Portal</div>
+          <div class="brand">{footer_icon} SevaNext</div>
+          <div>© 2026 SevaNext — Next-Gen AI Career, Service & Schemes Portal</div>
           <div class="links">
             <a href="https://www.rojgarnest.com">Home</a> |
             <a href="https://www.rojgarnest.com/jobs">Jobs</a> |
@@ -10030,8 +10030,8 @@ print("=" * 70)
 
 ================================================================================
 [  44/ 171] 🐍 PYTHON FILE: app\core\services\google_drive.py
-📏 SIZE: 11,976 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 11,966 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -10243,9 +10243,9 @@ class GoogleDriveService:
 SOLUTION: Use a Shared Drive instead of a personal folder:
 
 1. Go to Google Drive → Click "+ New" → "New Shared Drive"
-2. Name it: rojgarnest_ads
+2. Name it: sevanext_ads
 3. Add your service account email as Manager:
-   - Service account email: rojgarnest@rojgarnest.iam.gserviceaccount.com
+   - Service account email: sevanext@sevanext.iam.gserviceaccount.com
 4. Get the Shared Drive folder ID (from URL)
 5. Update GOOGLE_DRIVE_FOLDER_ID in .env with the Shared Drive folder ID
 6. Run the diagnostic script again: python test_drive.py
@@ -10300,7 +10300,7 @@ SOLUTION: Use a Shared Drive instead of a personal folder:
                     "is_shared_drive": is_shared_drive,
                     "drive_id": folder.get('driveId')
                 },
-                "service_account_email": "rojgarnest@rojgarnest.iam.gserviceaccount.com",
+                "service_account_email": "sevanext@sevanext.iam.gserviceaccount.com",
                 "message": "Google Drive connection successful" + (" (Shared Drive - Unlimited Storage)" if is_shared_drive else " (Personal Folder - Limited Storage)")
             }
         except HttpError as e:
@@ -10463,8 +10463,8 @@ print("✅ Mobile API routes loaded")
 
 ================================================================================
 [  46/ 171] 🐍 PYTHON FILE: app\core\services\notification_dispatcher.py
-📏 SIZE: 20,013 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 19,999 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -10536,7 +10536,7 @@ async def dispatch_otp(
                 html = _build_otp_email_html(final_email_otp, purpose=purpose)
                 results["email"] = await send_email_async(
                     to_email=email,
-                    subject=f"Your RojgarNest OTP ({purpose})",
+                    subject=f"Your SevaNext OTP ({purpose})",
                     html_body=html,
                     text_body=f"Your OTP is {final_email_otp}. Valid for 10 minutes.",
                 )
@@ -10576,7 +10576,7 @@ async def dispatch_otp(
                 logger.info(f"📱 [PROD] Sending real SMS to {mobile} via {sms_provider}")
                 results["sms"] = await send_sms_async(
                     to_mobile=mobile,
-                    message=f"Your RojgarNest OTP is {final_mobile_otp}. Valid 10 minutes.",
+                    message=f"Your SevaNext OTP is {final_mobile_otp}. Valid 10 minutes.",
                     template_id=settings.MSG91_TEMPLATE_ID_OTP,
                     variables={"otp": final_mobile_otp},
                 )
@@ -10615,7 +10615,7 @@ async def dispatch_otp(
                 logger.info(f"💬 [PROD] Sending real WhatsApp to {mobile} via {wa_provider}")
                 wa_result = await send_whatsapp(
                     to_mobile=mobile,
-                    message=f"Your RojgarNest OTP is {final_mobile_otp}",
+                    message=f"Your SevaNext OTP is {final_mobile_otp}",
                     template_id=settings.MSG91_WHATSAPP_TEMPLATE_OTP,
                     variables={"otp": final_mobile_otp, "name": user_name or "User"},
                 )
@@ -10670,7 +10670,7 @@ async def dispatch_verification_success(
         html = f"""<!DOCTYPE html><html><body style="font-family:Arial;padding:20px;">
         <h2 style="color:#10B981;">✅ {verified_field} Verified!</h2>
         <p>Hi <strong>{user_name}</strong>,</p>
-        <p>Your {verified_field.lower()} has been successfully verified on RojgarNest.</p>
+        <p>Your {verified_field.lower()} has been successfully verified on SevaNext.</p>
         </body></html>"""
         results["email"] = await send_email_async(
             to_email=email,
@@ -10740,12 +10740,12 @@ async def dispatch_welcome(
     if "email" in channels and email:
         html = f"""<!DOCTYPE html>
         <html><body style="font-family:Arial;padding:20px;">
-        <h1>🎉 Welcome to RojgarNest!</h1>
+        <h1>🎉 Welcome to SevaNext!</h1>
         <p>Hi <strong>{user_name}</strong>, welcome aboard!</p>
         </body></html>"""
         results["email"] = await send_email_async(
             to_email=email,
-            subject="🎉 Welcome to RojgarNest!",
+            subject="🎉 Welcome to SevaNext!",
             html_body=html,
         )
 
@@ -10756,7 +10756,7 @@ async def dispatch_welcome(
         if "whatsapp" in channels and mobile and wa_provider not in ("disabled", ""):
             results["whatsapp"] = await send_whatsapp(
                 to_mobile=mobile,
-                message=f"Welcome to RojgarNest, {user_name}!",
+                message=f"Welcome to SevaNext, {user_name}!",
                 template_id=settings.MSG91_WHATSAPP_TEMPLATE_ALERT,
                 variables={"name": user_name, "message": "Welcome!"},
             )
@@ -10964,8 +10964,8 @@ print("=" * 70)
 
 ================================================================================
 [  47/ 171] 🐍 PYTHON FILE: app\core\services\sms.py
-📏 SIZE: 31,044 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 31,042 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -11701,7 +11701,7 @@ def get_sms_service() -> UniversalSMSService:
 def send_mobile_otp(mobile: str, otp: str) -> bool:
     """Legacy helper for sending OTP SMS."""
     service = get_sms_service()
-    message = f"Your RojgarNest OTP is {otp}. Valid for 10 minutes."
+    message = f"Your SevaNext OTP is {otp}. Valid for 10 minutes."
     return service.send_sync(
         to_mobile=mobile,
         message=message,
@@ -12818,8 +12818,8 @@ print("=" * 70)
 
 ================================================================================
 [  53/ 171] 🐍 PYTHON FILE: app\core\utils\config.py
-📏 SIZE: 3,309 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 3,307 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -12836,7 +12836,7 @@ import json
 class Settings(BaseSettings):
     # ================= CORE =================
     MONGO_URI: str = "mongodb://localhost:27017"
-    DATABASE_NAME: str = "RojgarNest"
+    DATABASE_NAME: str = "SevaNext"
     ENVIRONMENT: str = "development"
     PORT: int = 8000
 
@@ -13102,8 +13102,8 @@ def clean_text(text: str) -> str:
 
 ================================================================================
 [  58/ 171] 🐍 PYTHON FILE: app\core\utils\logger.py
-📏 SIZE: 177 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 175 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -13114,7 +13114,7 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 )
 
-logger = logging.getLogger("RojgarNest")
+logger = logging.getLogger("SevaNext")
 
 
 ================================================================================
@@ -14809,8 +14809,8 @@ print("=" * 60)
 
 ================================================================================
 [  65/ 171] 🐍 PYTHON FILE: app\main.py
-📏 SIZE: 26,707 bytes
-🕐 MODIFIED: 2026-11-10 20:39:59
+📏 SIZE: 26,693 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -14935,7 +14935,7 @@ def get_client_ip(request: Request) -> str:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("=" * 60)
-    print("🚀 RojgarNest Ultra-Secure Backend Starting...")
+    print("🚀 SevaNext Ultra-Secure Backend Starting...")
     print("=" * 60)
 
     start_time = time.time()
@@ -15114,7 +15114,7 @@ async def lifespan(app: FastAPI):
 
 # ================= APP INITIALIZATION =================
 app = FastAPI(
-    title="RojgarNest API - Ultra Secure Enterprise Edition",
+    title="SevaNext API - Ultra Secure Enterprise Edition",
     version="5.0.0",
     description="World's Most Advanced AI-Powered Job Portal",
     lifespan=lifespan,
@@ -15444,12 +15444,12 @@ app.include_router(
 async def root():
     return ApiResponse.success(
         data={
-            "name": "RojgarNest API",
+            "name": "SevaNext API",
             "version": "5.0.0",
             "status": "running",
             "docs": "/docs",
         },
-        message="Welcome to RojgarNest API",
+        message="Welcome to SevaNext API",
     )
 
 
@@ -15457,13 +15457,13 @@ async def root():
 async def api_v1_root():
     return ApiResponse.success(
         data={
-            "name": "RojgarNest API",
+            "name": "SevaNext API",
             "version": "5.0.0",
             "status": "running",
             "docs": "/docs",
             "api_version": "v1",
         },
-        message="Welcome to RojgarNest API v1",
+        message="Welcome to SevaNext API v1",
     )
 
 
@@ -15577,7 +15577,7 @@ async def security_status():
 # 🎉 STARTUP BANNER
 # ============================================================
 print("=" * 60)
-print("✅ RojgarNest Backend Loaded Successfully!")
+print("✅ SevaNext Backend Loaded Successfully!")
 print("⚠️⚠️⚠️ AUTO JOB FETCH: COMPLETELY DISABLED ⚠️⚠️⚠️")
 print("   - No automatic job fetching will run")
 print("   - Jobs can only be added manually by admins")
@@ -16064,8 +16064,8 @@ class AuthModel(BaseModel):
 
 ================================================================================
 [  69/ 171] 🐍 PYTHON FILE: app\models\job_model.py
-📏 SIZE: 17,429 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 17,427 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -16215,7 +16215,7 @@ async def geocode_location_async(location_text: str) -> Dict[str, Any]:
                     "limit": 1,
                     "addressdetails": 1
                 },
-                headers={"User-Agent": "rojgarnest/1.0"}
+                headers={"User-Agent": "sevanext/1.0"}
             )
 
             if response.status_code == 200:
@@ -24760,8 +24760,8 @@ def get_role_dashboard(role: str) -> str:
 
 ================================================================================
 [  89/ 171] 🐍 PYTHON FILE: app\modules\blockchain\routes.py
-📏 SIZE: 5,445 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 5,443 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -24849,7 +24849,7 @@ async def issue_skill_certificate(
         "skill_name": skill_name,
         "skill_level": skill.get("level"),
         "completion_date": datetime.utcnow().isoformat(),
-        "issuer": "RojgarNest"
+        "issuer": "SevaNext"
     }
     
     # Issue on blockchain (mock)
@@ -25141,12 +25141,12 @@ print("✅ Chat module loaded")
 
 ================================================================================
 [  91/ 171] 🐍 PYTHON FILE: app\modules\common\__init__.py
-📏 SIZE: 179 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 177 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
-# backend/rojgarnest/app/modules/common/__init__.py
+# backend/sevanext/app/modules/common/__init__.py
 from .ai_client import get_ai_client
 from .prompts import PROMPT_TEMPLATES
 
@@ -25155,12 +25155,12 @@ __all__ = ['get_ai_client', 'PROMPT_TEMPLATES']
 
 ================================================================================
 [  92/ 171] 🐍 PYTHON FILE: app\modules\common\ai_client.py
-📏 SIZE: 385 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 383 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
-# backend/rojgarnest/app/modules/common/ai_client.py
+# backend/sevanext/app/modules/common/ai_client.py
 """Shared AI Client for all modules"""
 from openai import AsyncOpenAI
 from app.core.config.settings import settings
@@ -30103,8 +30103,8 @@ ultra_career_ai = UltraCareerAI()
 
 ================================================================================
 [ 101/ 171] 🐍 PYTHON FILE: app\modules\jobs\job_fetch.py
-📏 SIZE: 27,600 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 27,598 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -30325,7 +30325,7 @@ async def geocode_location_async(location_text: str) -> Dict[str, Any]:
                     "format": "json",
                     "limit": 1
                 },
-                headers={"User-Agent": "rojgarnest/1.0"}
+                headers={"User-Agent": "sevanext/1.0"}
             )
             
             if response.status_code == 200:
@@ -33679,8 +33679,8 @@ __all__ = ['router', 'LocationService']
 
 ================================================================================
 [ 106/ 171] 🐍 PYTHON FILE: app\modules\location\routes.py
-📏 SIZE: 16,545 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 16,543 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -34117,7 +34117,7 @@ async def geocode_address(
                     "namedetails": 1,
                     "extratags": 1
                 },
-                headers={"User-Agent": "rojgarnest/1.0 (https://rojgarnest.com; support@rojgarnest.com)"}
+                headers={"User-Agent": "sevanext/1.0 (https://rojgarnest.com; support@rojgarnest.com)"}
             )
             
             if response.status_code == 200:
@@ -34265,8 +34265,8 @@ class LocationResponse(BaseModel):
 
 ================================================================================
 [ 108/ 171] 🐍 PYTHON FILE: app\modules\location\service.py
-📏 SIZE: 23,154 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 23,150 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -34543,7 +34543,7 @@ class LocationService:
                         "extratags": 1,
                         "namedetails": 1
                     },
-                    headers={"User-Agent": "rojgarnest/1.0 (https://rojgarnest.com)"}
+                    headers={"User-Agent": "sevanext/1.0 (https://rojgarnest.com)"}
                 )
                 
                 if response.status_code == 200:
@@ -34824,7 +34824,7 @@ async def geocode_address(self, address: str) -> Optional[Dict[str, Any]]:
                     "addressdetails": 1,
                     "namedetails": 1
                 },
-                headers={"User-Agent": "rojgarnest/1.0"}
+                headers={"User-Agent": "sevanext/1.0"}
             )
             
             if response.status_code == 200:
@@ -35731,8 +35731,8 @@ class NotificationResponseSchema(BaseModel):
 
 ================================================================================
 [ 116/ 171] 🐍 PYTHON FILE: app\modules\notification\service.py
-📏 SIZE: 110,416 bytes
-🕐 MODIFIED: 2026-11-08 16:29:46
+📏 SIZE: 110,412 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -36856,7 +36856,7 @@ class CentralNotificationService:
                 <div class="email-header">
                     <div class="header-icon">{icon}</div>
                     <h1>{title}</h1>
-                    <p>RojgarNest - Your Career Partner</p>
+                    <p>SevaNext - Your Career Partner</p>
                     <div class="status-badge">{badge_text}</div>
                 </div>
                 <div class="email-content">
@@ -36874,7 +36874,7 @@ class CentralNotificationService:
                         <a href="{app_base_url}/support">Support</a>
                     </div>
                     <div class="copyright">
-                        © {current_date} RojgarNest. All rights reserved.<br>
+                        © {current_date} SevaNext. All rights reserved.<br>
                         Find Your Dream Job with AI-Powered Career Guidance
                     </div>
                 </div>
@@ -38561,8 +38561,8 @@ async def start_job_watcher():
 
 ================================================================================
 [ 118/ 171] 🐍 PYTHON FILE: app\modules\notification\websocket.py
-📏 SIZE: 10,066 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 10,064 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -38771,7 +38771,7 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     if is_first_time_ever:
         await websocket.send_json({
             "type": "connected",
-            "message": "Connected to RojgarNest notification service",
+            "message": "Connected to SevaNext notification service",
             "user_id": user_id,
             "user_role": user_role,
             "timestamp": datetime.utcnow().timestamp()
@@ -38842,8 +38842,8 @@ print("✅ WebSocket Manager Loaded - Fixed token verification")
 
 ================================================================================
 [ 119/ 171] 🐍 PYTHON FILE: app\modules\payment\phonepe_sdk_service.py
-📏 SIZE: 8,096 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 8,094 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -38943,7 +38943,7 @@ class PhonePeSDKService:
                 udf2=job_title[:50],
                 udf3=user_email,
                 udf4=f"amount_{amount}",
-                udf5="RojgarNest"
+                udf5="SevaNext"
             )
             
             # Prefill user details for faster checkout
@@ -45577,8 +45577,8 @@ class ResumeListResponse(BaseModel):
 
 ================================================================================
 [ 131/ 171] 🐍 PYTHON FILE: app\modules\resume\service.py
-📏 SIZE: 48,639 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 48,635 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -46164,7 +46164,7 @@ class ResumeService:
         <html>
         <head>
             <meta charset="UTF-8">
-            <title>{user.get('full_name', 'Resume')} - RojgarNest Resume</title>
+            <title>{user.get('full_name', 'Resume')} - SevaNext Resume</title>
             <style>
                 * {{
                     margin: 0;
@@ -46449,7 +46449,7 @@ class ResumeService:
                 </div>
                 <div class="divider"></div>
                 <div style="text-align: center; padding: 20px; background: #f8fafc; font-size: 12px; color: #64748b;">
-                    Resume generated by RojgarNest • AI-Powered Career Platform
+                    Resume generated by SevaNext • AI-Powered Career Platform
                 </div>
             </div>
         </body>
@@ -51814,8 +51814,8 @@ print("✅ Services Schema Loaded - With CONFIRMED_APPLICATION and UPDATE_APPLIC
 
 ================================================================================
 [ 140/ 171] 🐍 PYTHON FILE: app\modules\services\service.py
-📏 SIZE: 48,956 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 48,954 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -52727,7 +52727,7 @@ class ServiceService:
         order_id = f"SVC{payment_id[-8:]}{int(datetime.utcnow().timestamp())}"
 
         upi_id = getattr(settings, 'UPI_ID', 'your-upi-id@okhdfcbank')
-        upi_text = f"upi://pay?pa={upi_id}&pn=RojgarNest&am={amount}&cu=INR&tn={order_id}&tid={order_id}"
+        upi_text = f"upi://pay?pa={upi_id}&pn=SevaNext&am={amount}&cu=INR&tn={order_id}&tid={order_id}"
         qr_image_url = generate_qr_code_html(upi_text, amount, order_id)
 
         qr_data = {
@@ -53464,8 +53464,8 @@ Return ONLY valid JSON:
 
 ================================================================================
 [ 147/ 171] 🐍 PYTHON FILE: app\modules\superadmin\routes.py
-📏 SIZE: 10,639 bytes
-🕐 MODIFIED: 2026-10-29 08:56:45
+📏 SIZE: 10,637 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -53617,7 +53617,7 @@ async def ai_smart_dashboard(
 
 
 @router.get("/report")
-async def rojgarnest_full_report(
+async def sevanext_full_report(
     service: SuperAdminService = Depends(get_superadmin_service),
     user=Depends(role_required("superadmin"))
 ):
@@ -54226,8 +54226,8 @@ print("   ✅ All user records are PERMANENT")
 
 ================================================================================
 [ 150/ 171] 🐍 PYTHON FILE: app\modules\support\routes.py
-📏 SIZE: 10,934 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 10,926 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -54372,7 +54372,7 @@ async def send_support_email(
             <div class="container">
                 <div class="header">
                     <h2>📧 New Support Request</h2>
-                    <p>RojgarNest Support System</p>
+                    <p>SevaNext Support System</p>
                 </div>
                 <div class="content">
                     <div class="info-box">
@@ -54399,8 +54399,8 @@ async def send_support_email(
                     </div>
                 </div>
                 <div class="footer">
-                    <p>This is an automated support request from RojgarNest Job Portal</p>
-                    <p>© 2025 RojgarNest - Find Your Dream Job</p>
+                    <p>This is an automated support request from SevaNext Job Portal</p>
+                    <p>© 2025 SevaNext - Find Your Dream Job</p>
                     <div class="badge">Support Ticket</div>
                 </div>
             </div>
@@ -54412,7 +54412,7 @@ async def send_support_email(
         background_tasks.add_task(
             send_html_email,
             to_email=data.to,
-            subject=f"RojgarNest Support: {data.subject[:50]}",
+            subject=f"SevaNext Support: {data.subject[:50]}",
             html_body=html_body
         )
         
@@ -62116,8 +62116,8 @@ if __name__ == "__main__":
 
 ================================================================================
 [ 165/ 171] 🐍 PYTHON FILE: scripts\python test_atlas_connection.py
-📏 SIZE: 9,492 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 9,456 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -62186,7 +62186,7 @@ async def test_local_mongodb():
         await client.admin.command('ping')
         print("✅ Connected to LOCAL MongoDB successfully!")
         
-        db = client["RojgarNest"]
+        db = client["SevaNext"]
         
         # Get collections
         collections = await db.list_collection_names()
@@ -62254,23 +62254,23 @@ async def test_atlas_mongodb():
     # Try multiple URIs with different SSL configurations
     test_uris = [
         {
-            'uri': "mongodb+srv://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority&tlsAllowInvalidCertificates=true",
+            'uri': "mongodb+srv://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority&tlsAllowInvalidCertificates=true",
             'name': "Standard + tlsAllowInvalidCertificates"
         },
         {
-            'uri': "mongodb+srv://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true",
+            'uri': "mongodb+srv://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority&tls=true&tlsAllowInvalidCertificates=true",
             'name': "tls=true + tlsAllowInvalidCertificates"
         },
         {
-            'uri': "mongodb+srv://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority",
+            'uri': "mongodb+srv://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority",
             'name': "No tls params"
         },
         {
-            'uri': "mongodb://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority&ssl=true",
+            'uri': "mongodb://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority&ssl=true",
             'name': "mongodb:// protocol with ssl=true"
         },
         {
-            'uri': "mongodb+srv://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority&ssl=true&tlsAllowInvalidCertificates=true",
+            'uri': "mongodb+srv://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority&ssl=true&tlsAllowInvalidCertificates=true",
             'name': "ssl=true + tlsAllowInvalidCertificates"
         },
     ]
@@ -62298,7 +62298,7 @@ async def test_atlas_mongodb():
             await client.admin.command('ping')
             print(f"✅ SUCCESS! Connected with URI {i}")
             
-            db = client["RojgarNest"]
+            db = client["SevaNext"]
             collections = await db.list_collection_names()
             print(f"\n📊 Collections in Atlas ({len(collections)}):")
             for coll_name in sorted(collections):
@@ -62344,7 +62344,7 @@ async def main():
         print("\n📌 To use local MongoDB:")
         print("   Update .env file:")
         print("   MONGO_URI=mongodb://localhost:27017")
-        print("   DATABASE_NAME=RojgarNest")
+        print("   DATABASE_NAME=SevaNext")
         print("   ENVIRONMENT=development")
         print("\n🚀 Start the backend:")
         print("   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000")
@@ -63500,8 +63500,8 @@ print("=" * 60)
 
 ================================================================================
 [ 169/ 171] 🐍 PYTHON FILE: scripts\test_connection.py
-📏 SIZE: 1,552 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 1,538 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -63510,7 +63510,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 async def test_atlas():
     # ✅ Use SRV URI with SSL bypass
-    uri = "mongodb+srv://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority&tlsAllowInvalidCertificates=true"
+    uri = "mongodb+srv://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority&tlsAllowInvalidCertificates=true"
     
     print("🔍 Testing Atlas connection with SSL bypass...")
     
@@ -63527,7 +63527,7 @@ async def test_atlas():
         await client.admin.command('ping')
         print("✅ Connection successful!")
         
-        db = client["RojgarNest"]
+        db = client["SevaNext"]
         collections = await db.list_collection_names()
         print(f"📊 Collections: {collections}")
         
@@ -63537,7 +63537,7 @@ async def test_atlas():
         # Try without SSL
         print("\n🔄 Trying without SSL...")
         try:
-            uri_no_ssl = "mongodb+srv://rojgarnest_db:RojgarNest123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority&ssl=false"
+            uri_no_ssl = "mongodb+srv://sevanext_db:SevaNext123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority&ssl=false"
             client = AsyncIOMotorClient(uri_no_ssl, serverSelectionTimeoutMS=30000)
             await client.admin.command('ping')
             print("✅ Connection successful without SSL!")
@@ -63551,8 +63551,8 @@ if __name__ == "__main__":
 
 ================================================================================
 [ 170/ 171] 🐍 PYTHON FILE: scripts\test_network.py
-📏 SIZE: 5,509 bytes
-🕐 MODIFIED: 2026-10-18 08:35:42
+📏 SIZE: 5,491 bytes
+🕐 MODIFIED: 2026-11-11 14:38:45
 
 ================================================================================
 
@@ -63571,11 +63571,11 @@ async def migrate_data():
     
     # Local MongoDB (source)
     local_uri = "mongodb://localhost:27017"
-    local_db_name = "RojgarNest"
+    local_db_name = "SevaNext"
     
     # Atlas MongoDB (destination)
-    atlas_uri = "mongodb+srv://rojgarnest_db:RojgarNest%40123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority"
-    atlas_db_name = "RojgarNest"
+    atlas_uri = "mongodb+srv://sevanext_db:SevaNext%40123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority"
+    atlas_db_name = "SevaNext"
     
     print("\n📡 Connecting to databases...")
     
@@ -63668,9 +63668,9 @@ async def verify_atlas_data():
     print("🔍 VERIFYING ATLAS DATABASE")
     print("=" * 70)
     
-    atlas_uri = "mongodb+srv://rojgarnest_db:RojgarNest%40123@cluster0.bmbx8bu.mongodb.net/RojgarNest?retryWrites=true&w=majority"
+    atlas_uri = "mongodb+srv://sevanext_db:SevaNext%40123@cluster0.bmbx8bu.mongodb.net/SevaNext?retryWrites=true&w=majority"
     client = AsyncIOMotorClient(atlas_uri)
-    db = client["RojgarNest"]
+    db = client["SevaNext"]
     
     collections = await db.list_collection_names()
     print(f"\n📋 Collections in Atlas ({len(collections)}):")

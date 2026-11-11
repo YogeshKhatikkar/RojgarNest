@@ -1,9 +1,9 @@
 ================================================================================
-ROJGARNEXT FRONTEND - COMPLETE CODE EXPORT
+SEVANEXT FRONTEND - COMPLETE CODE EXPORT
 ================================================================================
-Generated: 2026-11-11 14:19:01
+Generated: 2026-11-11 15:02:24
 Source: E:\yogesh\website\sevanext\frontend
-Total Files: 152
+Total Files: 151
 Total Size: 3.9 MB
 ================================================================================
 
@@ -18,7 +18,6 @@ Total Size: 3.9 MB
     │   ├── 📁 icons/
     │   └── 📁 images/
     ├── 📄 Dockerfile
-    ├── 💻 fix_wakelock.ps1
     ├── 📁 lib/
     │   ├── 📁 core/
     │   │   ├── 📁 config/
@@ -262,7 +261,7 @@ Total Size: 3.9 MB
 📊 FILE SUMMARY
 ================================================================================
 
-Total Files: 152
+Total Files: 151
 Total Size: 3.9 MB
 
 File Types:
@@ -270,7 +269,6 @@ File Types:
   .yaml: 2 files (2.7 KB)
   (no extension): 1 files (1.6 KB)
   .md: 1 files (647 B)
-  .ps1: 1 files (2.1 KB)
   .conf: 1 files (3.4 KB)
   .html: 1 files (1.3 KB)
   .json: 1 files (947 B)
@@ -281,7 +279,7 @@ File Types:
 ================================================================================
 
 ================================================================================
-[   1/ 152] 📄 sevanext/Dockerfile
+[   1/ 151] 📄 sevanext/Dockerfile
 📏 SIZE: 1.6 KB
 🕐 MODIFIED: 2026-11-11 12:53:40
 ================================================================================
@@ -340,7 +338,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 CMD ["nginx", "-g", "daemon off;"]
 
 ================================================================================
-[   2/ 152] 📝 sevanext/README.md
+[   2/ 151] 📝 sevanext/README.md
 📏 SIZE: 647 B
 🕐 MODIFIED: 2026-11-11 12:53:40
 ================================================================================
@@ -365,7 +363,7 @@ samples, guidance on mobile development, and a full API reference.
 
 
 ================================================================================
-[   3/ 152] ⚙️ sevanext/analysis_options.yaml
+[   3/ 151] ⚙️ sevanext/analysis_options.yaml
 📏 SIZE: 559 B
 🕐 MODIFIED: 2026-10-18 08:35:42
 ================================================================================
@@ -395,67 +393,7 @@ linter:
     use_key_in_widget_constructors: true
 
 ================================================================================
-[   4/ 152] 💻 sevanext/fix_wakelock.ps1
-📏 SIZE: 2.1 KB
-🕐 MODIFIED: 2026-10-21 12:16:02
-================================================================================
-
-# fix_wakelock.ps1
-# Yeh script wakelock ko wakelock_plus se replace karta hai aur cache saaf karta hai
-
-Write-Host "🚀 Starting wakelock migration..." -ForegroundColor Cyan
-
-# 1. pubspec.yaml mein dependency replace karein
-$pubspec = "pubspec.yaml"
-if (Test-Path $pubspec) {
-    $content = Get-Content $pubspec -Raw
-    # wakelock line ko comment karein aur wakelock_plus add karein
-    $content = $content -replace '(?m)^\s*wakelock:\s*\^?[\d\.\+]+', '# wakelock: removed (replaced by wakelock_plus)'
-    if ($content -notmatch 'wakelock_plus:') {
-        # dependencies section ke andar add karein (simple approach)
-        $content = $content -replace '(?m)^dependencies:\s*$', "dependencies:`n  wakelock_plus: ^1.2.8"
-    }
-    Set-Content $pubspec $content
-    Write-Host "✅ pubspec.yaml updated" -ForegroundColor Green
-} else {
-    Write-Host "❌ pubspec.yaml not found!" -ForegroundColor Red
-    exit 1
-}
-
-# 2. lib folder ke saare .dart files mein import aur class name replace karein
-$dartFiles = Get-ChildItem -Path "lib" -Recurse -Filter *.dart
-$replacedCount = 0
-
-foreach ($file in $dartFiles) {
-    $content = Get-Content $file.FullName -Raw
-    $original = $content
-
-    # Import replace
-    $content = $content -replace "package:wakelock/wakelock\.dart", "package:wakelock_plus/wakelock_plus.dart"
-    
-    # Class name replace (Wakelock. -> WakelockPlus.)
-    $content = $content -replace '\bWakelock\.', 'WakelockPlus.'
-
-    if ($content -ne $original) {
-        Set-Content $file.FullName $content
-        Write-Host "  Updated: $($file.Name)" -ForegroundColor Yellow
-        $replacedCount++
-    }
-}
-
-Write-Host "✅ Replaced in $replacedCount Dart files" -ForegroundColor Green
-
-# 3. Flutter cache saaf karein aur dependencies fetch karein
-Write-Host "🧹 Cleaning Flutter cache..." -ForegroundColor Cyan
-flutter clean
-Write-Host "📦 Getting dependencies..." -ForegroundColor Cyan
-flutter pub get
-
-Write-Host "🎉 Done! Ab aap build command chala sakte hain:" -ForegroundColor Green
-Write-Host "   flutter build apk --release --split-per-abi --tree-shake-icons" -ForegroundColor White
-
-================================================================================
-[   5/ 152] 🎯 sevanext/lib/core/config/api_config.dart
+[   4/ 151] 🎯 sevanext/lib/core/config/api_config.dart
 📏 SIZE: 3.2 KB
 🕐 MODIFIED: 2026-11-07 16:19:45
 ================================================================================
@@ -570,7 +508,7 @@ class ApiConfig {
 }
 
 ================================================================================
-[   6/ 152] 🎯 sevanext/lib/core/master_date/education.dart
+[   5/ 151] 🎯 sevanext/lib/core/master_date/education.dart
 📏 SIZE: 40.5 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -2120,7 +2058,7 @@ class EducationMasterData {
 
 
 ================================================================================
-[   7/ 152] 🎯 sevanext/lib/core/master_date/job_colors.dart
+[   6/ 151] 🎯 sevanext/lib/core/master_date/job_colors.dart
 📏 SIZE: 9.5 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -2462,7 +2400,7 @@ class JobColorMasterData {
 }
 
 ================================================================================
-[   8/ 152] 🎯 sevanext/lib/core/master_date/locations.dart
+[   7/ 151] 🎯 sevanext/lib/core/master_date/locations.dart
 📏 SIZE: 2.8 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -2562,7 +2500,7 @@ class LocationData {
 
 
 ================================================================================
-[   9/ 152] 🎯 sevanext/lib/core/master_date/schemes_data.dart
+[   8/ 151] 🎯 sevanext/lib/core/master_date/schemes_data.dart
 📏 SIZE: 67.9 KB
 🕐 MODIFIED: 2026-10-18 08:40:04
 ================================================================================
@@ -3842,7 +3780,7 @@ class SchemesMasterData {
 }
 
 ================================================================================
-[  10/ 152] 🎯 sevanext/lib/core/network/dio_client.dart
+[   9/ 151] 🎯 sevanext/lib/core/network/dio_client.dart
 📏 SIZE: 6.2 KB
 🕐 MODIFIED: 2026-11-09 22:08:02
 ================================================================================
@@ -4060,7 +3998,7 @@ void initDioClient() {
 }
 
 ================================================================================
-[  11/ 152] 🎯 sevanext/lib/core/routes/app_routes.dart
+[  10/ 151] 🎯 sevanext/lib/core/routes/app_routes.dart
 📏 SIZE: 3.5 KB
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -4163,7 +4101,7 @@ class AppRoutes {
 }
 
 ================================================================================
-[  12/ 152] 🎯 sevanext/lib/core/services/cloudinary_service.dart
+[  11/ 151] 🎯 sevanext/lib/core/services/cloudinary_service.dart
 📏 SIZE: 7.0 KB
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -4397,7 +4335,7 @@ class CloudinaryService {
 }
 
 ================================================================================
-[  13/ 152] 🎯 sevanext/lib/core/services/geocoding_service.dart
+[  12/ 151] 🎯 sevanext/lib/core/services/geocoding_service.dart
 📏 SIZE: 804 B
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -4434,7 +4372,7 @@ class GeocodingService {
 
 
 ================================================================================
-[  14/ 152] 🎯 sevanext/lib/core/services/location_service.dart
+[  13/ 151] 🎯 sevanext/lib/core/services/location_service.dart
 📏 SIZE: 5.3 KB
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -4614,7 +4552,7 @@ class LocationService {
 
 
 ================================================================================
-[  15/ 152] 🎯 sevanext/lib/core/services/permission_service.dart
+[  14/ 151] 🎯 sevanext/lib/core/services/permission_service.dart
 📏 SIZE: 3.8 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -4745,7 +4683,7 @@ class PermissionService {
 
 
 ================================================================================
-[  16/ 152] 🎯 sevanext/lib/core/services/profile_state_service.dart
+[  15/ 151] 🎯 sevanext/lib/core/services/profile_state_service.dart
 📏 SIZE: 13.0 KB
 🕐 MODIFIED: 2026-11-11 13:40:56
 ================================================================================
@@ -5122,7 +5060,7 @@ class ProfileStateService {
 }
 
 ================================================================================
-[  17/ 152] 🎯 sevanext/lib/core/services/real_location_service.dart
+[  16/ 151] 🎯 sevanext/lib/core/services/real_location_service.dart
 📏 SIZE: 7.3 KB
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -5364,7 +5302,7 @@ class RealLocationService {
 
 
 ================================================================================
-[  18/ 152] 🎯 sevanext/lib/core/services/unified_location_service.dart
+[  17/ 151] 🎯 sevanext/lib/core/services/unified_location_service.dart
 📏 SIZE: 1.1 KB
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -5402,7 +5340,7 @@ class UnifiedLocationService {
 
 
 ================================================================================
-[  19/ 152] 🎯 sevanext/lib/core/services/universal_location_service.dart
+[  18/ 151] 🎯 sevanext/lib/core/services/universal_location_service.dart
 📏 SIZE: 9.3 KB
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -5687,7 +5625,7 @@ Please try:
 }
 
 ================================================================================
-[  20/ 152] 🎯 sevanext/lib/core/services/web_location_service.dart
+[  19/ 151] 🎯 sevanext/lib/core/services/web_location_service.dart
 📏 SIZE: 3.5 KB
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -5807,7 +5745,7 @@ class WebLocationService {
 
 
 ================================================================================
-[  21/ 152] 🎯 sevanext/lib/core/storage/secure_storage.dart
+[  20/ 151] 🎯 sevanext/lib/core/storage/secure_storage.dart
 📏 SIZE: 7.2 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6018,7 +5956,7 @@ class SecureStorage {
 }
 
 ================================================================================
-[  22/ 152] 🎯 sevanext/lib/core/utils/app_snackbar.dart
+[  21/ 151] 🎯 sevanext/lib/core/utils/app_snackbar.dart
 📏 SIZE: 2.4 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6104,7 +6042,7 @@ void showGlobalSnackBar(String message, {bool isError = false}) {
 }
 
 ================================================================================
-[  23/ 152] 🎯 sevanext/lib/core/utils/auth_guard.dart
+[  22/ 151] 🎯 sevanext/lib/core/utils/auth_guard.dart
 📏 SIZE: 798 B
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6144,7 +6082,7 @@ class AuthGuard extends StatelessWidget {
 
 
 ================================================================================
-[  24/ 152] 🎯 sevanext/lib/core/utils/constants.dart
+[  23/ 151] 🎯 sevanext/lib/core/utils/constants.dart
 📏 SIZE: 965 B
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -6180,7 +6118,7 @@ class AppConstants {
 
 
 ================================================================================
-[  25/ 152] 🎯 sevanext/lib/core/utils/coordinate_parser.dart
+[  24/ 151] 🎯 sevanext/lib/core/utils/coordinate_parser.dart
 📏 SIZE: 5.3 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6362,7 +6300,7 @@ class CoordinateParser {
 
 
 ================================================================================
-[  26/ 152] 🎯 sevanext/lib/core/utils/distance_calculator.dart
+[  25/ 151] 🎯 sevanext/lib/core/utils/distance_calculator.dart
 📏 SIZE: 1.8 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6444,7 +6382,7 @@ class DistanceCalculator {
 }
 
 ================================================================================
-[  27/ 152] 🎯 sevanext/lib/core/utils/js_stub.dart
+[  26/ 151] 🎯 sevanext/lib/core/utils/js_stub.dart
 📏 SIZE: 1.1 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6490,7 +6428,7 @@ typedef JsArrayBuffer = dynamic;
 typedef JSAny = dynamic;
 
 ================================================================================
-[  28/ 152] 🎯 sevanext/lib/core/utils/logger.dart
+[  27/ 151] 🎯 sevanext/lib/core/utils/logger.dart
 📏 SIZE: 999 B
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6538,7 +6476,7 @@ class Logger {
 }
 
 ================================================================================
-[  29/ 152] 🎯 sevanext/lib/core/utils/platform_utils.dart
+[  28/ 151] 🎯 sevanext/lib/core/utils/platform_utils.dart
 📏 SIZE: 2.8 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6645,7 +6583,7 @@ class PlatformUtils {
 }
 
 ================================================================================
-[  30/ 152] 🎯 sevanext/lib/core/utils/safe_async.dart
+[  29/ 151] 🎯 sevanext/lib/core/utils/safe_async.dart
 📏 SIZE: 2 B
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6654,7 +6592,7 @@ class PlatformUtils {
 
 
 ================================================================================
-[  31/ 152] 🎯 sevanext/lib/core/utils/stub_device_info.dart
+[  30/ 151] 🎯 sevanext/lib/core/utils/stub_device_info.dart
 📏 SIZE: 608 B
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6684,7 +6622,7 @@ class IosDeviceInfo {
 
 
 ================================================================================
-[  32/ 152] 🎯 sevanext/lib/core/utils/stub_local_auth.dart
+[  31/ 151] 🎯 sevanext/lib/core/utils/stub_local_auth.dart
 📏 SIZE: 816 B
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6722,7 +6660,7 @@ class BiometricType {
 }
 
 ================================================================================
-[  33/ 152] 🎯 sevanext/lib/core/utils/widgets.dart
+[  32/ 151] 🎯 sevanext/lib/core/utils/widgets.dart
 📏 SIZE: 1.0 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6767,7 +6705,7 @@ class ModernButton extends StatelessWidget {
 
 
 ================================================================================
-[  34/ 152] 🎯 sevanext/lib/core/widgets/base_page.dart
+[  33/ 151] 🎯 sevanext/lib/core/widgets/base_page.dart
 📏 SIZE: 970 B
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -6813,7 +6751,7 @@ class BasePage extends StatelessWidget {
 
 
 ================================================================================
-[  35/ 152] 🎯 sevanext/lib/core/widgets/file_viewer_screen.dart
+[  34/ 151] 🎯 sevanext/lib/core/widgets/file_viewer_screen.dart
 📏 SIZE: 43.9 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -8185,7 +8123,7 @@ class _FileViewerScreenState extends State<FileViewerScreen> {
 }
 
 ================================================================================
-[  36/ 152] 🎯 sevanext/lib/core/widgets/location_dropdowns.dart
+[  35/ 151] 🎯 sevanext/lib/core/widgets/location_dropdowns.dart
 📏 SIZE: 9.2 KB
 🕐 MODIFIED: 2026-11-11 13:40:29
 ================================================================================
@@ -8487,7 +8425,7 @@ class _LocationDropdownsState extends State<LocationDropdowns> {
 
 
 ================================================================================
-[  37/ 152] 🎯 sevanext/lib/core/widgets/modern_button.dart
+[  36/ 151] 🎯 sevanext/lib/core/widgets/modern_button.dart
 📏 SIZE: 2.4 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -8578,7 +8516,7 @@ class ModernButton extends StatelessWidget {
 
 
 ================================================================================
-[  38/ 152] 🎯 sevanext/lib/core/widgets/platform_aware.dart
+[  37/ 151] 🎯 sevanext/lib/core/widgets/platform_aware.dart
 📏 SIZE: 2.2 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -8663,7 +8601,7 @@ class PlatformAware {
 
 
 ================================================================================
-[  39/ 152] 🎯 sevanext/lib/core/widgets/platform_file_picker.dart
+[  38/ 151] 🎯 sevanext/lib/core/widgets/platform_file_picker.dart
 📏 SIZE: 3.3 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -8784,7 +8722,7 @@ class PlatformFileResult {
 }
 
 ================================================================================
-[  40/ 152] 🎯 sevanext/lib/core/widgets/platform_webview.dart
+[  39/ 151] 🎯 sevanext/lib/core/widgets/platform_webview.dart
 📏 SIZE: 3.0 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -8891,7 +8829,7 @@ class _PlatformWebViewState extends State<PlatformWebView> {
 }
 
 ================================================================================
-[  41/ 152] 🎯 sevanext/lib/core/widgets/responsive_widget.dart
+[  40/ 151] 🎯 sevanext/lib/core/widgets/responsive_widget.dart
 📏 SIZE: 2.5 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -8988,7 +8926,7 @@ class ResponsiveWidget extends StatelessWidget {
 
 
 ================================================================================
-[  42/ 152] 🎯 sevanext/lib/core/widgets/web_pdf_viewer_stub.dart
+[  41/ 151] 🎯 sevanext/lib/core/widgets/web_pdf_viewer_stub.dart
 📏 SIZE: 3.1 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -9089,7 +9027,7 @@ void openPdfInNewTab(String url) {
 }
 
 ================================================================================
-[  43/ 152] 🎯 sevanext/lib/core/widgets/web_pdf_viewer_web.dart
+[  42/ 151] 🎯 sevanext/lib/core/widgets/web_pdf_viewer_web.dart
 📏 SIZE: 10.1 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -9433,7 +9371,7 @@ void openPdfInNewTab(String url) {
 }
 
 ================================================================================
-[  44/ 152] 🎯 sevanext/lib/features/admin/AI/admin_ai_dashboard.dart
+[  43/ 151] 🎯 sevanext/lib/features/admin/AI/admin_ai_dashboard.dart
 📏 SIZE: 10.7 KB
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -9798,7 +9736,7 @@ class _AdminAIDashboardState extends State<AdminAIDashboard> {
 
 
 ================================================================================
-[  45/ 152] 🎯 sevanext/lib/features/admin/data/admin_service.dart
+[  44/ 151] 🎯 sevanext/lib/features/admin/data/admin_service.dart
 📏 SIZE: 7.4 KB
 🕐 MODIFIED: 2026-10-27 12:44:35
 ================================================================================
@@ -10084,7 +10022,7 @@ static Future<Map<String, dynamic>> getDraftJob(String jobId) async {
 
 
 ================================================================================
-[  46/ 152] 🎯 sevanext/lib/features/admin/presentation/models/admin_menu.dart
+[  45/ 151] 🎯 sevanext/lib/features/admin/presentation/models/admin_menu.dart
 📏 SIZE: 717 B
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -10121,7 +10059,7 @@ enum SettingsSubMenu {
 }
 
 ================================================================================
-[  47/ 152] 🎯 sevanext/lib/features/admin/presentation/screens/admin_dashboard.dart
+[  46/ 151] 🎯 sevanext/lib/features/admin/presentation/screens/admin_dashboard.dart
 📏 SIZE: 37.9 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -11255,7 +11193,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
 }
 
 ================================================================================
-[  48/ 152] 🎯 sevanext/lib/features/admin/presentation/widgets/admin_sidebar.dart
+[  47/ 151] 🎯 sevanext/lib/features/admin/presentation/widgets/admin_sidebar.dart
 📏 SIZE: 10.4 KB
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -11581,7 +11519,7 @@ class AdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[  49/ 152] 🎯 sevanext/lib/features/auth/presentation/controllers/auth_controller.dart
+[  48/ 151] 🎯 sevanext/lib/features/auth/presentation/controllers/auth_controller.dart
 📏 SIZE: 33.5 KB
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -12684,7 +12622,7 @@ class AuthController extends ChangeNotifier {
 }
 
 ================================================================================
-[  50/ 152] 🎯 sevanext/lib/features/auth/presentation/screens/change_password_screen.dart
+[  49/ 151] 🎯 sevanext/lib/features/auth/presentation/screens/change_password_screen.dart
 📏 SIZE: 50.3 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -14200,7 +14138,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 }
 
 ================================================================================
-[  51/ 152] 🎯 sevanext/lib/features/auth/presentation/screens/fingerprint_setup_page.dart
+[  50/ 151] 🎯 sevanext/lib/features/auth/presentation/screens/fingerprint_setup_page.dart
 📏 SIZE: 40.8 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -15418,7 +15356,7 @@ class _FingerprintSetupPageState extends State<FingerprintSetupPage> {
 }
 
 ================================================================================
-[  52/ 152] 🎯 sevanext/lib/features/auth/presentation/screens/mpin_setup_page.dart
+[  51/ 151] 🎯 sevanext/lib/features/auth/presentation/screens/mpin_setup_page.dart
 📏 SIZE: 43.1 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -16736,7 +16674,7 @@ class _MpinSetupPageState extends State<MpinSetupPage> {
 }
 
 ================================================================================
-[  53/ 152] 🎯 sevanext/lib/features/auth/presentation/screens/register_login_page.dart
+[  52/ 151] 🎯 sevanext/lib/features/auth/presentation/screens/register_login_page.dart
 📏 SIZE: 57.8 KB
 🕐 MODIFIED: 2026-11-11 13:40:56
 ================================================================================
@@ -18348,7 +18286,7 @@ class _ModernButton extends StatelessWidget {
 }
 
 ================================================================================
-[  54/ 152] 🎯 sevanext/lib/features/auth/presentation/screens/verify_otp_page.dart
+[  53/ 151] 🎯 sevanext/lib/features/auth/presentation/screens/verify_otp_page.dart
 📏 SIZE: 22.5 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -19070,7 +19008,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 }
 
 ================================================================================
-[  55/ 152] 🎯 sevanext/lib/features/auth/services/auth_service.dart
+[  54/ 151] 🎯 sevanext/lib/features/auth/services/auth_service.dart
 📏 SIZE: 18.3 KB
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -19619,7 +19557,7 @@ class AuthService {
 }
 
 ================================================================================
-[  56/ 152] 🎯 sevanext/lib/features/common/widgets/internet_checker.dart
+[  55/ 151] 🎯 sevanext/lib/features/common/widgets/internet_checker.dart
 📏 SIZE: 4.2 KB
 🕐 MODIFIED: 2026-11-11 12:53:29
 ================================================================================
@@ -19770,7 +19708,7 @@ class _InternetCheckerState extends State<InternetChecker> {
 }
 
 ================================================================================
-[  57/ 152] 🎯 sevanext/lib/features/common/widgets/location_display.dart
+[  56/ 151] 🎯 sevanext/lib/features/common/widgets/location_display.dart
 📏 SIZE: 3.9 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -19897,7 +19835,7 @@ class _LocationDisplayState extends State<LocationDisplay> {
 
 
 ================================================================================
-[  58/ 152] 🎯 sevanext/lib/features/customadmin/data/customadmin_service.dart
+[  57/ 151] 🎯 sevanext/lib/features/customadmin/data/customadmin_service.dart
 📏 SIZE: 9.6 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -20235,7 +20173,7 @@ class CustomAdminService {
 }
 
 ================================================================================
-[  59/ 152] 🎯 sevanext/lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
+[  58/ 151] 🎯 sevanext/lib/features/customadmin/presentation/screens/customadmin_dashboard.dart
 📏 SIZE: 40.3 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -21444,7 +21382,7 @@ class _CustomAdminDashboardState extends State<CustomAdminDashboard> {
 }
 
 ================================================================================
-[  60/ 152] 🎯 sevanext/lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
+[  59/ 151] 🎯 sevanext/lib/features/customadmin/presentation/widgets/customadmin_sidebar.dart
 📏 SIZE: 22.9 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -22077,7 +22015,7 @@ class _CustomAdminSidebarState extends State<CustomAdminSidebar> {
 }
 
 ================================================================================
-[  61/ 152] 🎯 sevanext/lib/features/home/home_screen.dart
+[  60/ 151] 🎯 sevanext/lib/features/home/home_screen.dart
 📏 SIZE: 59.7 KB
 🕐 MODIFIED: 2026-11-11 14:10:04
 ================================================================================
@@ -23796,7 +23734,7 @@ class _HomeScreenState extends State<HomeScreen>
 }
 
 ================================================================================
-[  62/ 152] 🎯 sevanext/lib/features/jobs/AI/job_ai_service.dart
+[  61/ 151] 🎯 sevanext/lib/features/jobs/AI/job_ai_service.dart
 📏 SIZE: 1.5 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -23859,7 +23797,7 @@ class JobAIService {
 
 
 ================================================================================
-[  63/ 152] 🎯 sevanext/lib/features/jobs/AI/job_match_score_widget.dart
+[  62/ 151] 🎯 sevanext/lib/features/jobs/AI/job_match_score_widget.dart
 📏 SIZE: 5.1 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -24045,7 +23983,7 @@ class _JobMatchScoreWidgetState extends State<JobMatchScoreWidget> {
 
 
 ================================================================================
-[  64/ 152] 🎯 sevanext/lib/features/jobs/presentation/screens/add_job_screen.dart
+[  63/ 151] 🎯 sevanext/lib/features/jobs/presentation/screens/add_job_screen.dart
 📏 SIZE: 271.3 KB
 🕐 MODIFIED: 2026-11-11 13:40:30
 ================================================================================
@@ -31502,7 +31440,7 @@ class _AddJobScreenState extends State<AddJobScreen>
 }
 
 ================================================================================
-[  65/ 152] 🎯 sevanext/lib/features/jobs/presentation/screens/applications_screen.dart
+[  64/ 151] 🎯 sevanext/lib/features/jobs/presentation/screens/applications_screen.dart
 📏 SIZE: 161.2 KB
 🕐 MODIFIED: 2026-11-11 13:39:38
 ================================================================================
@@ -35845,7 +35783,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 }
 
 ================================================================================
-[  66/ 152] 🎯 sevanext/lib/features/jobs/presentation/screens/candidate_profile_screen.dart
+[  65/ 151] 🎯 sevanext/lib/features/jobs/presentation/screens/candidate_profile_screen.dart
 📏 SIZE: 79.2 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -38006,7 +37944,7 @@ class _CandidateProfileScreenState extends State<CandidateProfileScreen>
 }
 
 ================================================================================
-[  67/ 152] 🎯 sevanext/lib/features/jobs/presentation/screens/job_detail_screen.dart
+[  66/ 151] 🎯 sevanext/lib/features/jobs/presentation/screens/job_detail_screen.dart
 📏 SIZE: 177.3 KB
 🕐 MODIFIED: 2026-11-11 13:40:57
 ================================================================================
@@ -43186,7 +43124,7 @@ class _JobDetailScreenState extends State<JobDetailScreen>
 }
 
 ================================================================================
-[  68/ 152] 🎯 sevanext/lib/features/jobs/presentation/screens/job_list_screen.dart
+[  67/ 151] 🎯 sevanext/lib/features/jobs/presentation/screens/job_list_screen.dart
 📏 SIZE: 98.1 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -45996,7 +45934,7 @@ class _JobListScreenState extends State<JobListScreen>
 }
 
 ================================================================================
-[  69/ 152] 🎯 sevanext/lib/features/jobs/presentation/screens/saved_jobs_screen.dart
+[  68/ 151] 🎯 sevanext/lib/features/jobs/presentation/screens/saved_jobs_screen.dart
 📏 SIZE: 15.4 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -46479,7 +46417,7 @@ class _SavedJobsScreenState extends State<SavedJobsScreen> {
 
 
 ================================================================================
-[  70/ 152] 🎯 sevanext/lib/features/jobs/presentation/screens/show_jobs_screen.dart
+[  69/ 151] 🎯 sevanext/lib/features/jobs/presentation/screens/show_jobs_screen.dart
 📏 SIZE: 59.4 KB
 🕐 MODIFIED: 2026-11-11 13:40:57
 ================================================================================
@@ -48246,7 +48184,7 @@ class _ShowJobsScreenState extends State<ShowJobsScreen>
 }
 
 ================================================================================
-[  71/ 152] 🎯 sevanext/lib/features/jobs/presentation/screens/user_applications_screen.dart
+[  70/ 151] 🎯 sevanext/lib/features/jobs/presentation/screens/user_applications_screen.dart
 📏 SIZE: 116.9 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -51590,7 +51528,7 @@ class _UserApplicationScreenState extends State<UserApplicationScreen>
 }
 
 ================================================================================
-[  72/ 152] 🎯 sevanext/lib/features/jobs/presentation/widgets/submit_document_dialog.dart
+[  71/ 151] 🎯 sevanext/lib/features/jobs/presentation/widgets/submit_document_dialog.dart
 📏 SIZE: 10.9 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -51908,7 +51846,7 @@ Future<void> _pickFile() async {
 
 
 ================================================================================
-[  73/ 152] 🎯 sevanext/lib/features/location/distance_test_screen.dart
+[  72/ 151] 🎯 sevanext/lib/features/location/distance_test_screen.dart
 📏 SIZE: 15.2 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -52338,7 +52276,7 @@ class _DistanceTestScreenState extends State<DistanceTestScreen> {
 
 
 ================================================================================
-[  74/ 152] 🎯 sevanext/lib/features/location/location_test_screen.dart
+[  73/ 151] 🎯 sevanext/lib/features/location/location_test_screen.dart
 📏 SIZE: 6.1 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -52531,7 +52469,7 @@ class _LocationTestScreenState extends State<LocationTestScreen> {
 
 
 ================================================================================
-[  75/ 152] 🎯 sevanext/lib/features/market/AI/market_ai_service.dart
+[  74/ 151] 🎯 sevanext/lib/features/market/AI/market_ai_service.dart
 📏 SIZE: 1.0 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -52577,7 +52515,7 @@ class MarketAIService {
 
 
 ================================================================================
-[  76/ 152] 🎯 sevanext/lib/features/notification/screens/notifications_list_screen.dart
+[  75/ 151] 🎯 sevanext/lib/features/notification/screens/notifications_list_screen.dart
 📏 SIZE: 14.9 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -53055,7 +52993,7 @@ class _NotificationsListScreenState extends State<NotificationsListScreen> {
 
 
 ================================================================================
-[  77/ 152] 🎯 sevanext/lib/features/notification/service/notification_service.dart
+[  76/ 151] 🎯 sevanext/lib/features/notification/service/notification_service.dart
 📏 SIZE: 5.5 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -53254,7 +53192,7 @@ class NotificationService {
 
 
 ================================================================================
-[  78/ 152] 🎯 sevanext/lib/features/notification/widgets/notification_bell.dart
+[  77/ 151] 🎯 sevanext/lib/features/notification/widgets/notification_bell.dart
 📏 SIZE: 7.5 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -53508,7 +53446,7 @@ class _NotificationBellState extends State<NotificationBell>
 }
 
 ================================================================================
-[  79/ 152] 🎯 sevanext/lib/features/payment/presentation/payment.dart
+[  78/ 151] 🎯 sevanext/lib/features/payment/presentation/payment.dart
 📏 SIZE: 368 B
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -53526,7 +53464,7 @@ enum PaymentType {
 }
 
 ================================================================================
-[  80/ 152] 🎯 sevanext/lib/features/payment/presentation/screens/payment_screen.dart
+[  79/ 151] 🎯 sevanext/lib/features/payment/presentation/screens/payment_screen.dart
 📏 SIZE: 41.1 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -54605,7 +54543,7 @@ class _PaymentScreenState extends State<PaymentScreen>
 }
 
 ================================================================================
-[  81/ 152] 🎯 sevanext/lib/features/payment/presentation/widgets/application_success_dialog.dart
+[  80/ 151] 🎯 sevanext/lib/features/payment/presentation/widgets/application_success_dialog.dart
 📏 SIZE: 14.8 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -55003,7 +54941,7 @@ class ApplicationSuccessDialog extends StatelessWidget {
 }
 
 ================================================================================
-[  82/ 152] 🎯 sevanext/lib/features/payment/razorpay_mobile_service.dart
+[  81/ 151] 🎯 sevanext/lib/features/payment/razorpay_mobile_service.dart
 📏 SIZE: 3.5 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -55129,7 +55067,7 @@ class RazorpayMobileService {
 }
 
 ================================================================================
-[  83/ 152] 🎯 sevanext/lib/features/payment/razorpay_service.dart
+[  82/ 151] 🎯 sevanext/lib/features/payment/razorpay_service.dart
 📏 SIZE: 2.1 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -55207,7 +55145,7 @@ class RazorpayService {
 }
 
 ================================================================================
-[  84/ 152] 🎯 sevanext/lib/features/payment/razorpay_web_service.dart
+[  83/ 151] 🎯 sevanext/lib/features/payment/razorpay_web_service.dart
 📏 SIZE: 6.2 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -55419,7 +55357,7 @@ class RazorpayWebService {
 }
 
 ================================================================================
-[  85/ 152] 🎯 sevanext/lib/features/payment/razorpay_web_stub.dart
+[  84/ 151] 🎯 sevanext/lib/features/payment/razorpay_web_stub.dart
 📏 SIZE: 967 B
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -55460,7 +55398,7 @@ class RazorpayWebService {
 }
 
 ================================================================================
-[  86/ 152] 🎯 sevanext/lib/features/resume/AI/AI.dart
+[  85/ 151] 🎯 sevanext/lib/features/resume/AI/AI.dart
 📏 SIZE: 915 B
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -55490,7 +55428,7 @@ export 'presentation/widgets/ats_score_gauge.dart';
 export 'presentation/widgets/ats_section_breakdown.dart';
 
 ================================================================================
-[  87/ 152] 🎯 sevanext/lib/features/resume/AI/data/models/ai_resume_model.dart
+[  86/ 151] 🎯 sevanext/lib/features/resume/AI/data/models/ai_resume_model.dart
 📏 SIZE: 3.3 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -55587,7 +55525,7 @@ class AIResume {
 }
 
 ================================================================================
-[  88/ 152] 🎯 sevanext/lib/features/resume/AI/data/models/ats_report_model.dart
+[  87/ 151] 🎯 sevanext/lib/features/resume/AI/data/models/ats_report_model.dart
 📏 SIZE: 6.5 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -55800,7 +55738,7 @@ class ATSFix {
 }
 
 ================================================================================
-[  89/ 152] 🎯 sevanext/lib/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart
+[  88/ 151] 🎯 sevanext/lib/features/resume/AI/presentation/screens/ai_resume_generator_screen.dart
 📏 SIZE: 24.4 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -56474,7 +56412,7 @@ class _AIResumeGeneratorScreenState extends State<AIResumeGeneratorScreen> {
 }
 
 ================================================================================
-[  90/ 152] 🎯 sevanext/lib/features/resume/AI/presentation/screens/ats_score_screen.dart
+[  89/ 151] 🎯 sevanext/lib/features/resume/AI/presentation/screens/ats_score_screen.dart
 📏 SIZE: 13.7 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -56896,7 +56834,7 @@ class _ATSScoreScreenState extends State<ATSScoreScreen> {
 }
 
 ================================================================================
-[  91/ 152] 🎯 sevanext/lib/features/resume/AI/presentation/widgets/ai_loading_overlay.dart
+[  90/ 151] 🎯 sevanext/lib/features/resume/AI/presentation/widgets/ai_loading_overlay.dart
 📏 SIZE: 3.9 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -57032,7 +56970,7 @@ class _AILoadingOverlayState extends State<AILoadingOverlay>
 }
 
 ================================================================================
-[  92/ 152] 🎯 sevanext/lib/features/resume/AI/presentation/widgets/ats_fixes_card.dart
+[  91/ 151] 🎯 sevanext/lib/features/resume/AI/presentation/widgets/ats_fixes_card.dart
 📏 SIZE: 5.5 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -57200,7 +57138,7 @@ class ATSFixesCard extends StatelessWidget {
 }
 
 ================================================================================
-[  93/ 152] 🎯 sevanext/lib/features/resume/AI/presentation/widgets/ats_keyword_chips.dart
+[  92/ 151] 🎯 sevanext/lib/features/resume/AI/presentation/widgets/ats_keyword_chips.dart
 📏 SIZE: 4.4 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -57353,7 +57291,7 @@ class ATSKeywordChips extends StatelessWidget {
 }
 
 ================================================================================
-[  94/ 152] 🎯 sevanext/lib/features/resume/AI/presentation/widgets/ats_score_gauge.dart
+[  93/ 151] 🎯 sevanext/lib/features/resume/AI/presentation/widgets/ats_score_gauge.dart
 📏 SIZE: 5.7 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -57552,7 +57490,7 @@ class _GaugePainter extends CustomPainter {
 }
 
 ================================================================================
-[  95/ 152] 🎯 sevanext/lib/features/resume/AI/presentation/widgets/ats_section_breakdown.dart
+[  94/ 151] 🎯 sevanext/lib/features/resume/AI/presentation/widgets/ats_section_breakdown.dart
 📏 SIZE: 4.3 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -57708,7 +57646,7 @@ class ATSSectionBreakdown extends StatelessWidget {
 }
 
 ================================================================================
-[  96/ 152] 🎯 sevanext/lib/features/resume/AI/resume_ai_service.dart
+[  95/ 151] 🎯 sevanext/lib/features/resume/AI/resume_ai_service.dart
 📏 SIZE: 503 B
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -57734,7 +57672,7 @@ class ResumeAIService {
 
 
 ================================================================================
-[  97/ 152] 🎯 sevanext/lib/features/resume/AI/resume_score_widget.dart
+[  96/ 151] 🎯 sevanext/lib/features/resume/AI/resume_score_widget.dart
 📏 SIZE: 3.8 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -57872,7 +57810,7 @@ class _ResumeScoreWidgetState extends State<ResumeScoreWidget> {
 
 
 ================================================================================
-[  98/ 152] 🎯 sevanext/lib/features/resume/AI/services/resume_ai_service.dart
+[  97/ 151] 🎯 sevanext/lib/features/resume/AI/services/resume_ai_service.dart
 📏 SIZE: 4.1 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -58003,7 +57941,7 @@ class ResumeAIService {
 }
 
 ================================================================================
-[  99/ 152] 🎯 sevanext/lib/features/resume/presentation/screens/build_resume_screen.dart
+[  98/ 151] 🎯 sevanext/lib/features/resume/presentation/screens/build_resume_screen.dart
 📏 SIZE: 46.1 KB
 🕐 MODIFIED: 2026-11-11 13:40:56
 ================================================================================
@@ -59389,7 +59327,7 @@ class _BuildResumeScreenState extends State<BuildResumeScreen>
 }
 
 ================================================================================
-[ 100/ 152] 🎯 sevanext/lib/features/resume/presentation/screens/format/formats/classic_format.dart
+[  99/ 151] 🎯 sevanext/lib/features/resume/presentation/screens/format/formats/classic_format.dart
 📏 SIZE: 21.4 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -59905,7 +59843,7 @@ body{font-family:Georgia,serif;background:#f8f8f8;padding:30px 20px;line-height:
 }
 
 ================================================================================
-[ 101/ 152] 🎯 sevanext/lib/features/resume/presentation/screens/format/formats/executive_format.dart
+[ 100/ 151] 🎯 sevanext/lib/features/resume/presentation/screens/format/formats/executive_format.dart
 📏 SIZE: 20.4 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -60386,7 +60324,7 @@ body{font-family:'Playfair Display',Georgia,serif;background:#fdfbf7;padding:30p
 }
 
 ================================================================================
-[ 102/ 152] 🎯 sevanext/lib/features/resume/presentation/screens/format/formats/fresher_format.dart
+[ 101/ 151] 🎯 sevanext/lib/features/resume/presentation/screens/format/formats/fresher_format.dart
 📏 SIZE: 27.9 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -61016,7 +60954,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#E0F2F1;padding:30px 2
 }
 
 ================================================================================
-[ 103/ 152] 🎯 sevanext/lib/features/resume/presentation/screens/format/formats/government_format.dart
+[ 102/ 151] 🎯 sevanext/lib/features/resume/presentation/screens/format/formats/government_format.dart
 📏 SIZE: 27.9 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -61703,7 +61641,7 @@ th{background:#F3F4F6;font-weight:bold;color:#1F2937}
 }
 
 ================================================================================
-[ 104/ 152] 🎯 sevanext/lib/features/resume/presentation/screens/format/formats/modern_format.dart
+[ 103/ 151] 🎯 sevanext/lib/features/resume/presentation/screens/format/formats/modern_format.dart
 📏 SIZE: 26.8 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -62323,7 +62261,7 @@ body{font-family:'Inter','Segoe UI',sans-serif;background:#f3f4f6;padding:30px 2
 }
 
 ================================================================================
-[ 105/ 152] 🎯 sevanext/lib/features/resume/presentation/screens/format/formats/tech_format.dart
+[ 104/ 151] 🎯 sevanext/lib/features/resume/presentation/screens/format/formats/tech_format.dart
 📏 SIZE: 26.6 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -62935,7 +62873,7 @@ body{font-family:'JetBrains Mono','Fira Code',Consolas,monospace;background:#0F1
 }
 
 ================================================================================
-[ 106/ 152] 🎯 sevanext/lib/features/resume/presentation/screens/format/resume_format_base.dart
+[ 105/ 151] 🎯 sevanext/lib/features/resume/presentation/screens/format/resume_format_base.dart
 📏 SIZE: 26.4 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -63808,7 +63746,7 @@ abstract class ResumeFormatBase {
 }
 
 ================================================================================
-[ 107/ 152] 🎯 sevanext/lib/features/resume/presentation/screens/format/resume_format_manager.dart
+[ 106/ 151] 🎯 sevanext/lib/features/resume/presentation/screens/format/resume_format_manager.dart
 📏 SIZE: 874 B
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -63846,7 +63784,7 @@ class ResumeFormatManager {
 }
 
 ================================================================================
-[ 108/ 152] 🎯 sevanext/lib/features/resume/presentation/screens/format/resume_format_popup.dart
+[ 107/ 151] 🎯 sevanext/lib/features/resume/presentation/screens/format/resume_format_popup.dart
 📏 SIZE: 11.9 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -64233,7 +64171,7 @@ class _ResumeFormatPopupState extends State<ResumeFormatPopup> {
 }
 
 ================================================================================
-[ 109/ 152] 🎯 sevanext/lib/features/resume/presentation/screens/format/resume_format_widget.dart
+[ 108/ 151] 🎯 sevanext/lib/features/resume/presentation/screens/format/resume_format_widget.dart
 📏 SIZE: 573 B
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -64262,7 +64200,7 @@ class ResumeFormatWidget extends StatelessWidget {
 }
 
 ================================================================================
-[ 110/ 152] 🎯 sevanext/lib/features/resume/presentation/screens/resume_screen.dart
+[ 109/ 151] 🎯 sevanext/lib/features/resume/presentation/screens/resume_screen.dart
 📏 SIZE: 64.7 KB
 🕐 MODIFIED: 2026-11-11 13:40:56
 ================================================================================
@@ -66035,7 +65973,7 @@ class _ResumeScreenState extends State<ResumeScreen>
 }
 
 ================================================================================
-[ 111/ 152] 🎯 sevanext/lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
+[ 110/ 151] 🎯 sevanext/lib/features/resume/presentation/widgets/profile_photo_upload_dialog.dart
 📏 SIZE: 16.2 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -66487,7 +66425,7 @@ class _ProfilePhotoUploadDialogState extends State<ProfilePhotoUploadDialog> {
 }
 
 ================================================================================
-[ 112/ 152] 🎯 sevanext/lib/features/resume/services/resume_pdf_service.dart
+[ 111/ 151] 🎯 sevanext/lib/features/resume/services/resume_pdf_service.dart
 📏 SIZE: 5.2 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -66663,7 +66601,7 @@ class ResumePdfService {
 }
 
 ================================================================================
-[ 113/ 152] 🎯 sevanext/lib/features/resume/services/resume_profile_service.dart
+[ 112/ 151] 🎯 sevanext/lib/features/resume/services/resume_profile_service.dart
 📏 SIZE: 10.5 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -66964,7 +66902,7 @@ class ResumeProfileService {
 }
 
 ================================================================================
-[ 114/ 152] 🎯 sevanext/lib/features/resume/utils/resume_defaults.dart
+[ 113/ 151] 🎯 sevanext/lib/features/resume/utils/resume_defaults.dart
 📏 SIZE: 7.5 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -67119,7 +67057,7 @@ class ResumeDefaults {
 }
 
 ================================================================================
-[ 115/ 152] 🎯 sevanext/lib/features/schemes/data/scheme_service.dart
+[ 114/ 151] 🎯 sevanext/lib/features/schemes/data/scheme_service.dart
 📏 SIZE: 37.5 KB
 🕐 MODIFIED: 2026-11-11 12:53:30
 ================================================================================
@@ -68183,7 +68121,7 @@ class SchemeService {
 }
 
 ================================================================================
-[ 116/ 152] 🎯 sevanext/lib/features/schemes/presentation/screens/customadmin_scheme_applications_screen.dart
+[ 115/ 151] 🎯 sevanext/lib/features/schemes/presentation/screens/customadmin_scheme_applications_screen.dart
 📏 SIZE: 157.2 KB
 🕐 MODIFIED: 2026-11-11 13:40:56
 ================================================================================
@@ -72532,7 +72470,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 }
 
 ================================================================================
-[ 117/ 152] 🎯 sevanext/lib/features/schemes/presentation/screens/scheme_apply_screen.dart
+[ 116/ 151] 🎯 sevanext/lib/features/schemes/presentation/screens/scheme_apply_screen.dart
 📏 SIZE: 79.8 KB
 🕐 MODIFIED: 2026-11-11 13:40:56
 ================================================================================
@@ -74756,7 +74694,7 @@ class _SchemeApplyScreenState extends State<SchemeApplyScreen>
 }
 
 ================================================================================
-[ 118/ 152] 🎯 sevanext/lib/features/schemes/presentation/screens/scheme_detail_screen.dart
+[ 117/ 151] 🎯 sevanext/lib/features/schemes/presentation/screens/scheme_detail_screen.dart
 📏 SIZE: 64.6 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -76651,7 +76589,7 @@ class _SchemeDetailScreenState extends State<SchemeDetailScreen>
 }
 
 ================================================================================
-[ 119/ 152] 🎯 sevanext/lib/features/schemes/presentation/screens/scheme_list_screen.dart
+[ 118/ 151] 🎯 sevanext/lib/features/schemes/presentation/screens/scheme_list_screen.dart
 📏 SIZE: 32.9 KB
 🕐 MODIFIED: 2026-11-11 13:40:56
 ================================================================================
@@ -77621,7 +77559,7 @@ class _SchemeListScreenState extends State<SchemeListScreen> {
 }
 
 ================================================================================
-[ 120/ 152] 🎯 sevanext/lib/features/schemes/presentation/screens/user_scheme_applications_screen.dart
+[ 119/ 151] 🎯 sevanext/lib/features/schemes/presentation/screens/user_scheme_applications_screen.dart
 📏 SIZE: 102.8 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -80581,7 +80519,7 @@ class _SchemeApplicationDetailViewState
 }
 
 ================================================================================
-[ 121/ 152] 🎯 sevanext/lib/features/services/data/service_data_source.dart
+[ 120/ 151] 🎯 sevanext/lib/features/services/data/service_data_source.dart
 📏 SIZE: 2.7 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -80680,7 +80618,7 @@ class ServiceDataSource {
 }
 
 ================================================================================
-[ 122/ 152] 🎯 sevanext/lib/features/services/data/service_repository.dart
+[ 121/ 151] 🎯 sevanext/lib/features/services/data/service_repository.dart
 📏 SIZE: 8.2 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -80953,7 +80891,7 @@ class ServiceRepository {
 }
 
 ================================================================================
-[ 123/ 152] 🎯 sevanext/lib/features/services/models/service_types.dart
+[ 122/ 151] 🎯 sevanext/lib/features/services/models/service_types.dart
 📏 SIZE: 25.9 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -81735,7 +81673,7 @@ class ServiceMasterData {
 }
 
 ================================================================================
-[ 124/ 152] 🎯 sevanext/lib/features/services/presentation/screens/apply_service_screen.dart
+[ 123/ 151] 🎯 sevanext/lib/features/services/presentation/screens/apply_service_screen.dart
 📏 SIZE: 78.6 KB
 🕐 MODIFIED: 2026-11-11 13:40:30
 ================================================================================
@@ -84157,7 +84095,7 @@ class _UploadedDoc {
 }
 
 ================================================================================
-[ 125/ 152] 🎯 sevanext/lib/features/services/presentation/screens/service_application_screen.dart
+[ 124/ 151] 🎯 sevanext/lib/features/services/presentation/screens/service_application_screen.dart
 📏 SIZE: 176.8 KB
 🕐 MODIFIED: 2026-11-11 13:39:38
 ================================================================================
@@ -89025,7 +88963,7 @@ class _FinalSubmitDialogContentState extends State<_FinalSubmitDialogContent> {
 }
 
 ================================================================================
-[ 126/ 152] 🎯 sevanext/lib/features/services/presentation/screens/user_service_applications_screen.dart
+[ 125/ 151] 🎯 sevanext/lib/features/services/presentation/screens/user_service_applications_screen.dart
 📏 SIZE: 145.3 KB
 🕐 MODIFIED: 2026-11-11 13:40:56
 ================================================================================
@@ -93171,7 +93109,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 }
 
 ================================================================================
-[ 127/ 152] 🎯 sevanext/lib/features/splash/splash_page.dart
+[ 126/ 151] 🎯 sevanext/lib/features/splash/splash_page.dart
 📏 SIZE: 11.5 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -93494,7 +93432,7 @@ class _SplashPageState extends State<SplashPage>
 }
 
 ================================================================================
-[ 128/ 152] 🎯 sevanext/lib/features/superadmin/AI/superadmin_ai_dashboard.dart
+[ 127/ 151] 🎯 sevanext/lib/features/superadmin/AI/superadmin_ai_dashboard.dart
 📏 SIZE: 1.5 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -93557,7 +93495,7 @@ class JobAIService {
 
 
 ================================================================================
-[ 129/ 152] 🎯 sevanext/lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
+[ 128/ 151] 🎯 sevanext/lib/features/superadmin/presentation/screens/superadmin_dashboard.dart
 📏 SIZE: 25.8 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -94383,7 +94321,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard> {
 }
 
 ================================================================================
-[ 130/ 152] 🎯 sevanext/lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
+[ 129/ 151] 🎯 sevanext/lib/features/superadmin/presentation/widgets/superadmin_sidebar.dart
 📏 SIZE: 4.1 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -94518,7 +94456,7 @@ class SuperAdminSidebar extends StatelessWidget {
 }
 
 ================================================================================
-[ 131/ 152] 🎯 sevanext/lib/features/user/AI/user_ai_dashboard.dart
+[ 130/ 151] 🎯 sevanext/lib/features/user/AI/user_ai_dashboard.dart
 📏 SIZE: 43.5 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -95837,7 +95775,7 @@ class _LineChartPainter extends CustomPainter {
 
 
 ================================================================================
-[ 132/ 152] 🎯 sevanext/lib/features/user/AI/user_ai_screen.dart
+[ 131/ 151] 🎯 sevanext/lib/features/user/AI/user_ai_screen.dart
 📏 SIZE: 17.7 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -96399,7 +96337,7 @@ class _UserAIScreenState extends State<UserAIScreen> {
 
 
 ================================================================================
-[ 133/ 152] 🎯 sevanext/lib/features/user/AI/user_ai_service.dart
+[ 132/ 151] 🎯 sevanext/lib/features/user/AI/user_ai_service.dart
 📏 SIZE: 3.7 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -96526,7 +96464,7 @@ class UserAIService {
 
 
 ================================================================================
-[ 134/ 152] 🎯 sevanext/lib/features/user/AI/user_career_roadmap_screen.dart
+[ 133/ 151] 🎯 sevanext/lib/features/user/AI/user_career_roadmap_screen.dart
 📏 SIZE: 10.8 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -96873,7 +96811,7 @@ class _UserCareerRoadmapScreenState extends State<UserCareerRoadmapScreen> {
 
 
 ================================================================================
-[ 135/ 152] 🎯 sevanext/lib/features/user/data/user_service.dart
+[ 134/ 151] 🎯 sevanext/lib/features/user/data/user_service.dart
 📏 SIZE: 35.9 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -98000,7 +97938,7 @@ class UserService {
 }
 
 ================================================================================
-[ 136/ 152] 🎯 sevanext/lib/features/user/presentation/controllers/user_profile_controller.dart
+[ 135/ 151] 🎯 sevanext/lib/features/user/presentation/controllers/user_profile_controller.dart
 📏 SIZE: 7.4 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -98293,7 +98231,7 @@ class UserProfileController extends ChangeNotifier {
 
 
 ================================================================================
-[ 137/ 152] 🎯 sevanext/lib/features/user/presentation/screens/advanced_details_screen.dart
+[ 136/ 151] 🎯 sevanext/lib/features/user/presentation/screens/advanced_details_screen.dart
 📏 SIZE: 74.2 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -100369,7 +100307,7 @@ class _AdvancedDetailsScreenState extends State<AdvancedDetailsScreen>
 
 
 ================================================================================
-[ 138/ 152] 🎯 sevanext/lib/features/user/presentation/screens/basic_details_screen.dart
+[ 137/ 151] 🎯 sevanext/lib/features/user/presentation/screens/basic_details_screen.dart
 📏 SIZE: 79.4 KB
 🕐 MODIFIED: 2026-11-11 13:40:30
 ================================================================================
@@ -102326,7 +102264,7 @@ class _BasicDetailsScreenState extends State<BasicDetailsScreen>
 }
 
 ================================================================================
-[ 139/ 152] 🎯 sevanext/lib/features/user/presentation/screens/education_screen.dart
+[ 138/ 151] 🎯 sevanext/lib/features/user/presentation/screens/education_screen.dart
 📏 SIZE: 60.4 KB
 🕐 MODIFIED: 2026-11-11 13:40:30
 ================================================================================
@@ -104127,7 +104065,7 @@ class _EducationScreenState extends State<EducationScreen> {
 }
 
 ================================================================================
-[ 140/ 152] 🎯 sevanext/lib/features/user/presentation/screens/experience_screen.dart
+[ 139/ 151] 🎯 sevanext/lib/features/user/presentation/screens/experience_screen.dart
 📏 SIZE: 76.4 KB
 🕐 MODIFIED: 2026-11-11 13:40:30
 ================================================================================
@@ -106028,7 +105966,7 @@ class _TabData {
 }
 
 ================================================================================
-[ 141/ 152] 🎯 sevanext/lib/features/user/presentation/screens/user_applications_screen.dart
+[ 140/ 151] 🎯 sevanext/lib/features/user/presentation/screens/user_applications_screen.dart
 📏 SIZE: 127.9 KB
 🕐 MODIFIED: 2026-11-11 13:39:38
 ================================================================================
@@ -109795,7 +109733,7 @@ class _UpdateApplicationDialogState extends State<_UpdateApplicationDialog> {
 }
 
 ================================================================================
-[ 142/ 152] 🎯 sevanext/lib/features/user/presentation/screens/user_dashboard.dart
+[ 141/ 151] 🎯 sevanext/lib/features/user/presentation/screens/user_dashboard.dart
 📏 SIZE: 84.3 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -112351,7 +112289,7 @@ class _QuickAction {
 }
 
 ================================================================================
-[ 143/ 152] 🎯 sevanext/lib/features/user/presentation/screens/user_documents_screen.dart
+[ 142/ 151] 🎯 sevanext/lib/features/user/presentation/screens/user_documents_screen.dart
 📏 SIZE: 67.6 KB
 🕐 MODIFIED: 2026-11-11 13:40:30
 ================================================================================
@@ -113835,7 +113773,7 @@ class _UserDocumentsScreenState extends State<UserDocumentsScreen> {
 }
 
 ================================================================================
-[ 144/ 152] 🎯 sevanext/lib/features/user/presentation/screens/user_support_screen.dart
+[ 143/ 151] 🎯 sevanext/lib/features/user/presentation/screens/user_support_screen.dart
 📏 SIZE: 27.9 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -114721,7 +114659,7 @@ This message was sent from SevaNext App
 }
 
 ================================================================================
-[ 145/ 152] 🎯 sevanext/lib/features/user/presentation/utils/menu_types.dart
+[ 144/ 151] 🎯 sevanext/lib/features/user/presentation/utils/menu_types.dart
 📏 SIZE: 2.5 KB
 🕐 MODIFIED: 2026-10-18 08:35:43
 ================================================================================
@@ -114808,7 +114746,7 @@ enum SettingsSubMenu {
 }
 
 ================================================================================
-[ 146/ 152] 🎯 sevanext/lib/features/user/presentation/widgets/user_sidebar.dart
+[ 145/ 151] 🎯 sevanext/lib/features/user/presentation/widgets/user_sidebar.dart
 📏 SIZE: 33.2 KB
 🕐 MODIFIED: 2026-11-11 13:36:19
 ================================================================================
@@ -115649,7 +115587,7 @@ class _UserSidebarState extends State<UserSidebar> {
 }
 
 ================================================================================
-[ 147/ 152] 🎯 sevanext/lib/features/user/providers/user_profile_provider.dart
+[ 146/ 151] 🎯 sevanext/lib/features/user/providers/user_profile_provider.dart
 📏 SIZE: 11.4 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -116025,7 +115963,7 @@ class UserProfileProvider extends ChangeNotifier {
 }
 
 ================================================================================
-[ 148/ 152] 🎯 sevanext/lib/main.dart
+[ 147/ 151] 🎯 sevanext/lib/main.dart
 📏 SIZE: 4.7 KB
 🕐 MODIFIED: 2026-11-11 12:53:31
 ================================================================================
@@ -116198,7 +116136,7 @@ class _NoGlowScrollBehavior extends ScrollBehavior {
 }
 
 ================================================================================
-[ 149/ 152] 🔧 sevanext/nginx.conf
+[ 148/ 151] 🔧 sevanext/nginx.conf
 📏 SIZE: 3.4 KB
 🕐 MODIFIED: 2026-11-11 12:53:40
 ================================================================================
@@ -116310,7 +116248,7 @@ server {
 }
 
 ================================================================================
-[ 150/ 152] ⚙️ sevanext/pubspec.yaml
+[ 149/ 151] ⚙️ sevanext/pubspec.yaml
 📏 SIZE: 2.1 KB
 🕐 MODIFIED: 2026-11-11 13:33:24
 ================================================================================
@@ -116406,7 +116344,7 @@ flutter:
     - assets/icons/
 
 ================================================================================
-[ 151/ 152] 🌐 sevanext/web/index.html
+[ 150/ 151] 🌐 sevanext/web/index.html
 📏 SIZE: 1.3 KB
 🕐 MODIFIED: 2026-11-11 12:53:40
 ================================================================================
@@ -116454,7 +116392,7 @@ flutter:
 </html>
 
 ================================================================================
-[ 152/ 152] 📋 sevanext/web/manifest.json
+[ 151/ 151] 📋 sevanext/web/manifest.json
 📏 SIZE: 947 B
 🕐 MODIFIED: 2026-11-11 12:53:40
 ================================================================================
@@ -116499,6 +116437,6 @@ flutter:
 ================================================================================
 🎉 EXPORT COMPLETED!
 ================================================================================
-Total Files: 152
-Generated: 2026-11-11 14:19:03
+Total Files: 151
+Generated: 2026-11-11 15:02:25
 ================================================================================
