@@ -1,4 +1,3 @@
 
 deploy/.env.prod
-deploy/.env.localmongo_backup_*.tar.gz 
-mongo_backup_*.tar.gz 
+deploy/.env.local
