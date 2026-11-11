@@ -1,18 +1,24 @@
-# ============================================================
-# ROJGARNEST — PRODUCTION OVERRIDE
-# ============================================================
-# Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
-# ============================================================
-
 services:
   mongo:
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
-    # ⚠️ Never expose MongoDB in prod
-    # ports:
-    #   - "27017:27017"
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?MONGO_ROOT_USERNAME required}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD required}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    restart: always
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+    restart: always
 
   backend:
     environment:
@@ -20,24 +26,27 @@ services:
       MOBILE_OTP_BYPASS: "false"
       DEV_MODE_LOG_ONLY: "false"
       LOG_LEVEL: WARNING
-      # ✅ Production DB with auth
       MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/RojgarNest?authSource=admin
-      # ✅ Production URL
       APP_BASE_URL: https://www.rojgarnest.com
     restart: always
-    # No port exposure — Nginx reverse proxies
-    # ports:
-    #   - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
   frontend:
     build:
       args:
         API_BASE_URL: https://www.rojgarnest.com/api/v1
-        WS_BASE_URL: wss://www.rojgarnest.com/notification/ws
+        WS_BASE_URL: wss://www.rojgarnest.com/ws/notification/ws
     restart: always
     ports:
       - "80:80"
-      - "443:443"
-    volumes:
-      # Optional: mount TLS certs
-      - ./nginx-ssl:/etc/nginx/ssl:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M

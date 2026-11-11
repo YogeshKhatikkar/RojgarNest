@@ -1,22 +1,22 @@
 ================================================================================
 ROJGARNEST - FULL PROJECT EXPORT (EXCLUDE MODE)
 ================================================================================
-Generated: 2026-11-08 16:13:15
-Source: E:\YOGESH\website\RojgarNest
+Generated: 2026-11-11 14:19:06
+Source: E:\YOGESH\website\SevaNext
 Excluded folders: .git, backend, frontend
 Excluded extensions: .txt
-Total Files Included: 39
-Total Skipped: 7
-Total Size: 112.4 KB
+Total Files Included: 25
+Total Skipped: 8
+Total Size: 84.3 KB
 ================================================================================
 
 ================================================================================
 📁 FOLDER BREAKDOWN
 ================================================================================
 
-  (root)/: 5 files (44.8 KB)
-  .github/: 6 files (13.3 KB)
-  deploy/: 26 files (53.2 KB)
+  (root)/: 6 files (44.9 KB)
+  .github/: 6 files (13.7 KB)
+  deploy/: 11 files (24.7 KB)
   monitoring/: 2 files (1.1 KB)
 
 
@@ -31,6 +31,7 @@ Total Size: 112.4 KB
   📁 frontend  →  excluded folder 'frontend'
   📄 frontend_export.txt  →  excluded extension '.txt'
   📄 full_project_export.txt  →  system/output file
+  📄 mongo_backup_.tar.gz  →  binary extension '.gz'
 
 
 ================================================================================
@@ -46,36 +47,20 @@ Total Size: 112.4 KB
 │       ├── ⚙️ deploy.yml
 │       ├── ⚙️ security-scan.yml
 │       └── ⚙️ web-deploy.yml
+├── 📄 .gitignore
 ├── 📁 deploy/
-│   ├── 📄 .env.dev
-│   ├── 📄 .env.dev.example
-│   ├── 📄 .env.example
+│   ├── 📄 .env.local
+│   ├── 📄 .env.prod
 │   ├── 📄 .env.prod.example
-│   ├── 📜 deploy.sh
-│   ├── 💻 dev.ps1
-│   ├── 📜 dev.sh
+│   ├── 📜 backup.sh
 │   ├── ⚙️ docker-compose.dev.yml
 │   ├── ⚙️ docker-compose.prod.yml
 │   ├── ⚙️ docker-compose.yml
-│   ├── 📄 Dockerfile.dev
-│   ├── 📄 Dockerfile.prod
-│   ├── 📁 k8s/
-│   ├── 📄 Makefile
 │   ├── 📁 nginx/
-│   │   ├── ⚙️ nginx.dev.conf
 │   │   └── ⚙️ nginx.prod.conf
-│   ├── 💻 prod.ps1
-│   ├── 📜 prod.sh
-│   ├── 📝 README.md
-│   └── 📁 scripts/
-│       ├── 📜 backup.sh
-│       ├── 📜 build-android.sh
-│       ├── 📜 build-web.sh
-│       ├── 📜 deploy-local.sh
-│       ├── 📜 deploy-server.sh
-│       ├── 📜 health-check.sh
-│       ├── 📜 rollback.sh
-│       └── 📜 setup-server.sh
+│   ├── 💻 run-local.ps1
+│   ├── 📜 run-local.sh
+│   └── 📜 run-prod.sh
 ├── 🐍 export_backend_code.py
 ├── 🐍 export_frontend.py
 ├── 🐍 export_remaining.py
@@ -90,21 +75,20 @@ Total Size: 112.4 KB
 📊 FILE SUMMARY
 ================================================================================
 
-Total Files: 39
-Total Size: 112.4 KB
+Total Files: 25
+Total Size: 84.3 KB
 
 By extension:
-  .sh: 11 files (24.2 KB)
-  .yml: 10 files (20.2 KB)
-  .example: 3 files (1.0 KB)
-  .conf: 3 files (9.0 KB)
+  .yml: 10 files (18.7 KB)
+  .sh: 3 files (2.9 KB)
   .py: 3 files (43.9 KB)
-  .dev: 2 files (212 B)
-  .ps1: 2 files (10.6 KB)
+  .conf: 2 files (7.0 KB)
   .json: 2 files (964 B)
-  .prod: 1 files (0 B)
-  (no ext): 1 files (2.2 KB)
-  .md: 1 files (143 B)
+  (no ext): 1 files (76 B)
+  .local: 1 files (346 B)
+  .prod: 1 files (155 B)
+  .example: 1 files (721 B)
+  .ps1: 1 files (9.6 KB)
 
 
 ================================================================================
@@ -112,7 +96,7 @@ By extension:
 ================================================================================
 
 ================================================================================
-[   1/  39] ⚙️ .github/workflows/android-release.yml
+[   1/  25] ⚙️ .github/workflows/android-release.yml
 📏 SIZE: 0 B
 🕐 MODIFIED: 2026-09-25 19:53:10
 ================================================================================
@@ -120,7 +104,7 @@ By extension:
 
 
 ================================================================================
-[   2/  39] ⚙️ .github/workflows/backend-deploy.yml
+[   2/  25] ⚙️ .github/workflows/backend-deploy.yml
 📏 SIZE: 0 B
 🕐 MODIFIED: 2026-09-25 19:53:36
 ================================================================================
@@ -128,9 +112,9 @@ By extension:
 
 
 ================================================================================
-[   3/  39] ⚙️ .github/workflows/ci-cd.yml
-📏 SIZE: 10.9 KB
-🕐 MODIFIED: 2026-11-07 17:43:32
+[   3/  25] ⚙️ .github/workflows/ci-cd.yml
+📏 SIZE: 11.4 KB
+🕐 MODIFIED: 2026-11-09 18:41:35
 ================================================================================
 
 name: 🚀 Full CI/CD Pipeline
@@ -145,7 +129,9 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository_owner }}/rojgarnest
-  FLUTTER_VERSION: '3.24.0'
+  # ✅ FIXED: Flutter 3.27.1 ships Dart SDK 3.6.2
+  # Required by fl_chart >=1.0.0
+  FLUTTER_VERSION: '3.27.1'
 
 jobs:
   # ============================================================
@@ -430,13 +416,35 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_PORT || 22 }}
           script: |
-            cd /opt/rojgarnest/deploy
+            set -e
+            cd /opt/rojgarnest
+
+            echo "📥 Pulling latest code..."
+            git pull origin main
+
+            cd deploy
+
+            echo "🔐 Docker login..."
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            export IMAGE_TAG=${{ github.sha }}
-            export GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            echo "📦 Pulling latest images..."
+            docker compose \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              pull
+
+            echo "🚀 Starting stack..."
+            docker compose \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              up -d --remove-orphans
+
+            echo "🧹 Cleaning old images..."
             docker image prune -f
+
+            echo "⏳ Waiting for health check..."
             sleep 20
             for i in $(seq 1 30); do
               if curl -sf http://localhost/api/v1/health >/dev/null 2>&1; then
@@ -462,105 +470,98 @@ jobs:
         continue-on-error: true
 
 ================================================================================
-[   4/  39] ⚙️ .github/workflows/deploy.yml
-📏 SIZE: 2.4 KB
-🕐 MODIFIED: 2026-11-07 17:43:53
+[   4/  25] ⚙️ .github/workflows/deploy.yml
+📏 SIZE: 2.2 KB
+🕐 MODIFIED: 2026-11-09 17:50:21
 ================================================================================
 
 name: Deploy RojgarNext
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.12'
 
       - name: Install dependencies
+        working-directory: backend/rojgarnest
         run: |
-          cd backend/rojgarnest
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Lint with flake8
+        working-directory: backend/rojgarnest
         run: |
-          cd backend/rojgarnest
           pip install flake8
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Run tests
+        working-directory: backend/rojgarnest
         run: |
-          cd backend/rojgarnest
           pip install pytest
           pytest tests/ || true
 
-  build-and-push:
+  deploy:
     needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://www.rojgarnest.com
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v3
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push Backend
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend/rojgarnest
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/rojgarnest-backend:latest
-
-      - name: Build and push Frontend
-        run: |
-          cd frontend/rojgarnest
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/rojgarnest-frontend:latest .
-          docker push ${{ secrets.DOCKER_USERNAME }}/rojgarnest-frontend:latest
-
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@v0.1.5
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_PORT || 22 }}
           script: |
+            set -e
             cd /opt/rojgarnest
-            git pull
-            docker-compose down
-            docker-compose pull
-            docker-compose up -d
-            docker system prune -f
+
+            echo "📥 Pulling latest code..."
+            git pull origin main
+
+            cd deploy
+
+            echo "🔨 Building and starting production stack..."
+            docker compose \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              up -d --build --remove-orphans
+
+            echo "🧹 Cleaning old images..."
+            docker image prune -f
+
+            echo "⏳ Waiting for health check..."
+            sleep 20
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost/api/v1/health >/dev/null 2>&1; then
+                echo "✅ Backend healthy after ${i}s"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "❌ Health check failed"
+            exit 1
 
 ================================================================================
-[   5/  39] ⚙️ .github/workflows/security-scan.yml
+[   5/  25] ⚙️ .github/workflows/security-scan.yml
 📏 SIZE: 0 B
 🕐 MODIFIED: 2026-09-25 19:53:50
 ================================================================================
@@ -568,7 +569,7 @@ jobs:
 
 
 ================================================================================
-[   6/  39] ⚙️ .github/workflows/web-deploy.yml
+[   6/  25] ⚙️ .github/workflows/web-deploy.yml
 📏 SIZE: 0 B
 🕐 MODIFIED: 2026-09-25 19:53:22
 ================================================================================
@@ -576,642 +577,156 @@ jobs:
 
 
 ================================================================================
-[   7/  39] 📄 deploy/.env.dev
-📏 SIZE: 212 B
-🕐 MODIFIED: 2026-11-07 16:58:13
+[   7/  25] 📄 .gitignore
+📏 SIZE: 76 B
+🕐 MODIFIED: 2026-11-09 21:39:20
+================================================================================
+
+
+deploy/.env.prod
+deploy/.env.local
+
+deploy/.env.prod
+deploy/.env.local
+
+
+================================================================================
+[   8/  25] 📄 deploy/.env.local
+📏 SIZE: 346 B
+🕐 MODIFIED: 2026-11-10 20:40:08
 ================================================================================
 
 # ============================================================
-# DEV — COMPOSE ENV (only compose-level vars)
+# ROJGARNEST — LOCAL DOCKER ENV
 # ============================================================
-COMPOSE_PROJECT_NAME=rojgarnest-dev
+COMPOSE_PROJECT_NAME=rojgarnest-local
+
+# Backend env is loaded from ../backend/rojgarnest/.env via env_file,
+# so make sure THAT file has MONGO_URI, SECRET_KEY, JWT_SECRET_KEY etc.
 
 ================================================================================
-[   8/  39] 📄 deploy/.env.dev.example
-📏 SIZE: 212 B
-🕐 MODIFIED: 2026-11-07 16:58:13
+[   9/  25] 📄 deploy/.env.prod
+📏 SIZE: 155 B
+🕐 MODIFIED: 2026-11-10 20:33:45
 ================================================================================
 
-# ============================================================
-# DEV — COMPOSE ENV (only compose-level vars)
-# ============================================================
-COMPOSE_PROJECT_NAME=rojgarnest-dev
-
-================================================================================
-[   9/  39] 📄 deploy/.env.example
-📏 SIZE: 505 B
-🕐 MODIFIED: 2026-11-07 17:42:17
-================================================================================
-
-# ============================================================
-# DEPLOY — ENV VARIABLES
-# ============================================================
-# Copy to .env.dev or .env.prod, then fill real values
-# ============================================================
-
-# ============ MONGODB ROOT (prod only) ============
-MONGO_ROOT_USERNAME=rojgar_admin
-MONGO_ROOT_PASSWORD=CHANGE_ME_STRONG_PASSWORD_32_CHARS
-
-# ============ COMPOSE PROJECT NAME ============
-COMPOSE_PROJECT_NAME=rojgarnest
-
-================================================================================
-[  10/  39] 📄 deploy/.env.prod.example
-📏 SIZE: 349 B
-🕐 MODIFIED: 2026-11-07 16:58:22
-================================================================================
-
-# ============================================================
-# PROD — COMPOSE ENV
-# ============================================================
 COMPOSE_PROJECT_NAME=rojgarnest-prod
 
-# ⚠️ MUST SET — used by MongoDB root user + backend connection
+MONGO_ROOT_USERNAME=rojgar_admin
+MONGO_ROOT_PASSWORD=localdev123456789012345678901234
+
+DOMAIN=www.rojgarnest.com
+
+================================================================================
+[  10/  25] 📄 deploy/.env.prod.example
+📏 SIZE: 721 B
+🕐 MODIFIED: 2026-11-09 21:35:35
+================================================================================
+
+# ============================================================
+# PROD — COMPOSE ENV (EXAMPLE)
+# ============================================================
+# Server par:
+#   cp .env.prod.example .env.prod
+#   nano .env.prod
+#   chmod 600 .env.prod
+#
+# ⚠️ .env.prod NEVER commit to git. Sirf ye .example file commit hoti hai.
+# ============================================================
+
+COMPOSE_PROJECT_NAME=rojgarnest-prod
+
+# ⚠️ CRITICAL — MongoDB root user
+# Only use alphanumeric (A-Z, a-z, 0-9). Min 32 chars.
+# Generate:  openssl rand -hex 24
 MONGO_ROOT_USERNAME=rojgar_admin
 MONGO_ROOT_PASSWORD=CHANGE_ME_STRONG_32_CHAR_PASSWORD
 
-================================================================================
-[  11/  39] 📜 deploy/deploy.sh
-📏 SIZE: 4.2 KB
-🕐 MODIFIED: 2026-11-07 16:21:59
-================================================================================
-
-#!/usr/bin/env bash
-# ============================================================
-# ROJGARNEST — DEPLOYMENT HELPER
-# ============================================================
-set -euo pipefail
-
-cd "$(dirname "$0")"
-
-# Colors
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-# ============================================================
-# HELPERS
-# ============================================================
-log()      { echo -e "${CYAN}[deploy]${NC} $*"; }
-success()  { echo -e "${GREEN}[ok]${NC} $*"; }
-warn()     { echo -e "${YELLOW}[warn]${NC} $*"; }
-error()    { echo -e "${RED}[error]${NC} $*" >&2; exit 1; }
-
-# ============================================================
-# COMMANDS
-# ============================================================
-cmd_dev_up() {
-    log "Starting DEVELOPMENT stack..."
-    docker compose \
-        -f docker-compose.yml \
-        -f docker-compose.dev.yml \
-        --env-file .env.dev \
-        up --build -d
-    success "Development stack up. Frontend: http://localhost:8080 | Backend: http://localhost:8000"
-}
-
-cmd_dev_down() {
-    log "Stopping DEVELOPMENT stack..."
-    docker compose \
-        -f docker-compose.yml \
-        -f docker-compose.dev.yml \
-        --env-file .env.dev \
-        down
-    success "Development stack down"
-}
-
-cmd_dev_logs() {
-    docker compose \
-        -f docker-compose.yml \
-        -f docker-compose.dev.yml \
-        --env-file .env.dev \
-        logs -f
-}
-
-cmd_prod_up() {
-    log "Starting PRODUCTION stack..."
-    [ -f .env.prod ] || error ".env.prod not found — copy .env.prod.example"
-    docker compose \
-        -f docker-compose.yml \
-        -f docker-compose.prod.yml \
-        --env-file .env.prod \
-        up --build -d
-    success "Production stack up. Frontend: http://localhost | Backend: internal"
-}
-
-cmd_prod_down() {
-    log "Stopping PRODUCTION stack..."
-    docker compose \
-        -f docker-compose.yml \
-        -f docker-compose.prod.yml \
-        --env-file .env.prod \
-        down
-    success "Production stack down"
-}
-
-cmd_prod_logs() {
-    docker compose \
-        -f docker-compose.yml \
-        -f docker-compose.prod.yml \
-        --env-file .env.prod \
-        logs -f
-}
-
-cmd_backup_db() {
-    log "Backing up MongoDB..."
-    local ts=$(date +%Y%m%d_%H%M%S)
-    local out="backups/mongo_${ts}.gz"
-    mkdir -p backups
-    docker compose exec -T mongo mongodump --archive --gzip > "$out"
-    success "Backup saved: $out"
-}
-
-cmd_restore_db() {
-    local file="${1:-}"
-    [ -n "$file" ] || error "Usage: ./deploy.sh restore-db <backup.gz>"
-    [ -f "$file" ] || error "File not found: $file"
-    log "Restoring MongoDB from $file..."
-    docker compose exec -T mongo mongorestore --archive --gzip < "$file"
-    success "Restore complete"
-}
-
-cmd_seed() {
-    log "Seeding schemes..."
-    docker compose \
-        -f docker-compose.yml \
-        -f docker-compose.dev.yml \
-        --env-file .env.dev \
-        exec backend python seed_schemes.py
-    success "Seeding complete"
-}
-
-cmd_status() {
-    docker compose ps
-}
-
-cmd_health() {
-    log "Checking health..."
-    curl -fsS http://localhost:8000/api/v1/health && echo
-    curl -fsS http://localhost:8080/healthz && echo
-    success "All healthy"
-}
-
-# ============================================================
-# ROUTER
-# ============================================================
-case "${1:-help}" in
-    dev-up)      cmd_dev_up ;;
-    dev-down)    cmd_dev_down ;;
-    dev-logs)    cmd_dev_logs ;;
-    prod-up)     cmd_prod_up ;;
-    prod-down)   cmd_prod_down ;;
-    prod-logs)   cmd_prod_logs ;;
-    backup-db)   cmd_backup_db ;;
-    restore-db)  shift; cmd_restore_db "${1:-}" ;;
-    seed)        cmd_seed ;;
-    status)      cmd_status ;;
-    health)      cmd_health ;;
-    *)
-        cat <<EOF
-Usage: ./deploy.sh <command>
-
-DEV:
-  dev-up       Start development stack
-  dev-down     Stop development stack
-  dev-logs     Follow development logs
-
-PROD:
-  prod-up      Start production stack
-  prod-down    Stop production stack
-  prod-logs    Follow production logs
-
-DB:
-  seed         Seed schemes into MongoDB
-  backup-db    Backup MongoDB to deploy/backups/
-  restore-db   Restore MongoDB from backup file
-
-UTIL:
-  status       Show container status
-  health       Check endpoints
-EOF
-        ;;
-esac
+# Domain (used by nginx)
+DOMAIN=www.rojgarnest.com
 
 ================================================================================
-[  12/  39] 💻 deploy/dev.ps1
-📏 SIZE: 6.0 KB
-🕐 MODIFIED: 2026-11-07 17:01:45
-================================================================================
-
-# ============================================================
-# ROJGARNEST — DEVELOPMENT RUNNER (WINDOWS LOCAL)
-# ============================================================
-param(
-    [Parameter(Position=0)]
-    [ValidateSet("start","stop","logs","restart","ps","rebuild","clean","seed","shell","mongo","health")]
-    [string]$Command = "start"
-)
-
-$ErrorActionPreference = "Stop"
-Set-Location $PSScriptRoot
-
-# ============================================================
-# HELPERS
-# ============================================================
-function Write-Log     { param([string]$m) Write-Host "> $m" -ForegroundColor Cyan }
-function Write-Success { param([string]$m) Write-Host "[OK] $m" -ForegroundColor Green }
-function Write-Warn    { param([string]$m) Write-Host "[!] $m" -ForegroundColor Yellow }
-function Write-Err     { param([string]$m) Write-Host "[X] $m" -ForegroundColor Red; exit 1 }
-
-# ============================================================
-# GUARD
-# ============================================================
-if ($env:CI -or $env:GITHUB_ACTIONS -or $env:GITLAB_CI) {
-    Write-Err "CI environment detected. Use prod.ps1 on server."
-}
-
-# ============================================================
-# COMPOSE ARGS
-# ============================================================
-$composeArgs = @(
-    "compose",
-    "-f", "docker-compose.yml",
-    "-f", "docker-compose.dev.yml",
-    "--env-file", ".env.dev"
-)
-
-# ============================================================
-# ENSURE ENV
-# ============================================================
-function Ensure-Env {
-    if (-not (Test-Path ".env.dev")) {
-        if (Test-Path ".env.dev.example") {
-            Copy-Item ".env.dev.example" ".env.dev"
-            Write-Warn "Created .env.dev from template"
-        } else {
-            Write-Err ".env.dev missing"
-        }
-    }
-}
-
-# ============================================================
-# COMMANDS
-# ============================================================
-function Cmd-Start {
-    Ensure-Env
-    Write-Log "Starting DEVELOPMENT stack (local)..."
-    docker @composeArgs up --build -d
-    if ($LASTEXITCODE -ne 0) {
-        Write-Err "docker compose up failed"
-    }
-    Write-Success "Development stack is up!"
-    Write-Host ""
-    Write-Host "  Frontend : http://localhost:8080"
-    Write-Host "  Backend  : http://localhost:8000"
-    Write-Host "  API Docs : http://localhost:8000/docs"
-    Write-Host "  MongoDB  : mongodb://localhost:27017"
-    Write-Host "  Redis    : redis://localhost:6379"
-    Write-Host ""
-    Write-Host "  Logs: .\dev.ps1 logs"
-    Write-Host "  Stop: .\dev.ps1 stop"
-    Write-Host ""
-}
-
-function Cmd-Stop {
-    Write-Log "Stopping DEVELOPMENT stack..."
-    docker @composeArgs down
-    Write-Success "Stopped"
-}
-
-function Cmd-Logs {
-    docker @composeArgs logs -f
-}
-
-function Cmd-Restart {
-    Write-Log "Restarting DEVELOPMENT stack..."
-    docker @composeArgs restart
-    Write-Success "Restarted"
-}
-
-function Cmd-Ps {
-    docker @composeArgs ps
-}
-
-function Cmd-Rebuild {
-    Ensure-Env
-    Write-Log "Full rebuild (no cache) - this takes 8-12 minutes..."
-    docker @composeArgs down
-    docker @composeArgs build --no-cache
-    docker @composeArgs up -d
-    Write-Success "Rebuild complete"
-}
-
-function Cmd-Clean {
-    Write-Warn "WARNING: This will DELETE ALL DATA (mongo + redis volumes)."
-    Write-Warn "Type DELETE to confirm:"
-    $confirm = Read-Host
-    if ($confirm -ne "DELETE") {
-        Write-Warn "Cancelled"
-        return
-    }
-    docker @composeArgs down -v --rmi local
-    Write-Success "Cleaned - all data deleted"
-}
-
-function Cmd-Seed {
-    Write-Log "Seeding schemes..."
-    docker @composeArgs exec backend python seed_schemes.py
-    Write-Success "Seeding complete"
-}
-
-function Cmd-Shell {
-    Write-Log "Opening shell in backend..."
-    docker @composeArgs exec backend bash
-}
-
-function Cmd-Mongo {
-    Write-Log "Opening mongosh..."
-    docker @composeArgs exec mongo mongosh RojgarNest
-}
-
-function Cmd-Health {
-    Write-Log "Checking health..."
-    $ok = $true
-
-    try {
-        Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:8000/api/v1/health" -TimeoutSec 5 | Out-Null
-        Write-Host "  [OK] Backend  : OK" -ForegroundColor Green
-    } catch {
-        Write-Host "  [X] Backend  : FAIL" -ForegroundColor Red
-        $ok = $false
-    }
-
-    try {
-        Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:8080/healthz" -TimeoutSec 5 | Out-Null
-        Write-Host "  [OK] Frontend : OK" -ForegroundColor Green
-    } catch {
-        Write-Host "  [X] Frontend : FAIL" -ForegroundColor Red
-        $ok = $false
-    }
-
-    if ($ok) {
-        Write-Success "All healthy"
-    } else {
-        Write-Err "Some services unhealthy"
-    }
-}
-
-# ============================================================
-# ROUTER
-# ============================================================
-switch ($Command) {
-    "start"   { Cmd-Start   }
-    "stop"    { Cmd-Stop    }
-    "logs"    { Cmd-Logs    }
-    "restart" { Cmd-Restart }
-    "ps"      { Cmd-Ps      }
-    "rebuild" { Cmd-Rebuild }
-    "clean"   { Cmd-Clean   }
-    "seed"    { Cmd-Seed    }
-    "shell"   { Cmd-Shell   }
-    "mongo"   { Cmd-Mongo   }
-    "health"  { Cmd-Health  }
-    default   {
-        Write-Host "Usage: .\dev.ps1 <command>"
-        Write-Host ""
-        Write-Host "Commands:"
-        Write-Host "  start      Start development stack (default)"
-        Write-Host "  stop       Stop stack"
-        Write-Host "  logs       Follow logs"
-        Write-Host "  restart    Restart stack"
-        Write-Host "  ps         Show container status"
-        Write-Host "  rebuild    Full rebuild (no cache)"
-        Write-Host "  clean      Stop + delete volumes (DESTROYS DATA)"
-        Write-Host "  seed       Seed schemes"
-        Write-Host "  shell      Shell into backend"
-        Write-Host "  mongo      Shell into mongo"
-        Write-Host "  health     Check endpoints"
-        exit 1
-    }
-}
-
-================================================================================
-[  13/  39] 📜 deploy/dev.sh
-📏 SIZE: 5.3 KB
-🕐 MODIFIED: 2026-11-07 16:56:36
+[  11/  25] 📜 deploy/backup.sh
+📏 SIZE: 1.7 KB
+🕐 MODIFIED: 2026-11-09 21:37:31
 ================================================================================
 
 #!/usr/bin/env bash
 # ============================================================
-# ROJGARNEST — DEVELOPMENT RUNNER (LOCAL COMPUTER ONLY)
+# ROJGARNEST — BACKUP SCRIPT
 # ============================================================
 # Usage:
-#   ./dev.sh              # start
-#   ./dev.sh stop         # stop
-#   ./dev.sh logs         # follow logs
-#   ./dev.sh restart      # restart
-#   ./dev.sh ps           # status
-#   ./dev.sh rebuild      # full rebuild (no cache)
-#   ./dev.sh clean        # stop + delete volumes (DESTROYS DATA)
-#   ./dev.sh seed         # seed schemes
-#   ./dev.sh shell        # shell into backend
-#   ./dev.sh mongo        # shell into mongo
+#   ./backup.sh
+#
+# Cron (daily at 2 AM):
+#   0 2 * * * cd /opt/rojgarnest/deploy && ./backup.sh >> /var/log/rojgarnest-backup.log 2>&1
 # ============================================================
 set -euo pipefail
-cd "$(dirname "$0")"
 
-# Colors
-G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; C='\033[0;36m'; B='\033[1m'; N='\033[0m'
-log()     { echo -e "${C}▶${N} $*"; }
-success() { echo -e "${G}✅${N} $*"; }
-warn()    { echo -e "${Y}⚠️${N}  $*"; }
-error()   { echo -e "${R}❌${N} $*" >&2; exit 1; }
+DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
+BACKUP_DIR="/opt/rojgarnest/backups"
+TS=$(date +%Y%m%d_%H%M%S)
+mkdir -p "$BACKUP_DIR"
 
-# ============================================================
-# GUARD — Prevent running on server
-# ============================================================
-if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${GITLAB_CI:-}" ]; then
-    error "CI environment detected. Use ./prod.sh for server/production."
+cd "$DEPLOY_DIR"
+
+# Resolve actual container IDs (works regardless of COMPOSE_PROJECT_NAME)
+MONGO_C=$(docker compose \
+  -f docker-compose.yml -f docker-compose.prod.yml \
+  --env-file .env.prod ps -q mongo 2>/dev/null || true)
+
+REDIS_C=$(docker compose \
+  -f docker-compose.yml -f docker-compose.prod.yml \
+  --env-file .env.prod ps -q redis 2>/dev/null || true)
+
+# ─── Mongo backup ───
+if [ -n "$MONGO_C" ]; then
+  echo "📦 Backing up MongoDB ($MONGO_C)..."
+  docker exec "$MONGO_C" mongodump --db=RojgarNest --archive --gzip \
+    > "$BACKUP_DIR/mongo_${TS}.archive.gz" 2>/dev/null || true
+else
+  echo "⚠️  MongoDB container not running — skipping"
 fi
 
-# ============================================================
-# COMPOSE COMMAND
-# ============================================================
-COMPOSE=(
-    docker compose
-    -f docker-compose.yml
-    -f docker-compose.dev.yml
-    --env-file .env.dev
-)
+# ─── Redis backup ───
+if [ -n "$REDIS_C" ]; then
+  echo "📦 Backing up Redis ($REDIS_C)..."
+  docker exec "$REDIS_C" redis-cli SAVE >/dev/null 2>&1 || true
+  docker cp "$REDIS_C":/data/dump.rdb \
+    "$BACKUP_DIR/redis_${TS}.rdb" 2>/dev/null || true
+else
+  echo "⚠️  Redis container not running — skipping"
+fi
 
-# ============================================================
-# ENSURE ENV FILE
-# ============================================================
-ensure_env() {
-    if [ ! -f .env.dev ]; then
-        if [ -f .env.dev.example ]; then
-            cp .env.dev.example .env.dev
-            warn "Created .env.dev from template"
-        else
-            error ".env.dev missing AND .env.dev.example missing"
-        fi
-    fi
-}
+# ─── Retention: delete files older than 7 days ───
+find "$BACKUP_DIR" -type f -mtime +7 -delete
 
-# ============================================================
-# COMMANDS
-# ============================================================
-cmd_start() {
-    ensure_env
-    log "Starting DEVELOPMENT stack (local)..."
-    "${COMPOSE[@]}" up --build -d
-    success "Development stack is up!"
-    echo ""
-    echo -e "  ${B}🌐 Frontend${N} : http://localhost:8080"
-    echo -e "  ${B}🔌 Backend${N}  : http://localhost:8000"
-    echo -e "  ${B}📚 API Docs${N} : http://localhost:8000/docs"
-    echo -e "  ${B}🗄️  MongoDB${N}  : mongodb://localhost:27017"
-    echo -e "  ${B}⚡ Redis${N}    : redis://localhost:6379"
-    echo ""
-    echo -e "  ${Y}Logs${N}: ./dev.sh logs"
-    echo -e "  ${Y}Stop${N}: ./dev.sh stop"
-    echo ""
-}
-
-cmd_stop() {
-    log "Stopping DEVELOPMENT stack..."
-    "${COMPOSE[@]}" down
-    success "Stopped"
-}
-
-cmd_logs() {
-    "${COMPOSE[@]}" logs -f
-}
-
-cmd_restart() {
-    log "Restarting DEVELOPMENT stack..."
-    "${COMPOSE[@]}" restart
-    success "Restarted"
-}
-
-cmd_ps() {
-    "${COMPOSE[@]}" ps
-}
-
-cmd_rebuild() {
-    ensure_env
-    log "Full rebuild (no cache) — this takes 8-12 minutes..."
-    "${COMPOSE[@]}" down
-    "${COMPOSE[@]}" build --no-cache
-    "${COMPOSE[@]}" up -d
-    success "Rebuild complete"
-}
-
-cmd_clean() {
-    warn "⚠️  This will DELETE ALL DATA (mongo + redis volumes)."
-    warn "    Press Ctrl+C to cancel, Enter to continue."
-    read -r
-    "${COMPOSE[@]}" down -v --rmi local
-    success "Cleaned — all data deleted"
-}
-
-cmd_seed() {
-    log "Seeding schemes..."
-    "${COMPOSE[@]}" exec backend python seed_schemes.py
-    success "Seeding complete"
-}
-
-cmd_shell() {
-    log "Opening shell in backend..."
-    "${COMPOSE[@]}" exec backend bash
-}
-
-cmd_mongo() {
-    log "Opening mongosh..."
-    "${COMPOSE[@]}" exec mongo mongosh RojgarNest
-}
-
-cmd_health() {
-    log "Checking health..."
-    local ok=1
-    curl -fsS http://localhost:8000/api/v1/health >/dev/null && echo -e "  ${G}✅${N} Backend  : OK" || { echo -e "  ${R}❌${N} Backend  : FAIL"; ok=0; }
-    curl -fsS http://localhost:8080/healthz >/dev/null && echo -e "  ${G}✅${N} Frontend : OK" || { echo -e "  ${R}❌${N} Frontend : FAIL"; ok=0; }
-    [ $ok -eq 1 ] && success "All healthy" || error "Some services unhealthy"
-}
-
-# ============================================================
-# ROUTER
-# ============================================================
-case "${1:-start}" in
-    start|up)    cmd_start ;;
-    stop|down)   cmd_stop ;;
-    logs)        cmd_logs ;;
-    restart)     cmd_restart ;;
-    ps|status)   cmd_ps ;;
-    rebuild)     cmd_rebuild ;;
-    clean)       cmd_clean ;;
-    seed)        cmd_seed ;;
-    shell)       cmd_shell ;;
-    mongo)       cmd_mongo ;;
-    health)      cmd_health ;;
-    *)
-        echo "Usage: ./dev.sh <command>"
-        echo ""
-        echo "Commands:"
-        echo "  start      Start development stack (default)"
-        echo "  stop       Stop stack"
-        echo "  logs       Follow logs"
-        echo "  restart    Restart stack"
-        echo "  ps         Show container status"
-        echo "  rebuild    Full rebuild (no cache)"
-        echo "  clean      Stop + delete volumes (DESTROYS DATA)"
-        echo "  seed       Seed schemes"
-        echo "  shell      Shell into backend"
-        echo "  mongo      Shell into mongo"
-        echo "  health     Check endpoints"
-        exit 1
-        ;;
-esac
+echo "✅ Backup complete: $BACKUP_DIR"
+ls -lh "$BACKUP_DIR" | tail -5
 
 ================================================================================
-[  14/  39] ⚙️ deploy/docker-compose.dev.yml
-📏 SIZE: 1.1 KB
-🕐 MODIFIED: 2026-11-07 17:41:51
+[  12/  25] ⚙️ deploy/docker-compose.dev.yml
+📏 SIZE: 467 B
+🕐 MODIFIED: 2026-11-10 12:29:22
 ================================================================================
-
-# ============================================================
-# ROJGARNEST — DEVELOPMENT OVERRIDE
-# ============================================================
-# Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-# ============================================================
 
 services:
   mongo:
     ports:
-      # Expose MongoDB locally for debugging (MongoDB Compass)
       - "27017:27017"
 
   redis:
     ports:
-      # Expose Redis locally for debugging (redis-cli)
       - "6379:6379"
 
   backend:
     environment:
       ENVIRONMENT: development
       MOBILE_OTP_BYPASS: "true"
-      DEV_MODE_LOG_ONLY: "false"
+      DEV_MODE_LOG_ONLY: "true"
       LOG_LEVEL: DEBUG
     ports:
-      # Expose backend directly for testing (bypass frontend)
       - "8000:8000"
-    # ✅ Dev: mount source code for live-reload (optional)
-    # volumes:
-    #   - ../backend/rojgarnest/app:/app/app:ro
 
   frontend:
     build:
@@ -1219,29 +734,35 @@ services:
         API_BASE_URL: http://localhost:8000/api/v1
         WS_BASE_URL: ws://localhost:8000/notification/ws
     ports:
-      - "8080:80"   # Dev frontend on 8080, not 80
+      - "8080:80"
 
 ================================================================================
-[  15/  39] ⚙️ deploy/docker-compose.prod.yml
+[  13/  25] ⚙️ deploy/docker-compose.prod.yml
 📏 SIZE: 1.3 KB
-🕐 MODIFIED: 2026-11-07 17:42:04
+🕐 MODIFIED: 2026-11-10 12:29:38
 ================================================================================
-
-# ============================================================
-# ROJGARNEST — PRODUCTION OVERRIDE
-# ============================================================
-# Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
-# ============================================================
 
 services:
   mongo:
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
-    # ⚠️ Never expose MongoDB in prod
-    # ports:
-    #   - "27017:27017"
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?MONGO_ROOT_USERNAME required}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD required}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    restart: always
+
+  redis:
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+    restart: always
 
   backend:
     environment:
@@ -1249,49 +770,40 @@ services:
       MOBILE_OTP_BYPASS: "false"
       DEV_MODE_LOG_ONLY: "false"
       LOG_LEVEL: WARNING
-      # ✅ Production DB with auth
       MONGO_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/RojgarNest?authSource=admin
-      # ✅ Production URL
       APP_BASE_URL: https://www.rojgarnest.com
     restart: always
-    # No port exposure — Nginx reverse proxies
-    # ports:
-    #   - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
   frontend:
     build:
       args:
         API_BASE_URL: https://www.rojgarnest.com/api/v1
-        WS_BASE_URL: wss://www.rojgarnest.com/notification/ws
+        WS_BASE_URL: wss://www.rojgarnest.com/ws/notification/ws
     restart: always
     ports:
       - "80:80"
-      - "443:443"
-    volumes:
-      # Optional: mount TLS certs
-      - ./nginx-ssl:/etc/nginx/ssl:ro
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
 
 ================================================================================
-[  16/  39] ⚙️ deploy/docker-compose.yml
-📏 SIZE: 4.0 KB
-🕐 MODIFIED: 2026-11-07 17:41:35
+[  14/  25] ⚙️ deploy/docker-compose.yml
+📏 SIZE: 2.8 KB
+🕐 MODIFIED: 2026-11-10 20:43:17
 ================================================================================
-
-# ============================================================
-# ROJGARNEST — DOCKER COMPOSE (BASE)
-# ============================================================
-# Usage:
-#   Dev:  docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-#   Prod: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
-# ============================================================
 
 services:
-  # ==========================================================
-  # MONGODB
-  # ==========================================================
   mongo:
     image: mongo:7
-    container_name: rojgarnest-mongo
     restart: unless-stopped
     environment:
       MONGO_INITDB_DATABASE: RojgarNest
@@ -1306,12 +818,8 @@ services:
       retries: 5
       start_period: 20s
 
-  # ==========================================================
-  # REDIS
-  # ==========================================================
   redis:
     image: redis:7-alpine
-    container_name: rojgarnest-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
@@ -1325,22 +833,18 @@ services:
       retries: 5
       start_period: 10s
 
-  # ==========================================================
-  # BACKEND (FastAPI)
-  # ==========================================================
   backend:
     build:
       context: ../backend/rojgarnest
       dockerfile: Dockerfile
-    container_name: rojgarnest-backend
+    container_name: rojgarnest-local-backend
     restart: unless-stopped
     environment:
-      # ✅ Override .env localhost values with Docker service names
       MONGO_URI: mongodb://mongo:27017/RojgarNest
       DATABASE_NAME: RojgarNest
       REDIS_URL: redis://redis:6379
       PORT: "8000"
-      # ENVIRONMENT overridden by docker-compose.dev.yml or .prod.yml
+      ENVIRONMENT: development
     env_file:
       - ../backend/rojgarnest/.env
     depends_on:
@@ -1348,6 +852,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    ports:
+      # ✅ EXPOSE 8000 so Swagger/docs accessible from browser directly
+      - "8000:8000"
     volumes:
       - backend_uploads:/app/uploads
       - backend_secure:/app/secure
@@ -1358,48 +865,43 @@ services:
       - rojgarnest-net
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/v1/health"]
-      interval: 30s
+      interval: 15s
       timeout: 10s
       retries: 5
       start_period: 180s
 
-  # ==========================================================
-  # FRONTEND (Flutter Web + Nginx)
-  # ==========================================================
   frontend:
     build:
       context: ../frontend/rojgarnest
       dockerfile: Dockerfile
       args:
-        # Overridden by .dev.yml or .prod.yml
-        API_BASE_URL: http://localhost:8000/api/v1
-        WS_BASE_URL: ws://localhost:8000/notification/ws
-    container_name: rojgarnest-frontend
+        # ✅ PROXY MODE — same-origin, zero CORS issues
+        #    nginx.conf forwards /api/v1/* → backend:8000/api/v1/*
+        API_BASE_URL: /api/v1
+        WS_BASE_URL: /notification/ws
+        BUILD_NUMBER: "1"
+        BUILD_NAME: "2.0.0"
+    container_name: rojgarnest-local-frontend
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
     ports:
-      - "80:80"
+      # ✅ FIXED: 80 → 8080 (Windows me port 80 reserved)
+      - "8080:80"
     networks:
       - rojgarnest-net
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
-      interval: 30s
+      interval: 15s
       timeout: 5s
       retries: 3
       start_period: 20s
 
-# ============================================================
-# NETWORKS
-# ============================================================
 networks:
   rojgarnest-net:
     driver: bridge
 
-# ============================================================
-# VOLUMES
-# ============================================================
 volumes:
   mongo_data:
   redis_data:
@@ -1410,193 +912,9 @@ volumes:
   backend_backups:
 
 ================================================================================
-[  17/  39] 📄 deploy/Dockerfile.dev
-📏 SIZE: 0 B
-🕐 MODIFIED: 2026-11-07 15:57:17
-================================================================================
-
-
-
-================================================================================
-[  18/  39] 📄 deploy/Dockerfile.prod
-📏 SIZE: 0 B
-🕐 MODIFIED: 2026-11-07 15:57:41
-================================================================================
-
-
-
-================================================================================
-[  19/  39] 📄 deploy/Makefile
-📏 SIZE: 2.2 KB
-🕐 MODIFIED: 2026-11-07 16:22:11
-================================================================================
-
-# ============================================================
-# ROJGARNEST — MAKEFILE
-# ============================================================
-.PHONY: help dev-up dev-down dev-logs prod-up prod-down prod-logs seed backup-db status health
-
-# ============================================================
-# VARIABLES
-# ============================================================
-COMPOSE_DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml --env-file .env.dev
-COMPOSE_PROD = docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod
-
-# ============================================================
-# HELP
-# ============================================================
-help:
-	@echo "RojgarNest Deployment Commands:"
-	@echo ""
-	@echo "  make dev-up      Start development stack"
-	@echo "  make dev-down    Stop development stack"
-	@echo "  make dev-logs    Follow development logs"
-	@echo "  make prod-up     Start production stack"
-	@echo "  make prod-down   Stop production stack"
-	@echo "  make prod-logs   Follow production logs"
-	@echo "  make seed        Seed schemes"
-	@echo "  make backup-db   Backup MongoDB"
-	@echo "  make status      Container status"
-	@echo "  make health      Check endpoints"
-
-# ============================================================
-# DEV
-# ============================================================
-dev-up:
-	$(COMPOSE_DEV) up --build -d
-
-dev-down:
-	$(COMPOSE_DEV) down
-
-dev-logs:
-	$(COMPOSE_DEV) logs -f
-
-# ============================================================
-# PROD
-# ============================================================
-prod-up:
-	$(COMPOSE_PROD) up --build -d
-
-prod-down:
-	$(COMPOSE_PROD) down
-
-prod-logs:
-	$(COMPOSE_PROD) logs -f
-
-# ============================================================
-# UTILS
-# ============================================================
-seed:
-	$(COMPOSE_DEV) exec backend python seed_schemes.py
-
-backup-db:
-	mkdir -p backups
-	docker compose exec -T mongo mongodump --archive --gzip > backups/mongo_$$(date +%Y%m%d_%H%M%S).gz
-
-status:
-	docker compose ps
-
-health:
-	curl -fsS http://localhost:8000/api/v1/health && echo
-	curl -fsS http://localhost:8080/healthz && echo
-
-================================================================================
-[  20/  39] ⚙️ deploy/nginx/nginx.dev.conf
-📏 SIZE: 2.5 KB
-🕐 MODIFIED: 2026-11-07 15:11:12
-================================================================================
-
-# ============================================================
-# DEV NGINX — Only used if you add an nginx service to dev compose
-# For local dev, frontend is served on :8080 directly by its own container.
-# You can OPTIONALLY add this as a proxy if you want http://localhost:80 → backend+frontend.
-# ============================================================
-user nginx;
-worker_processes auto;
-worker_rlimit_nofile 65535;
-
-events {
-    worker_connections 2048;
-    multi_accept on;
-}
-
-http {
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
-
-    sendfile on;
-    tcp_nopush on;
-    tcp_nodelay on;
-    keepalive_timeout 65;
-    client_max_body_size 50M;
-
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript
-               application/wasm image/svg+xml application/xml;
-    gzip_min_length 1024;
-    gzip_comp_level 6;
-
-    upstream backend_upstream {
-        server backend:8000;
-    }
-
-    upstream frontend_upstream {
-        server frontend:80;
-    }
-
-    server {
-        listen 80;
-        server_name localhost;
-
-        # ---- Health ----
-        location /health {
-            access_log off;
-            return 200 "healthy\n";
-            add_header Content-Type text/plain;
-        }
-
-        # ---- API ----
-        location /api/ {
-            proxy_pass http://backend_upstream;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_read_timeout 120s;
-        }
-
-        # ---- WebSocket ----
-        location /ws/ {
-            proxy_pass http://backend_upstream;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
-            proxy_set_header Host $host;
-            proxy_read_timeout 86400s;
-        }
-
-        # ---- Backend uploads ----
-        location /uploads/ {
-            proxy_pass http://backend_upstream;
-            expires 1d;
-        }
-
-        # ---- Frontend (Flutter web) ----
-        location / {
-            proxy_pass http://frontend_upstream;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-    }
-}
-
-================================================================================
-[  21/  39] ⚙️ deploy/nginx/nginx.prod.conf
-📏 SIZE: 5.9 KB
-🕐 MODIFIED: 2026-11-05 21:48:55
+[  15/  25] ⚙️ deploy/nginx/nginx.prod.conf
+📏 SIZE: 6.4 KB
+🕐 MODIFIED: 2026-11-09 17:48:47
 ================================================================================
 
 # ============================================================
@@ -1673,6 +991,19 @@ http {
             root /var/www/certbot;
         }
 
+        # ✅ Health check (plain HTTP)
+        location = /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+
+        location = /healthz {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+
         location / {
             return 301 https://$host$request_uri;
         }
@@ -1705,8 +1036,14 @@ http {
         client_body_timeout 60s;
         client_header_timeout 60s;
 
-        # ✅ Health check
-        location /health {
+        # ✅ Health check (HTTPS)
+        location = /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+
+        location = /healthz {
             access_log off;
             return 200 "healthy\n";
             add_header Content-Type text/plain;
@@ -1785,689 +1122,317 @@ http {
 }
 
 ================================================================================
-[  22/  39] 💻 deploy/prod.ps1
-📏 SIZE: 4.5 KB
-🕐 MODIFIED: 2026-11-07 16:57:49
+[  16/  25] 💻 deploy/run-local.ps1
+📏 SIZE: 9.6 KB
+🕐 MODIFIED: 2026-11-11 08:04:13
 ================================================================================
 
+﻿# ============================================================
+# RojgarNest - Local Docker Runner (Windows PowerShell)
+# File: deploy/run-local.ps1
 # ============================================================
-# ROJGARNEST — PRODUCTION RUNNER (WINDOWS SERVER)
+# Usage:
+#   cd deploy
+#   .\run-local.ps1
+#   .\run-local.ps1 --no-cache
+#   .\run-local.ps1 --reset      (wipe containers + volumes, then fresh up)
 # ============================================================
-param(
-    [Parameter(Position=0)]
-    [ValidateSet("start","stop","logs","restart","ps","rebuild","clean","seed","shell","mongo","backup","health")]
-    [string]$Command = "start"
-)
 
-$ErrorActionPreference = "Stop"
-Set-Location $PSScriptRoot
+$ErrorActionPreference = "Continue"   # don't silently kill the script
 
-function Write-Log($m)     { Write-Host "▶ $m" -ForegroundColor Cyan }
-function Write-Success($m) { Write-Host "✅ $m" -ForegroundColor Green }
-function Write-Warn($m)    { Write-Host "⚠️  $m" -ForegroundColor Yellow }
-function Write-Err($m)     { Write-Host "❌ $m" -ForegroundColor Red; exit 1 }
+$noCacheFlag = $false
+$resetFlag   = $false
+foreach ($a in $args) {
+    if ($a -eq "--no-cache") { $noCacheFlag = $true }
+    if ($a -eq "--reset")    { $resetFlag   = $true }
+}
 
-# ============================================================
-# COMPOSE
-# ============================================================
+Write-Host ""
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host "  ROJGARNEST - LOCAL DOCKER DEPLOY" -ForegroundColor Cyan
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host ""
+
+# ------------------------------------------------------------
+# Sanity: are we in the deploy folder?
+# ------------------------------------------------------------
+if (-not (Test-Path "docker-compose.yml")) {
+    Write-Host "ERROR: docker-compose.yml not found." -ForegroundColor Red
+    Write-Host "       Run this script from the 'deploy' folder." -ForegroundColor Gray
+    exit 1
+}
+if (-not (Test-Path ".env.local")) {
+    Write-Host "ERROR: .env.local not found in deploy folder." -ForegroundColor Red
+    exit 1
+}
+if (-not (Test-Path "..\backend\rojgarnest\.env")) {
+    Write-Host "WARNING: ../backend/rojgarnest/.env not found." -ForegroundColor Yellow
+    Write-Host "         Backend will start with defaults and may fail." -ForegroundColor Gray
+}
+
 $composeArgs = @(
-    "compose",
     "-f", "docker-compose.yml",
-    "-f", "docker-compose.prod.yml",
-    "--env-file", ".env.prod"
+    "-f", "docker-compose.dev.yml",
+    "--env-file", ".env.local"
 )
 
-function Ensure-Env {
-    if (-not (Test-Path ".env.prod")) {
-        Write-Err ".env.prod not found. Copy from .env.prod.example."
-    }
-    $content = Get-Content ".env.prod" -Raw
-    if ($content -notmatch "MONGO_ROOT_PASSWORD=.+") {
-        Write-Err "MONGO_ROOT_PASSWORD not set in .env.prod"
-    }
-}
-
-function Cmd-Start {
-    Ensure-Env
-    Write-Log "Starting PRODUCTION stack (server)..."
-    docker @composeArgs up --build -d
-    Write-Success "Production stack is up!"
+# ------------------------------------------------------------
+# [1/6] Reset (optional)
+# ------------------------------------------------------------
+if ($resetFlag) {
+    Write-Host "[1/6] RESET: removing containers + volumes..." -ForegroundColor Yellow
+    docker compose @composeArgs down -v --remove-orphans
+    Write-Host "      Reset done." -ForegroundColor Green
     Write-Host ""
-    Write-Host "  🌐 Frontend : http://localhost:80"
-    Write-Host "  🔌 Backend  : internal (via Nginx)"
+} else {
+    Write-Host "[1/6] Stopping previous containers..." -ForegroundColor Yellow
+    docker compose @composeArgs down --remove-orphans 2>$null
+    Write-Host "      Cleanup done." -ForegroundColor Green
     Write-Host ""
 }
 
-function Cmd-Stop {
-    Write-Log "Stopping..."
-    docker @composeArgs down
-    Write-Success "Stopped"
+# ------------------------------------------------------------
+# [2/6] Build + Start
+# ------------------------------------------------------------
+Write-Host "[2/6] Building and starting containers..." -ForegroundColor Yellow
+Write-Host "      First backend build can take 2 to 5 minutes." -ForegroundColor DarkGray
+Write-Host ""
+
+if ($noCacheFlag) {
+    Write-Host "      Building with --no-cache ..." -ForegroundColor DarkGray
+    docker compose @composeArgs build --no-cache
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "ERROR: 'docker compose build --no-cache' FAILED (exit $LASTEXITCODE)." -ForegroundColor Red
+        Write-Host "       Scroll up — the real error is in the build output above." -ForegroundColor Gray
+        exit 1
+    }
+    docker compose @composeArgs up -d
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "ERROR: 'docker compose up -d' FAILED (exit $LASTEXITCODE)." -ForegroundColor Red
+        Write-Host "       Run: docker compose @composeArgs logs" -ForegroundColor Gray
+        exit 1
+    }
+} else {
+    docker compose @composeArgs up --build -d
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host ""
+        Write-Host "ERROR: 'docker compose up --build -d' FAILED (exit $LASTEXITCODE)." -ForegroundColor Red
+        Write-Host "       Common causes:" -ForegroundColor Gray
+        Write-Host "         - Port 8080 or 8000 already in use (stop the other app)" -ForegroundColor Gray
+        Write-Host "         - Backend Dockerfile build error (scroll up)" -ForegroundColor Gray
+        Write-Host "         - Flutter web build error (scroll up)" -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "       Show recent logs with:" -ForegroundColor Gray
+        Write-Host "         docker compose @composeArgs logs --tail=80" -ForegroundColor Gray
+        exit 1
+    }
 }
 
-function Cmd-Logs    { docker @composeArgs logs -f }
-function Cmd-Restart {
-    Write-Log "Restarting..."
-    docker @composeArgs restart
-    Write-Success "Restarted"
-}
-function Cmd-Ps      { docker @composeArgs ps }
+Write-Host ""
+Write-Host "      Containers launched." -ForegroundColor Green
+Write-Host ""
 
-function Cmd-Rebuild {
-    Ensure-Env
-    Write-Log "Full rebuild (no cache)..."
-    docker @composeArgs down
-    docker @composeArgs build --no-cache
-    docker @composeArgs up -d
-    Write-Success "Rebuild complete"
-}
+# ------------------------------------------------------------
+# [3/6] Wait for Backend health
+# ------------------------------------------------------------
+Write-Host "[3/6] Waiting for backend healthcheck (max 300s)..." -ForegroundColor Yellow
 
-function Cmd-Clean {
-    Write-Warn "⚠️  This will DELETE ALL PRODUCTION DATA."
-    $c = Read-Host "Type 'DELETE' to confirm"
-    if ($c -ne "DELETE") { Write-Warn "Cancelled"; return }
-    docker @composeArgs down -v --rmi local
-    Write-Success "Cleaned"
-}
+$maxWait = 300
+$elapsed = 0
+$backendReady = $false
 
-function Cmd-Seed {
-    docker @composeArgs exec backend python seed_schemes.py
-    Write-Success "Seeding complete"
-}
+while ($elapsed -lt $maxWait) {
+    $status = docker inspect --format='{{.State.Health.Status}}' rojgarnest-local-backend 2>$null
 
-function Cmd-Shell { docker @composeArgs exec backend bash }
+    if ($status -eq "healthy") {
+        $backendReady = $true
+        Write-Host ""
+        Write-Host "      Backend is HEALTHY after $elapsed seconds." -ForegroundColor Green
+        break
+    }
 
-function Cmd-Mongo {
-    $user = (Select-String -Path .env.prod -Pattern "^MONGO_ROOT_USERNAME=(.+)$").Matches.Groups[1].Value
-    $pass = (Select-String -Path .env.prod -Pattern "^MONGO_ROOT_PASSWORD=(.+)$").Matches.Groups[1].Value
-    docker @composeArgs exec mongo mongosh -u $user -p $pass --authenticationDatabase admin RojgarNest
+    if ($status -eq "unhealthy") {
+        Write-Host ""
+        Write-Host "ERROR: Backend became UNHEALTHY." -ForegroundColor Red
+        Write-Host "Last 60 lines of backend logs:" -ForegroundColor Gray
+        docker logs --tail 60 rojgarnest-local-backend
+        break
+    }
+
+    Write-Host "      [$elapsed s] backend status: $status" -ForegroundColor DarkGray
+    Start-Sleep -Seconds 3
+    $elapsed = $elapsed + 3
 }
 
-function Cmd-Backup {
-    Ensure-Env
-    Write-Log "Backing up MongoDB..."
-    New-Item -ItemType Directory -Path "backups" -Force | Out-Null
-    $ts = Get-Date -Format "yyyyMMdd_HHmmss"
-    $file = "backups/mongo_${ts}.gz"
-    # Using mongo container's env vars
-    docker @composeArgs exec -T mongo sh -c `
-        'mongodump --archive --gzip --uri="mongodb://$MONGO_ROOT_USERNAME:$MONGO_ROOT_PASSWORD@localhost:27017/RojgarNest?authSource=admin"' `
-        | Out-File -FilePath $file -Encoding binary
-    Write-Success "Backup saved: $file"
+if (-not $backendReady) {
+    Write-Host ""
+    Write-Host "WARNING: Backend not healthy after $maxWait seconds." -ForegroundColor Yellow
+    Write-Host "         Showing last 60 log lines so you can see WHY:" -ForegroundColor Gray
+    docker logs --tail 60 rojgarnest-local-backend
+    Write-Host ""
+    Write-Host "         Common fixes:" -ForegroundColor Gray
+    Write-Host "           - Check ../backend/rojgarnest/.env has MONGO_URI, SECRET_KEY, JWT_SECRET_KEY" -ForegroundColor Gray
+    Write-Host "           - Check MongoDB started: docker logs rojgarnest-local-mongo" -ForegroundColor Gray
 }
 
-function Cmd-Health {
-    Write-Log "Checking health..."
-    $ok = $true
-    try { Invoke-WebRequest -UseBasicParsing -Uri "http://localhost/healthz" -TimeoutSec 5 | Out-Null; Write-Host "  ✅ Frontend : OK" -ForegroundColor Green } catch { Write-Host "  ❌ Frontend : FAIL" -ForegroundColor Red; $ok = $false }
-    try { Invoke-WebRequest -UseBasicParsing -Uri "http://localhost/api/v1/health" -TimeoutSec 5 | Out-Null; Write-Host "  ✅ Backend  : OK" -ForegroundColor Green } catch { Write-Host "  ❌ Backend  : FAIL" -ForegroundColor Red; $ok = $false }
-    if ($ok) { Write-Success "All healthy" } else { Write-Err "Some unhealthy" }
+Write-Host ""
+
+# ------------------------------------------------------------
+# [4/6] Wait for Frontend health
+# ------------------------------------------------------------
+Write-Host "[4/6] Waiting for frontend healthcheck (max 90s)..." -ForegroundColor Yellow
+
+$maxWait = 90
+$elapsed = 0
+$frontendReady = $false
+
+while ($elapsed -lt $maxWait) {
+    $status = docker inspect --format='{{.State.Health.Status}}' rojgarnest-local-frontend 2>$null
+
+    if ($status -eq "healthy") {
+        $frontendReady = $true
+        Write-Host "      Frontend is HEALTHY after $elapsed seconds." -ForegroundColor Green
+        break
+    }
+
+    Start-Sleep -Seconds 2
+    $elapsed = $elapsed + 2
 }
 
-switch ($Command) {
-    "start"   { Cmd-Start }
-    "stop"    { Cmd-Stop }
-    "logs"    { Cmd-Logs }
-    "restart" { Cmd-Restart }
-    "ps"      { Cmd-Ps }
-    "rebuild" { Cmd-Rebuild }
-    "clean"   { Cmd-Clean }
-    "seed"    { Cmd-Seed }
-    "shell"   { Cmd-Shell }
-    "mongo"   { Cmd-Mongo }
-    "backup"  { Cmd-Backup }
-    "health"  { Cmd-Health }
+if (-not $frontendReady) {
+    Write-Host "WARNING: Frontend not healthy after $maxWait seconds, continuing anyway." -ForegroundColor Yellow
+    Write-Host "         Showing last 40 frontend log lines:" -ForegroundColor Gray
+    docker logs --tail 40 rojgarnest-local-frontend
 }
+
+Write-Host ""
+
+# ------------------------------------------------------------
+# [5/6] Verify endpoints
+# ------------------------------------------------------------
+Write-Host "[5/6] Verifying backend endpoint..." -ForegroundColor Yellow
+
+try {
+    $resp = Invoke-WebRequest -Uri "http://localhost:8000/api/v1/health" -UseBasicParsing -TimeoutSec 5
+    if ($resp.StatusCode -eq 200) {
+        Write-Host "      Backend /api/v1/health -> 200 OK" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "WARNING: Backend /api/v1/health not yet reachable." -ForegroundColor Yellow
+}
+
+try {
+    $resp2 = Invoke-WebRequest -Uri "http://localhost:8080/api/v1/health" -UseBasicParsing -TimeoutSec 5
+    if ($resp2.StatusCode -eq 200) {
+        Write-Host "      Nginx proxy -> backend -> 200 OK" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "WARNING: Nginx proxy not responding yet." -ForegroundColor Yellow
+}
+
+Write-Host ""
+
+$frontendUrl    = "http://localhost:8080"
+$backendDocsUrl = "http://localhost:8000/docs"
+$backendHealth  = "http://localhost:8000/api/v1/health"
+$proxyHealth    = "http://localhost:8080/api/v1/health"
+
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host "  DEPLOYMENT COMPLETE" -ForegroundColor Green
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Frontend:              $frontendUrl" -ForegroundColor White
+Write-Host "  Swagger (direct):      $backendDocsUrl" -ForegroundColor White
+Write-Host "  Swagger (proxy):       http://localhost:8080/docs" -ForegroundColor White
+Write-Host "  Backend (direct):      $backendHealth" -ForegroundColor White
+Write-Host "  Backend (proxy):       $proxyHealth" -ForegroundColor White
+Write-Host ""
+Write-Host "  Useful commands:" -ForegroundColor DarkGray
+Write-Host "    docker logs -f rojgarnest-local-backend" -ForegroundColor DarkGray
+Write-Host "    docker logs -f rojgarnest-local-frontend" -ForegroundColor DarkGray
+Write-Host "    docker logs -f rojgarnest-local-mongo" -ForegroundColor DarkGray
+Write-Host "    docker compose @composeArgs down" -ForegroundColor DarkGray
+Write-Host ""
+
+# ------------------------------------------------------------
+# [6/6] Open browser
+# ------------------------------------------------------------
+Write-Host "[6/6] Opening frontend in browser..." -ForegroundColor Cyan
+Start-Sleep -Seconds 1
+Start-Process $frontendUrl
+
+Write-Host ""
+Write-Host "Browser opened. Happy testing." -ForegroundColor Green
+Write-Host ""
 
 ================================================================================
-[  23/  39] 📜 deploy/prod.sh
-📏 SIZE: 6.8 KB
-🕐 MODIFIED: 2026-11-07 16:57:00
+[  17/  25] 📜 deploy/run-local.sh
+📏 SIZE: 186 B
+🕐 MODIFIED: 2026-11-09 21:41:37
+================================================================================
+
+#!/usr/bin/env bash
+# deploy/run-local.sh
+set -e
+cd "$(dirname "$0")"
+exec docker compose \
+  -f docker-compose.yml \
+  -f docker-compose.dev.yml \
+  --env-file .env.local \
+  "${@:-up}"
+
+================================================================================
+[  18/  25] 📜 deploy/run-prod.sh
+📏 SIZE: 1.1 KB
+🕐 MODIFIED: 2026-11-09 21:54:38
 ================================================================================
 
 #!/usr/bin/env bash
 # ============================================================
-# ROJGARNEST — PRODUCTION RUNNER (SERVER ONLY)
+# deploy/run-prod.sh — PRODUCTION RUNNER
 # ============================================================
 # Usage:
-#   ./prod.sh              # start
-#   ./prod.sh stop         # stop
-#   ./prod.sh logs         # follow logs
-#   ./prod.sh restart      # restart
-#   ./prod.sh ps           # status
-#   ./prod.sh rebuild      # full rebuild (no cache)
-#   ./prod.sh clean        # stop + delete volumes (DESTROYS DATA)
-#   ./prod.sh seed         # seed schemes
-#   ./prod.sh shell        # shell into backend
-#   ./prod.sh mongo        # shell into mongo
-#   ./prod.sh backup       # backup mongo to deploy/backups/
-#   ./prod.sh restore F    # restore mongo from file F
-#   ./prod.sh health       # check endpoints
+#   ./run-prod.sh              # up -d --build (default)
+#   ./run-prod.sh down         # stop everything
+#   ./run-prod.sh logs -f      # tail logs
+#   ./run-prod.sh ps           # running containers
+#   ./run-prod.sh restart      # restart services
 # ============================================================
-set -euo pipefail
+
+set -e
 cd "$(dirname "$0")"
 
-# Colors
-G='\033[0;32m'; Y='\033[1;33m'; R='\033[0;31m'; C='\033[0;36m'; B='\033[1m'; N='\033[0m'
-log()     { echo -e "${C}▶${N} $*"; }
-success() { echo -e "${G}✅${N} $*"; }
-warn()    { echo -e "${Y}⚠️${N}  $*"; }
-error()   { echo -e "${R}❌${N} $*" >&2; exit 1; }
-
-# ============================================================
-# COMPOSE COMMAND
-# ============================================================
-COMPOSE=(
-    docker compose
-    -f docker-compose.yml
-    -f docker-compose.prod.yml
-    --env-file .env.prod
-)
-
-# ============================================================
-# ENSURE ENV FILE
-# ============================================================
-ensure_env() {
-    if [ ! -f .env.prod ]; then
-        error ".env.prod not found. Copy from .env.prod.example and fill MONGO_ROOT_PASSWORD."
-    fi
-
-    # Validate required vars
-    if ! grep -q "^MONGO_ROOT_PASSWORD=.\+" .env.prod; then
-        error "MONGO_ROOT_PASSWORD not set in .env.prod"
-    fi
-    if ! grep -q "^MONGO_ROOT_USERNAME=.\+" .env.prod; then
-        error "MONGO_ROOT_USERNAME not set in .env.prod"
-    fi
-}
-
-# ============================================================
-# COMMANDS
-# ============================================================
-cmd_start() {
-    ensure_env
-    log "Starting PRODUCTION stack (server)..."
-    "${COMPOSE[@]}" up --build -d
-    success "Production stack is up!"
-    echo ""
-    local ip
-    ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
-    echo -e "  ${B}🌐 Frontend${N} : http://${ip}:80"
-    echo -e "  ${B}🔌 Backend${N}  : internal (via Nginx reverse proxy)"
-    echo ""
-    echo -e "  ${Y}Logs${N}: ./prod.sh logs"
-    echo -e "  ${Y}Stop${N}: ./prod.sh stop"
-    echo ""
-}
-
-cmd_stop() {
-    log "Stopping PRODUCTION stack..."
-    "${COMPOSE[@]}" down
-    success "Stopped"
-}
-
-cmd_logs() {
-    "${COMPOSE[@]}" logs -f
-}
-
-cmd_restart() {
-    log "Restarting PRODUCTION stack..."
-    "${COMPOSE[@]}" restart
-    success "Restarted"
-}
-
-cmd_ps() {
-    "${COMPOSE[@]}" ps
-}
-
-cmd_rebuild() {
-    ensure_env
-    log "Full rebuild (no cache) — this takes 8-12 minutes..."
-    "${COMPOSE[@]}" down
-    "${COMPOSE[@]}" build --no-cache
-    "${COMPOSE[@]}" up -d
-    success "Rebuild complete"
-}
-
-cmd_clean() {
-    warn "⚠️  This will DELETE ALL PRODUCTION DATA."
-    warn "    Type 'DELETE' to confirm:"
-    read -r confirm
-    [ "$confirm" = "DELETE" ] || { warn "Cancelled"; exit 0; }
-    "${COMPOSE[@]}" down -v --rmi local
-    success "Cleaned — all data deleted"
-}
-
-cmd_seed() {
-    log "Seeding schemes (production)..."
-    "${COMPOSE[@]}" exec backend python seed_schemes.py
-    success "Seeding complete"
-}
-
-cmd_shell() {
-    log "Opening shell in backend..."
-    "${COMPOSE[@]}" exec backend bash
-}
-
-cmd_mongo() {
-    log "Opening mongosh (with auth)..."
-    local user pass
-    user=$(grep "^MONGO_ROOT_USERNAME=" .env.prod | cut -d= -f2)
-    pass=$(grep "^MONGO_ROOT_PASSWORD=" .env.prod | cut -d= -f2)
-    "${COMPOSE[@]}" exec mongo mongosh -u "$user" -p "$pass" --authenticationDatabase admin RojgarNest
-}
-
-cmd_backup() {
-    ensure_env
-    log "Backing up MongoDB..."
-    mkdir -p backups
-    local ts
-    ts=$(date +%Y%m%d_%H%M%S)
-    local file="backups/mongo_${ts}.gz"
-    "${COMPOSE[@]}" exec -T mongo sh -c \
-        'mongodump --archive --gzip --uri="mongodb://$(MONGO_ROOT_USERNAME):$(MONGO_ROOT_PASSWORD)@localhost:27017/RojgarNest?authSource=admin"' \
-        > "$file"
-    success "Backup saved: $file ($(du -h "$file" | cut -f1))"
-}
-
-cmd_restore() {
-    ensure_env
-    local file="${1:-}"
-    [ -n "$file" ] || error "Usage: ./prod.sh restore <backup.gz>"
-    [ -f "$file" ] || error "File not found: $file"
-    warn "⚠️  This will overwrite current data. Type 'RESTORE' to confirm:"
-    read -r confirm
-    [ "$confirm" = "RESTORE" ] || { warn "Cancelled"; exit 0; }
-    log "Restoring MongoDB from $file..."
-    "${COMPOSE[@]}" exec -T mongo sh -c \
-        'mongorestore --archive --gzip --uri="mongodb://$(MONGO_ROOT_USERNAME):$(MONGO_ROOT_PASSWORD)@localhost:27017/RojgarNest?authSource=admin"' \
-        < "$file"
-    success "Restore complete"
-}
-
-cmd_health() {
-    log "Checking health..."
-    local ok=1
-    local ip
-    ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
-    curl -fsS "http://${ip}/healthz" >/dev/null && echo -e "  ${G}✅${N} Frontend : OK" || { echo -e "  ${R}❌${N} Frontend : FAIL"; ok=0; }
-    curl -fsS "http://${ip}/api/v1/health" >/dev/null && echo -e "  ${G}✅${N} Backend  : OK" || { echo -e "  ${R}❌${N} Backend  : FAIL"; ok=0; }
-    [ $ok -eq 1 ] && success "All healthy" || error "Some services unhealthy"
-}
-
-# ============================================================
-# ROUTER
-# ============================================================
-case "${1:-start}" in
-    start|up)    cmd_start ;;
-    stop|down)   cmd_stop ;;
-    logs)        cmd_logs ;;
-    restart)     cmd_restart ;;
-    ps|status)   cmd_ps ;;
-    rebuild)     cmd_rebuild ;;
-    clean)       cmd_clean ;;
-    seed)        cmd_seed ;;
-    shell)       cmd_shell ;;
-    mongo)       cmd_mongo ;;
-    backup)      cmd_backup ;;
-    restore)     shift; cmd_restore "${1:-}" ;;
-    health)      cmd_health ;;
-    *)
-        echo "Usage: ./prod.sh <command>"
-        echo ""
-        echo "Commands:"
-        echo "  start          Start production stack (default)"
-        echo "  stop           Stop stack"
-        echo "  logs           Follow logs"
-        echo "  restart        Restart stack"
-        echo "  ps             Show container status"
-        echo "  rebuild        Full rebuild (no cache)"
-        echo "  clean          Stop + delete volumes (DESTROYS DATA)"
-        echo "  seed           Seed schemes"
-        echo "  shell          Shell into backend"
-        echo "  mongo          Shell into mongo (with auth)"
-        echo "  backup         Backup mongo to deploy/backups/"
-        echo "  restore <file> Restore mongo from backup file"
-        echo "  health         Check endpoints"
-        exit 1
-        ;;
-esac
-
-================================================================================
-[  24/  39] 📝 deploy/README.md
-📏 SIZE: 143 B
-🕐 MODIFIED: 2026-11-07 16:22:22
-================================================================================
-
-# RojgarNest — Deployment
-
-## Quick Start
-
-### Development
-```bash
-cp .env.dev.example .env.dev
-chmod +x deploy.sh
-./deploy.sh dev-up
-
-================================================================================
-[  25/  39] 📜 deploy/scripts/backup.sh
-📏 SIZE: 538 B
-🕐 MODIFIED: 2026-11-07 17:42:40
-================================================================================
-
-#!/usr/bin/env bash
-set -euo pipefail
-
-BACKUP_DIR="/opt/rojgarnest/backups"
-TS=$(date +%Y%m%d_%H%M%S)
-mkdir -p "$BACKUP_DIR"
-
-# Mongo
-docker exec rojgarnest_mongo mongodump --db=RojgarNest --archive --gzip > \
-  "$BACKUP_DIR/mongo_${TS}.archive.gz" 2>/dev/null || true
-
-# Redis
-docker exec rojgarnest_redis redis-cli SAVE >/dev/null 2>&1 || true
-docker cp rojgarnest_redis:/data/dump.rdb \
-  "$BACKUP_DIR/redis_${TS}.rdb" 2>/dev/null || true
-
-# Retention 7 days
-find "$BACKUP_DIR" -type f -mtime +7 -delete
-
-echo "✅ Backup: $BACKUP_DIR"
-
-================================================================================
-[  26/  39] 📜 deploy/scripts/build-android.sh
-📏 SIZE: 2.0 KB
-🕐 MODIFIED: 2026-09-25 20:11:48
-================================================================================
-
-#!/usr/bin/env bash
-# ============================================================
-# 📱 BUILD ANDROID APK + AAB
-# Usage:
-#   ./build-android.sh apk        → universal APK
-#   ./build-android.sh split      → per-ABI APKs
-#   ./build-android.sh aab        → Play Store bundle
-#   ./build-android.sh all        → everything
-# ============================================================
-set -euo pipefail
-
-MODE="${1:-all}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/../../frontend/rojgarnext"
-
-command -v flutter >/dev/null 2>&1 || { echo "❌ Flutter not installed"; exit 1; }
-
-# Check signing config
-if [ ! -f "android/key.properties" ]; then
-  echo "⚠️  android/key.properties not found"
-  echo "   Copy android/key.properties.example and fill it in"
-  echo "   To generate keystore:"
-  echo "     keytool -genkey -v -keystore android/app/rojgarnext-release-key.jks \\"
-  echo "       -keyalg RSA -keysize 2048 -validity 10000 -alias rojgarnext"
-  exit 1
+# ---- Sanity checks ----
+if [ ! -f "docker-compose.prod.yml" ]; then
+    echo "❌ Missing docker-compose.prod.yml"
+    exit 1
+fi
+if [ ! -f ".env.prod" ]; then
+    echo "❌ Missing .env.prod"
+    exit 1
 fi
 
-flutter pub get
-
-API_URL="${API_BASE_URL:-https://api.rojgarnext.com}"
-FLAVOR="${FLAVOR:-prod}"
-
-case "$MODE" in
-  apk)
-    flutter build apk --release --flavor $FLAVOR --dart-define=API_BASE_URL=$API_URL
-    echo "✅ APK: build/app/outputs/flutter-apk/app-${FLAVOR}-release.apk"
-    ;;
-  split)
-    flutter build apk --release --split-per-abi --flavor $FLAVOR --dart-define=API_BASE_URL=$API_URL
-    echo "✅ Split APKs in: build/app/outputs/flutter-apk/"
-    ls -la build/app/outputs/flutter-apk/*.apk
-    ;;
-  aab)
-    flutter build appbundle --release --flavor $FLAVOR --dart-define=API_BASE_URL=$API_URL
-    echo "✅ AAB: build/app/outputs/bundle/${FLAVOR}Release/app-${FLAVOR}-release.aab"
-    ;;
-  all)
-    flutter build apk --release --split-per-abi --flavor $FLAVOR --dart-define=API_BASE_URL=$API_URL
-    flutter build appbundle --release --flavor $FLAVOR --dart-define=API_BASE_URL=$API_URL
-    echo "✅ All Android artifacts built!"
-    ;;
-  *) echo "Usage: $0 [apk|split|aab|all]"; exit 1 ;;
-esac
-
-================================================================================
-[  27/  39] 📜 deploy/scripts/build-web.sh
-📏 SIZE: 610 B
-🕐 MODIFIED: 2026-09-25 20:12:00
-================================================================================
-
-#!/usr/bin/env bash
-# ============================================================
-# 🌐 BUILD FLUTTER WEB
-# ============================================================
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/../../frontend/rojgarnext"
-
-command -v flutter >/dev/null 2>&1 || { echo "❌ Flutter not installed"; exit 1; }
-
-flutter pub get
-
-API_URL="${API_BASE_URL:-https://api.rojgarnext.com}"
-
-flutter build web \
-  --release \
-  --web-renderer canvaskit \
-  --dart-define=API_BASE_URL=$API_URL
-
-echo "✅ Web build complete: build/web/"
-du -sh build/web
-
-================================================================================
-[  28/  39] 📜 deploy/scripts/deploy-local.sh
-📏 SIZE: 1.7 KB
-🕐 MODIFIED: 2026-09-25 20:11:24
-================================================================================
-
-#!/usr/bin/env bash
-# ============================================================
-# 🖥️  LOCAL DEVELOPMENT — ONE COMMAND
-# ============================================================
-set -euo pipefail
-
-BLUE='\033[0;34m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
-
-log() { echo -e "${BLUE}[$(date +'%H:%M:%S')]${NC} $*"; }
-ok()  { echo -e "${GREEN}✅ $*${NC}"; }
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/.."
-
-command -v docker >/dev/null 2>&1 || { echo "❌ Install Docker first"; exit 1; }
-
-if [ ! -f "../backend/rojgarnext/.env" ]; then
-  log "Creating .env from template..."
-  cp ../backend/rojgarnext/.env.example ../backend/rojgarnext/.env
-  echo "⚠️  Edit ../backend/rojgarnext/.env with your values!"
+# ---- Default to "up -d --build" if no args ----
+if [ $# -eq 0 ]; then
+    exec docker compose \
+        -f docker-compose.yml \
+        -f docker-compose.prod.yml \
+        --env-file .env.prod \
+        up -d --build
 fi
 
-log "Starting local dev environment..."
-docker compose -f docker-compose.dev.yml up -d --build
-
-log "Waiting for services..."
-sleep 15
-
-log "Health check..."
-curl -sf http://localhost:8000/api/v1/health && ok "Backend healthy" || true
-curl -sf http://localhost:8080 >/dev/null && ok "Frontend healthy" || true
-
-echo ""
-echo "============================================================"
-ok "🚀 LOCAL DEV ENVIRONMENT READY"
-echo "============================================================"
-echo "   🌐 Web App      →  http://localhost:8080"
-echo "   📚 API Docs     →  http://localhost:8000/docs"
-echo "   🗄️  Mongo         →  localhost:27017"
-echo "   ⚡ Redis        →  localhost:6379"
-echo "   📱 Android      →  flutter run -d <device-id>"
-echo ""
-echo "   Logs: docker compose -f docker-compose.dev.yml logs -f"
-echo "   Stop: docker compose -f docker-compose.dev.yml down"
-echo "============================================================"
+exec docker compose \
+    -f docker-compose.yml \
+    -f docker-compose.prod.yml \
+    --env-file .env.prod \
+    "$@"
 
 ================================================================================
-[  29/  39] 📜 deploy/scripts/deploy-server.sh
-📏 SIZE: 1.4 KB
-🕐 MODIFIED: 2026-09-25 20:12:28
-================================================================================
-
-#!/usr/bin/env bash
-# ============================================================
-# 🚀 DEPLOY TO SERVER — Zero Downtime
-# ============================================================
-set -euo pipefail
-
-ENV="${1:-production}"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/.."
-
-BLUE='\033[0;34m'; GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
-log() { echo -e "${BLUE}[$(date +'%H:%M:%S')]${NC} $*"; }
-ok()  { echo -e "${GREEN}✅ $*${NC}"; }
-fail(){ echo -e "${RED}❌ $*${NC}"; exit 1; }
-
-# Pre-deploy backup
-log "Creating backup..."
-bash "$SCRIPT_DIR/backup.sh" || true
-
-# Build & deploy
-log "Building images..."
-docker compose -f docker-compose.prod.yml build --parallel
-
-log "Rolling update (zero downtime)..."
-docker compose -f docker-compose.prod.yml up -d --remove-orphans --scale backend=3
-
-# Health check
-log "Health check..."
-for i in {1..30}; do
-  if curl -sf http://localhost/api/v1/health >/dev/null 2>&1; then
-    ok "Backend healthy after ${i}s"
-    break
-  fi
-  [ $i -eq 30 ] && fail "Health check failed"
-  sleep 1
-done
-
-# Cleanup
-docker image prune -f >/dev/null
-docker builder prune -f --filter "until=72h" >/dev/null
-
-echo ""
-echo "============================================================"
-ok "🎉 DEPLOYMENT SUCCESSFUL — $ENV"
-echo "============================================================"
-docker compose -f docker-compose.prod.yml ps
-
-================================================================================
-[  30/  39] 📜 deploy/scripts/health-check.sh
-📏 SIZE: 0 B
-🕐 MODIFIED: 2026-09-25 19:57:28
-================================================================================
-
-
-
-================================================================================
-[  31/  39] 📜 deploy/scripts/rollback.sh
-📏 SIZE: 0 B
-🕐 MODIFIED: 2026-09-25 19:57:40
-================================================================================
-
-
-
-================================================================================
-[  32/  39] 📜 deploy/scripts/setup-server.sh
-📏 SIZE: 1.8 KB
-🕐 MODIFIED: 2026-11-07 17:42:54
-================================================================================
-
-#!/usr/bin/env bash
-# ============================================================
-# 🖥️  FRESH SERVER SETUP — Ubuntu 22.04 / Debian 12
-# ============================================================
-set -euo pipefail
-
-if [ "$EUID" -ne 0 ]; then
-  echo "Please run as root: sudo bash setup-server.sh"
-  exit 1
-fi
-
-echo "🚀 Setting up RojgarNest server..."
-
-# 1. System update
-apt-get update && apt-get upgrade -y
-
-# 2. Docker
-if ! command -v docker &>/dev/null; then
-  curl -fsSL https://get.docker.com | sh
-  usermod -aG docker "$SUDO_USER" || true
-fi
-
-# 3. Docker Compose plugin
-apt-get install -y docker-compose-plugin
-
-# 4. Utilities
-apt-get install -y curl wget git ufw fail2ban htop
-
-# 5. Firewall
-ufw allow 22/tcp
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw --force enable
-
-# 6. Fail2ban
-systemctl enable fail2ban --now
-
-# 7. Auto security updates
-apt-get install -y unattended-upgrades
-dpkg-reconfigure -plow unattended-upgrades
-
-# 8. Swap (for 2GB RAM VPS)
-if [ ! -f /swapfile ]; then
-  fallocate -l 2G /swapfile
-  chmod 600 /swapfile
-  mkswap /swapfile
-  swapon /swapfile
-  echo '/swapfile none swap sw 0 0' >> /etc/fstab
-fi
-
-# 9. App dir
-mkdir -p /opt/rojgarnest
-chown -R "${SUDO_USER:-root}:${SUDO_USER:-root}" /opt/rojgarnest
-
-# 10. Docker log rotation
-cat > /etc/docker/daemon.json <<EOF
-{
-  "log-driver": "json-file",
-  "log-opts": { "max-size": "10m", "max-file": "3" },
-  "default-ulimits": { "nofile": { "Name": "nofile", "Hard": 65536, "Soft": 65536 } }
-}
-EOF
-systemctl restart docker
-
-echo ""
-echo "✅ Server ready!"
-echo "   Next:"
-echo "   1. cd /opt/rojgarnest && git clone <repo> ."
-echo "   2. cd deploy"
-echo "   3. cp ../backend/rojgarnest/.env.example ../backend/rojgarnest/.env"
-echo "   4. nano ../backend/rojgarnest/.env"
-echo "   5. ./scripts/deploy-server.sh production"
-
-================================================================================
-[  33/  39] 🐍 export_backend_code.py
+[  19/  25] 🐍 export_backend_code.py
 📏 SIZE: 17.1 KB
-🕐 MODIFIED: 2026-10-18 08:35:42
+🕐 MODIFIED: 2026-11-11 12:20:25
 ================================================================================
 
 #!/usr/bin/env python3
@@ -2490,7 +1455,7 @@ from datetime import datetime
 from typing import List, Dict, Tuple
 
 # ================= CONFIGURATION =================
-BACKEND_ROOT = Path(__file__).parent / "backend" / "rojgarnest"
+BACKEND_ROOT = Path(__file__).parent / "backend" / "sevanext"
 
 if not BACKEND_ROOT.exists():
     if Path.cwd().name == "rojgarnext" and (Path.cwd() / "app").exists():
@@ -2950,9 +1915,9 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[  34/  39] 🐍 export_frontend.py
+[  20/  25] 🐍 export_frontend.py
 📏 SIZE: 13.0 KB
-🕐 MODIFIED: 2026-10-18 08:35:42
+🕐 MODIFIED: 2026-11-11 12:20:43
 ================================================================================
 
 # scripts/export_frontend.py
@@ -2970,7 +1935,7 @@ from typing import List, Tuple, Set
 
 # ==================== CONFIGURATION ====================
 # Frontend path - Update this to your actual frontend location
-FRONTEND_PATH = r"E:\yogesh\website\rojgarnest\frontend"
+FRONTEND_PATH = r"E:\yogesh\website\sevanext\frontend"
 
 # Output file
 OUTPUT_FILE = "frontend_export.txt"
@@ -3358,9 +2323,9 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[  35/  39] 🐍 export_remaining.py
+[  21/  25] 🐍 export_remaining.py
 📏 SIZE: 13.8 KB
-🕐 MODIFIED: 2026-11-06 11:04:06
+🕐 MODIFIED: 2026-11-11 12:39:20
 ================================================================================
 
 # scripts/export_all_except.py
@@ -3383,7 +2348,7 @@ from typing import List, Tuple, Dict
 
 # ==================== CONFIGURATION ====================
 
-ROOT_PATH = r"E:\YOGESH\website\RojgarNest"
+ROOT_PATH = r"E:\YOGESH\website\SevaNext"
 OUTPUT_FILE = "full_project_export.txt"
 
 # ❌ Folders to EXCLUDE (case-insensitive, anywhere in tree)
@@ -3761,7 +2726,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-[  36/  39] ⚙️ monitoring/logstash.conf
+[  22/  25] ⚙️ monitoring/logstash.conf
 📏 SIZE: 578 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3799,7 +2764,7 @@ output {
 }
 
 ================================================================================
-[  37/  39] ⚙️ monitoring/prometheus.yml
+[  23/  25] ⚙️ monitoring/prometheus.yml
 📏 SIZE: 536 B
 🕐 MODIFIED: 2026-09-10 10:40:32
 ================================================================================
@@ -3831,7 +2796,7 @@ scrape_configs:
       - targets: ['redis:9121']
 
 ================================================================================
-[  38/  39] 📋 railway.frontend.json
+[  24/  25] 📋 railway.frontend.json
 📏 SIZE: 431 B
 🕐 MODIFIED: 2026-11-05 21:52:26
 ================================================================================
@@ -3855,7 +2820,7 @@ scrape_configs:
 }
 
 ================================================================================
-[  39/  39] 📋 railway.json
+[  25/  25] 📋 railway.json
 📏 SIZE: 533 B
 🕐 MODIFIED: 2026-11-07 17:44:06
 ================================================================================
@@ -3879,6 +2844,6 @@ scrape_configs:
 ================================================================================
 🎉 EXPORT COMPLETED!
 ================================================================================
-Total Files: 39
-Generated: 2026-11-08 16:13:15
+Total Files: 25
+Generated: 2026-11-11 14:19:06
 ================================================================================

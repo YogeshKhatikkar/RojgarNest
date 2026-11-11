@@ -18,7 +18,7 @@ from typing import List, Tuple, Dict
 
 # ==================== CONFIGURATION ====================
 
-ROOT_PATH = r"E:\YOGESH\website\RojgarNest"
+ROOT_PATH = r"E:\YOGESH\website\SevaNext"
 OUTPUT_FILE = "full_project_export.txt"
 
 # ❌ Folders to EXCLUDE (case-insensitive, anywhere in tree)

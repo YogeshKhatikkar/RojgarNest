@@ -9,8 +9,10 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/rojgarnest
-  FLUTTER_VERSION: '3.24.0'
+  IMAGE_PREFIX: ${{ github.repository_owner }}/sevanext
+  # ✅ FIXED: Flutter 3.27.1 ships Dart SDK 3.6.2
+  # Required by fl_chart >=1.0.0
+  FLUTTER_VERSION: '3.27.1'
 
 jobs:
   # ============================================================
@@ -82,15 +84,15 @@ jobs:
         run: flutter doctor -v
 
       - name: Get dependencies
-        working-directory: frontend/rojgarnest
+        working-directory: frontend/sevanext
         run: flutter pub get
 
       - name: Analyze code
-        working-directory: frontend/rojgarnest
+        working-directory: frontend/sevanext
         run: flutter analyze --no-fatal-infos || true
 
       - name: Build Web (Release)
-        working-directory: frontend/rojgarnest
+        working-directory: frontend/sevanext
         run: |
           flutter build web --release \
             --base-href=/ \
@@ -295,13 +297,35 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_PORT || 22 }}
           script: |
-            cd /opt/rojgarnest/deploy
+            set -e
+            cd /opt/rojgarnest
+
+            echo "📥 Pulling latest code..."
+            git pull origin main
+
+            cd deploy
+
+            echo "🔐 Docker login..."
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            export IMAGE_TAG=${{ github.sha }}
-            export GITHUB_REPOSITORY_OWNER=${{ github.repository_owner }}
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+            echo "📦 Pulling latest images..."
+            docker compose \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              pull
+
+            echo "🚀 Starting stack..."
+            docker compose \
+              -f docker-compose.yml \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              up -d --remove-orphans
+
+            echo "🧹 Cleaning old images..."
             docker image prune -f
+
+            echo "⏳ Waiting for health check..."
             sleep 20
             for i in $(seq 1 30); do
               if curl -sf http://localhost/api/v1/health >/dev/null 2>&1; then
